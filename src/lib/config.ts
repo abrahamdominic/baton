@@ -6,10 +6,19 @@ import { z } from "zod";
 // here. A production deploy without it fails loudly at the first query.
 const databaseUrlSchema = z.string().default("");
 
+// PaaS providers (Vercel, etc.) often inject empty strings for vars that were
+// never configured. Treat those as unset so the sensible fallback is used.
+function urlOrDefault(fallback: string) {
+  return z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().url().default(fallback),
+  );
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  SITE_URL: z.string().url().default("https://baton.dev"),
-  APP_URL: z.string().url().default("http://localhost:3000"),
+  SITE_URL: urlOrDefault("https://baton.dev"),
+  APP_URL: urlOrDefault("http://localhost:3000"),
 
   DATABASE_URL: databaseUrlSchema,
 

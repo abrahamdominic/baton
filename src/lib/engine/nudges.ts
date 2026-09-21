@@ -124,9 +124,6 @@ function nudgeBody(
   let mentions = "";
   let details = "";
 
-  const repoPath = `${setting.repoId}`; // not used; kept for shape
-  void repoPath;
-
   switch (state) {
     case "awaiting_review": {
       const targets = humans(input.requestedReviewerLogins);

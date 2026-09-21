@@ -34,7 +34,7 @@ const SITE_JSON_LD = {
 const STATS = [
   { value: "89%", label: "of PR cycle time is spent waiting — not working" },
   { value: "2–6 days", label: "average lag before a first review lands" },
-  { value: "1 in N", label: "PRs genuinely orphaned: never reviewed, never closed" },
+  { value: "24–72h", label: "configurable grace period before Baton nudges anyone" },
   { value: "0", label: "reviews you have to send to install Baton" },
 ];
 
@@ -220,11 +220,10 @@ export default function LandingPage() {
       {/* Security */}
       <section className="container-page mt-24">
         <div className="card mx-auto max-w-3xl p-8 text-center">
-          <h2 className="text-2xl font-bold tracking-tight">Built to be invisible and trustworthy</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Small permissions, clear boundaries</h2>
           <p className="mx-auto mt-3 max-w-xl text-sm text-ink-300">
-            Baton owns nothing, asks for the minimum, and works entirely inside GitHub&apos;s
-            permission model. Read-only on your code, write access limited to PR comments and
-            labels. See our{" "}
+            Baton asks for the narrowest set of GitHub permissions it can get away with:
+            read-only on your code, write access limited to PR comments and labels. See our{" "}
             <Link href="/security" className="link">Security &amp; privacy</Link> policy for the full detail.
           </p>
         </div>
@@ -235,8 +234,8 @@ export default function LandingPage() {
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-bold tracking-tight">Stop losing days to &quot;who&apos;s on this?&quot;</h2>
           <p className="mt-3 text-ink-300">
-            The best time to know whose turn it is is the moment a PR stalls. With Baton, that
-            knowledge is already on the PR.
+            A PR that sits quietly costs a day here, a day there. Baton puts the &quot;whose turn&quot;
+            answer on the PR itself, so nothing has to wait for someone to ask.
           </p>
           <Link href="/auth/login?next=/dashboard" className="btn-primary mt-6 px-8 py-3 text-base">
             Install Baton for free
