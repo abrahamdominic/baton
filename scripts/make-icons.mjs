@@ -24,7 +24,7 @@ for (const t of targets) {
   console.log("wrote", `public/${t.file}`);
 }
 
-// apple touch icon (rounded corners preserved) — apple prefers opaque PNG.
+// apple touch icon (rounded corners preserved), apple prefers opaque PNG.
 const apple = await sharp(svg).resize(180, 180).png().toBuffer();
 writeFileSync(resolve(outDir, "apple-touch-icon.png"), apple);
 console.log("wrote public/apple-touch-icon.png");

@@ -17,7 +17,7 @@ No PostgreSQL is required for local development.
 
 ## Before you open a PR
 
-Run the full local check suite — CI runs the same:
+Run the full local check suite, CI runs the same:
 
 ```bash
 npm run typecheck
@@ -28,13 +28,13 @@ npm run build
 
 ## Project layout
 
-- `src/lib/engine/` — the pure classification/nudge logic. Keep it deterministic
+- `src/lib/engine/`, the pure classification/nudge logic. Keep it deterministic
   and unit-testable; this is the heart of the product.
-- `src/lib/github/` — all GitHub API access. Keep Octokit usage isolated here.
-- `src/lib/webhooks/` — webhook verification and event dispatch.
-- `src/worker/` — background processing entrypoints.
-- `src/app/` — Next.js App Router pages and route handlers.
-- `prisma/schema.prisma` — the canonical schema. Never edit the generated
+- `src/lib/github/`, all GitHub API access. Keep Octokit usage isolated here.
+- `src/lib/webhooks/`, webhook verification and event dispatch.
+- `src/worker/`, background processing entrypoints.
+- `src/app/`, Next.js App Router pages and route handlers.
+- `prisma/schema.prisma`, the canonical schema. Never edit the generated
   `schema.sqlite.prisma` by hand; run `npm run db:sqlite:schema`.
 
 ## Guidelines
@@ -44,7 +44,7 @@ npm run build
 - **Pure functions first.** New state logic belongs in `classification.ts` with
   tests, not in request handlers.
 - **One GitHub surface.** Surface state via the existing status comment and
-  labels — upsert in place, never spam a thread.
+  labels, upsert in place, never spam a thread.
 - **Be a good citizen.** Batch API calls, respect rate limits, and fail soft
   (log and continue) so one bad PR never blocks a sweep.
 - **Least privilege.** Do not add GitHub permissions without updating

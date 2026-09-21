@@ -47,6 +47,27 @@ Issues (R/W), Checks (read), Metadata (read).
 | `BATON_JOB_CONCURRENCY` | `4` | Number of jobs the worker processes in parallel. |
 | `BATON_CRON_INTERVAL_MIN` | `720` | Intended sweep cadence (documentation + scheduling hint). |
 
+## Production checklist (Vercel)
+
+Baton runs on Vercel with zero build-specific env in the repository. All secrets
+must be set in the hosting provider's environment settings:
+
+| Variable | Required in prod | Failure mode when missing |
+| --- | --- | --- |
+| `SITE_URL` | yes | Fallback is `https://baton-xi.vercel.app` (see config). |
+| `APP_URL` | yes | Fallback is `https://baton-xi.vercel.app`. |
+| `DATABASE_URL` | yes (Postgres) | First Prisma query throws. |
+| `GITHUB_OAUTH_CLIENT_ID` | yes | `/auth/login` redirects to `/?oauth_config=1` (sign-in broken). |
+| `GITHUB_OAUTH_CLIENT_SECRET` | yes | `/auth/login` redirects to `/?oauth_config=1`; the callback returns `/?oauth_error=1` after a code exchange. |
+| `GITHUB_APP_ID` | yes | App installs cannot be associated. |
+| `GITHUB_APP_PRIVATE_KEY_BASE64` | yes | App API calls fail. |
+| `GITHUB_APP_WEBHOOK_SECRET` | yes | Webhook route returns 500. |
+| `GITHUB_APP_SLUG` | no (default `baton`) | Install links use `baton`. |
+
+Per-repo equivalent: `.env` locally (SQLite + localhost OAuth redirects), Vercel
+env vars in production (Postgres + production OAuth redirects). Never commit
+`.env` or any secret to the repository.
+
 ## Notes
 
 - **Private key formats.** Prefer `BASE64` in production secrets managers; `PATH`

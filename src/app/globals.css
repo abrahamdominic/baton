@@ -15,55 +15,79 @@ html {
 }
 
 body {
-  @apply bg-ink-950 text-ink-100 antialiased;
+  @apply bg-ink-950 text-ink-100 antialiased selection:bg-brand-500/30 selection:text-white;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-::selection {
-  background: rgba(109, 106, 245, 0.35);
-}
-
+/* Engineering dot-grid background */
 @layer components {
   .card {
-    @apply rounded-xl border border-ink-700/50 bg-ink-900;
+    @apply rounded-xl border border-white/[0.08] bg-ink-900/80 transition-all duration-200;
   }
 
   .btn {
-    @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium text-ink-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950;
+    @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-semibold tracking-wide transition-all duration-150 outline-none select-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:scale-[0.98];
   }
+  
   .btn-primary {
-    @apply btn bg-brand-500 text-white hover:bg-brand-400 active:bg-brand-600;
+    @apply btn border border-brand-400/40 bg-brand-500 text-white hover:bg-brand-400;
   }
+  
   .btn-ghost {
-    @apply btn border border-ink-700 bg-transparent text-ink-200 hover:border-ink-600 hover:bg-ink-800/70 hover:text-ink-50;
+    @apply btn border border-white/[0.1] bg-ink-900/70 text-ink-200 shadow-sm hover:border-white/[0.18] hover:bg-ink-800 hover:text-white;
   }
+
+  .btn-secondary {
+    @apply btn border border-white/[0.12] bg-white/[0.05] text-ink-100 hover:bg-white/[0.1] hover:border-white/[0.2] hover:text-white;
+  }
+
   .btn-sm {
     @apply h-8 px-3 text-xs;
   }
+  
   .btn-lg {
-    @apply h-10 px-5 text-sm;
+    @apply h-10 px-5 text-sm font-semibold;
   }
 
   .input {
-    @apply h-9 rounded-md border border-ink-700 bg-ink-900 px-3 text-sm text-ink-50 outline-none placeholder:text-ink-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25;
+    @apply h-9 rounded-lg border border-white/[0.1] bg-ink-900/80 px-3 text-sm text-ink-50 outline-none transition-colors placeholder:text-ink-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25;
   }
 
   .chip {
-    @apply inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium;
   }
-  .chip-info    { @apply chip border-brand-500/25 bg-brand-500/10 text-brand-300; }
-  .chip-warn    { @apply chip border-warn/30 bg-warn/10 text-warn; }
-  .chip-danger  { @apply chip border-danger/30 bg-danger/10 text-danger; }
-  .chip-success { @apply chip border-signal-500/30 bg-signal-500/10 text-signal-400; }
-  .chip-neutral { @apply chip border-ink-600/60 bg-ink-800/50 text-ink-300; }
+  .chip-info {
+    @apply chip border-brand-400/30 bg-brand-500/10 text-brand-300;
+  }
+  .chip-warn {
+    @apply chip border-warn-400/30 bg-warn-500/10 text-warn-300;
+  }
+  .chip-danger {
+    @apply chip border-danger-400/30 bg-danger-500/10 text-danger-300;
+  }
+  .chip-success {
+    @apply chip border-signal-400/30 bg-signal-500/10 text-signal-400;
+  }
+  .chip-neutral {
+    @apply chip border-white/[0.08] bg-ink-850/80 text-ink-300;
+  }
 
   .eyebrow {
-    @apply text-xs font-semibold uppercase tracking-[0.14em] text-ink-400;
+    @apply inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-300;
+  }
+
+  .badge-status {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-ink-900/90 px-3 py-1 font-mono text-xs text-ink-300;
   }
 }
 
 .container-page {
   @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+}
+
+.container-wide {
+  @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
 }
 
 .container-text {
@@ -72,4 +96,23 @@ body {
 
 .link {
   @apply text-brand-300 underline decoration-brand-500/40 decoration-1 underline-offset-4 transition-colors hover:text-brand-200 hover:decoration-brand-400;
+}
+
+/* Custom crisp scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #08090C;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1C2330;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #242E3F;
 }

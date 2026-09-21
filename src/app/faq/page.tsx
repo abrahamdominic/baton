@@ -1,51 +1,84 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
+import { IconGitHub, IconArrowRight } from "@/components/icons";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/faq" },
-  title: "Frequently asked questions",
-  description: "Common questions about Baton, the GitHub App that unblocks stalled pull requests.",
+  title: "Frequently Asked Questions: Baton",
+  description: "Common technical questions about Baton, the deterministic GitHub App that unblocks stalled pull requests.",
 };
 
-const Q = [
+interface FAQItem {
+  category: string;
+  q: string;
+  a: string;
+}
+
+const FAQ_ITEMS: FAQItem[] = [
+  // Core Mechanics
   {
-    q: "What exactly does Baton do?",
-    a: "For every open pull request in a repository you have installed it on, Baton continuously computes the PR's state: what it is blocked on and whose turn it is. It keeps a live status comment and state label on the PR itself, then sends a single, targeted @-mention to the person who can unblock it once it has been stuck past the threshold you set.",
+    category: "Core Mechanics",
+    q: "What exactly does Baton do once installed?",
+    a: "For every open pull request in a repository you install it on, Baton continuously evaluates the PR's state: what it is blocked on and who needs to act next. It maintains one pinned status comment and a matching baton:* label on the PR. If the PR exceeds your configured grace period (e.g. 24 hours), it sends a single targeted @-mention to the person who can unblock it.",
   },
   {
-    q: "How does Baton decide whose turn it is?",
-    a: "A deterministic state machine. It combines GitHub review decisions, pending review requests, CI check conclusions, merge-conflict status, draft state, and latest activity. Every state has an explicit definition, and every result is driven entirely by the GitHub API.",
+    category: "Core Mechanics",
+    q: "How does Baton determine whose turn it is?",
+    a: "A pure deterministic state machine. It combines GitHub review decisions (Approved, Changes Requested, Commented), pending review requests, CI check conclusions, merge-conflict status, draft state, and latest activity timestamps. Every state has an explicit mathematical definition; no LLM guesswork is involved in determining who acts next.",
   },
   {
-    q: "Does Baton read or store my code?",
-    a: "No. Baton requests Pull requests and Issues read/write access for comments and labels, plus read-only Checks and Metadata. It never requests Contents access and never stores diffs or file contents. It stores PR metadata (titles, numbers, URLs, states, timestamps) to render dashboards and measure stall durations.",
+    category: "Core Mechanics",
+    q: "How is this different from generic stale-PR bots?",
+    a: "Stale-PR bots use blunt time rules (e.g. 'mark as stale after 30 days of inactivity') and almost always blame the author, even if the PR has been sitting waiting on a reviewer for weeks. Baton distinguishes between awaiting initial review, re-review after fixes, changes required, CI failing, and merge conflicts, directing attention to the actual blocker.",
+  },
+
+  // Security & Privacy
+  {
+    category: "Security & Permissions",
+    q: "Does Baton read, analyze, or store my source code?",
+    a: "No. Absolutely never. Baton is configured with the strict least-privilege permissions needed for workflow orchestration: Pull requests (read/write for status comments), Issues (read/write for state labels), Checks (read-only), and Metadata. It never requests Contents access, so GitHub's security model strictly prevents Baton from reading files, ASTs, or diffs.",
   },
   {
-    q: "Will Baton spam my team with nudges?",
-    a: "No. Each state can produce at most one nudge per pull request, and only after that state has outlived the repo's configured threshold, by default 24 to 72 hours. You can raise thresholds, disable nudges per repository, or set the max per state to zero and use Baton in read-only mode.",
-  },
-  {
-    q: "How is this different from a stale-PR bot?",
-    a: "Stale bots use blunt time rules and often blame the wrong party. Baton is a state machine that distinguishes between waiting for review, waiting on re-review after the author pushed a fix, author owes changes, CI failing, has conflicts, and approved but not merged, and it names the person who actually needs to act.",
-  },
-  {
+    category: "Security & Permissions",
     q: "Does Baton work on private repositories?",
-    a: "Yes. You control which repositories the GitHub App can access at install time, and you can revoke access at any time in your GitHub settings or by uninstalling Baton.",
+    a: "Yes. You choose exactly which repositories Baton can access during GitHub App installation. You can grant access to individual repos or all repos, and modify permissions or revoke access at any time in your GitHub organization settings.",
   },
   {
-    q: "What happens to my data if I uninstall?",
-    a: "On uninstall Baton immediately stops polling, deletes stored PR snapshots and action history for that installation, and stops posting to GitHub within seconds. See the privacy policy for the full retention and deletion story.",
+    category: "Security & Permissions",
+    q: "What happens to our data if we uninstall Baton?",
+    a: "Uninstalling the GitHub App immediately terminates polling and permanently deletes stored PR snapshots and repository settings for that installation within seconds. Webhook delivery logs are retained for 30 days for operational debugging, then expired.",
+  },
+
+  // Nudges & Etiquette
+  {
+    category: "Nudges & Politeness",
+    q: "Will Baton spam my engineering team with notifications?",
+    a: "No. Baton enforces strict politeness limits: at most one nudge per state per pull request. A nudge is only triggered after the PR has outlived that repo's configured grace period (by default 24h to 48h). You can adjust thresholds per repository or set maximum nudges to zero for a completely silent, comment-only setup.",
   },
   {
-    q: "Can I run Baton on my own infrastructure?",
-    a: "Yes. Baton is AGPL-3.0 open source. The codebase runs on standard PostgreSQL. For teams with strict data requirements we provide a self-hosting guide with Docker Compose.",
+    category: "Nudges & Politeness",
+    q: "What happens when CI checks fail?",
+    a: "Reviewers are never nudged for PRs with failing checks. Baton automatically flips the state to 'CI failing' with ownership assigned to the author. Reviewers are only alerted once the build is green.",
+  },
+
+  // Billing & Open Source
+  {
+    category: "Billing & Open Source",
+    q: "Is Baton really free for open-source repositories?",
+    a: "Yes. All public repositories get full Team plan functionality at zero cost. There are no credit card requirements or time limits for open-source projects.",
+  },
+  {
+    category: "Billing & Open Source",
+    q: "Can we self-host Baton on our own servers?",
+    a: "Yes. Baton is AGPL-3.0 open source. The entire codebase, database migrations, and deployment configs are public. You can run it on your own PostgreSQL infrastructure without external dependencies.",
   },
 ];
 
 const FAQ_JSON_LD = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
-  mainEntity: Q.map((item) => ({
+  mainEntity: FAQ_ITEMS.map((item) => ({
     "@type": "Question",
     name: item.q,
     acceptedAnswer: { "@type": "Answer", text: item.a },
@@ -53,31 +86,85 @@ const FAQ_JSON_LD = {
 };
 
 export default function FaqPage() {
+  const categories = Array.from(new Set(FAQ_ITEMS.map((i) => i.category)));
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-ink-950 text-ink-100">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
       />
       <MarketingHeader />
-      <main className="container-page py-20">
-        <p className="eyebrow">Questions & answers</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink-50 md:text-4xl">
-          Frequently asked questions
-        </h1>
-        <div className="mt-12 max-w-3xl space-y-3">
-          {Q.map((item) => (
-            <details key={item.q} className="group rounded-xl border border-ink-800 bg-ink-900/30">
-              <summary className="cursor-pointer list-none px-6 py-5 text-base font-semibold text-ink-50 transition-colors hover:text-brand-300 group-open:text-brand-300 [&::-webkit-details-marker]:hidden">
-                {item.q}
-              </summary>
-              <div className="border-t border-ink-800 px-6 pb-5 pt-4 text-sm leading-relaxed text-ink-300">
-                {item.a}
+
+      <main className="container-page py-16 md:py-24">
+        <div className="max-w-2xl">
+          <p className="eyebrow">Knowledge Base</p>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
+            Frequently Asked Questions
+          </h1>
+          <p className="mt-4 text-sm sm:text-base text-ink-300 leading-relaxed">
+            Everything you need to know about how Baton tracks pull requests, respects developer focus,
+            and handles permissions.
+          </p>
+        </div>
+
+        <div className="mt-14 space-y-12">
+          {categories.map((cat) => {
+            const items = FAQ_ITEMS.filter((i) => i.category === cat);
+            return (
+              <div key={cat} className="space-y-4">
+                <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-300">
+                  {cat}
+                </h2>
+                <div className="space-y-3">
+                  {items.map((item) => (
+                    <details
+                      key={item.q}
+                      className="group rounded-xl border border-white/[0.08] bg-ink-900/60 transition-all hover:border-white/[0.14] open:border-brand-500/40 open:bg-ink-850"
+                    >
+                      <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-semibold text-white transition-colors group-hover:text-brand-200 [&::-webkit-details-marker]:hidden">
+                        <span>{item.q}</span>
+                        <span className="ml-4 font-mono text-lg text-ink-500 transition-transform duration-200 group-open:rotate-45 group-open:text-brand-400">
+                          +
+                        </span>
+                      </summary>
+                      <div className="border-t border-white/[0.06] px-6 pb-5 pt-3.5 text-xs sm:text-sm leading-relaxed text-ink-300">
+                        {item.a}
+                      </div>
+                    </details>
+                  ))}
+                </div>
               </div>
-            </details>
-          ))}
+            );
+          })}
+        </div>
+
+        {/* Bottom Help Box */}
+        <div className="mt-16 rounded-2xl border border-white/[0.08] bg-ink-900/40 p-8 text-center sm:text-left sm:flex sm:items-center sm:justify-between gap-6">
+          <div>
+            <h3 className="text-base font-bold text-white">Have a specific question not covered here?</h3>
+            <p className="mt-1 text-xs text-ink-400">
+              Check our public GitHub discussions or review the source code on GitHub.
+            </p>
+          </div>
+          <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
+            <a
+              href="https://github.com/baton-pr/baton/discussions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost btn-sm"
+            >
+              <IconGitHub className="h-3.5 w-3.5" />
+              GitHub Discussions
+            </a>
+            <Link href="/docs" className="btn btn-primary btn-sm">
+              Read the Docs
+              <IconArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
       </main>
+
       <MarketingFooter />
     </div>
   );

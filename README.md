@@ -1,20 +1,20 @@
 # Baton
 
-**Know whose turn it is on every pull request — and unblock stalled work.**
+**Know whose turn it is on every pull request, and unblock stalled work.**
 
 Baton is a GitHub App that removes the single biggest source of lost engineering
 time: pull requests that sit idle because nobody knows who is supposed to act
 next. For every open PR it computes a precise state (`waiting for review`,
 `changes required`, `CI failing`, `conflicts`, `ready to merge`, …), keeps a live
 status comment and a state label on the PR itself, and sends a polite, targeted
-`@mention` to the one person who can unblock it — after a threshold you control.
+`@mention` to the one person who can unblock it, after a threshold you control.
 
-- **Live status card** — one always-current comment at the top of every PR.
-- **State labels** — a canonical `baton:*` label mirrors the PR's state.
-- **Targeted nudges** — one polite reminder per state, to the right person.
-- **Your Move dashboard** — every stalled PR across your repos, sorted by whose
+- **Live status card**: one always-current comment at the top of every PR.
+- **State labels**: a canonical `baton:*` label mirrors the PR's state.
+- **Targeted nudges**: one polite reminder per state, to the right person.
+- **Your Move dashboard**: every stalled PR across your repos, sorted by whose
   turn it is and how long it has been waiting.
-- **Least privilege** — no contents access. Baton never reads your code.
+- **Least privilege**: no contents access. Baton never reads your code.
 
 ## Why
 
@@ -27,7 +27,7 @@ visible and actionable inside GitHub, where the work already happens.
 ## Quick start (local development)
 
 Requirements: Node.js 20+ (24 recommended), npm. No PostgreSQL needed for local
-development — a generated SQLite mirror of the production schema is used.
+development, a generated SQLite mirror of the production schema is used.
 
 ```bash
 git clone https://github.com/your-org/baton && cd baton
@@ -49,11 +49,11 @@ npm run worker
 
 Baton needs two things from GitHub, both free to create:
 
-1. **A GitHub App** — webhook URL `{APP_URL}/api/webhooks`, permissions
+1. **A GitHub App**: webhook URL `{APP_URL}/api/webhooks`, permissions
    *Pull requests: Read & write*, *Issues: Read & write*, *Checks: Read only*,
    *Metadata: Read only*. Subscribe to *Pull request*, *Pull request review*,
    *Pull request review comment*, *Check run*, *Check suite*, *Installation*.
-2. **An OAuth App** (or use the GitHub App's own OAuth credentials) — callback
+2. **An OAuth App** (or use the GitHub App's own OAuth credentials), callback
    URL `{APP_URL}/auth/callback`, so users can sign in.
 
 See [`ENVIRONMENT.md`](./ENVIRONMENT.md) for every variable.
@@ -90,17 +90,17 @@ GitHub ◀──REST/GraphQL──── GitHub App ──▶ runner: fetch → 
         Next.js dashboard ──┘   Worker ── poll Job queue, retry w/ backoff
 ```
 
-The classifier (`src/lib/engine/classification.ts`) is a **pure function** — no
+The classifier (`src/lib/engine/classification.ts`) is a **pure function**: no
 AI, fully deterministic, unit-tested. See [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 for the deep dive.
 
 ## Documentation
 
-- [`PRODUCT.md`](./PRODUCT.md) — the problem, the thesis, personas, pricing, growth.
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — data model, state machine, pipelines.
-- [`SECURITY.md`](./SECURITY.md) — permissions, webhook integrity, threat model.
-- [`ENVIRONMENT.md`](./ENVIRONMENT.md) — every environment variable, explained.
-- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute.
+- [`PRODUCT.md`](./PRODUCT.md): the problem, the thesis, personas, pricing, growth.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md): data model, state machine, pipelines.
+- [`SECURITY.md`](./SECURITY.md): permissions, webhook integrity, threat model.
+- [`ENVIRONMENT.md`](./ENVIRONMENT.md): every environment variable, explained.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md): how to contribute.
 
 ## License
 

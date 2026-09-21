@@ -2,7 +2,7 @@
 
 ## The problem
 
-Engineering teams do not lose most of their time writing code — they lose it
+Engineering teams do not lose most of their time writing code, they lose it
 waiting for code to move. Pull requests routinely sit for days because the
 responsibility for the next action is implicit:
 
@@ -17,7 +17,7 @@ The data is unambiguous:
 - The average PR waits **2–6 days** for its first review.
 - Some repos have **160+ of 167** PRs with zero review engagement; the longest
   waits stretch to hundreds of days.
-- GitHub's own documentation includes a section titled *"Who am I blocking?"* —
+- GitHub's own documentation includes a section titled *"Who am I blocking?"*, 
   a tacit admission that the platform does not answer this today.
 
 Existing tools either only notify you of what's *new* (reviewer requests), only
@@ -28,7 +28,7 @@ dashboard nobody checks.
 
 > Developers currently spend hours hunting for stalled pull requests and working
 > out whose turn it is. Baton tracks the state of every open PR, puts the answer
-> where the work already is — inside the pull request — and then nudges exactly
+> where the work already is, inside the pull request, and then nudges exactly
 > the person who can unblock it.
 
 Baton wins by being **GitHub-native** (the value appears in the PR thread, not in
@@ -37,10 +37,10 @@ and **polite** (a bounded, configurable number of nudges, never spam).
 
 ## Personas
 
-- **The reviewer drowning in requests** — wants to know which of the many PRs
+- **The reviewer drowning in requests**: wants to know which of the many PRs
   truly needs them and how long they've been blocking others.
-- **The PR author** — wants to know why their PR is stuck and who to ping.
-- **The tech lead / maintainer** — wants a pulse on the repo: what's stalled,
+- **The PR author**: wants to know why their PR is stuck and who to ping.
+- **The tech lead / maintainer**: wants a pulse on the repo: what's stalled,
   what's about to rot, what's one click from done.
 
 ## The core loop
@@ -70,21 +70,21 @@ and **polite** (a bounded, configurable number of nudges, never spam).
 
 ## Pricing
 
-- **Individual — $0.** Up to 3 repos, full status card, labels, and dashboard.
-- **Team — $4/user/mo.** Unlimited repos, per-repo thresholds, board views.
-- **Organization — custom.** SSO, audit-log export, SLAs, onboarding.
-- **Open source — Team free on public repos.**
+- **Individual, $0.** Up to 3 repos, full status card, labels, and dashboard.
+- **Team, $10/user/mo.** Unlimited repos, per-repo thresholds, board views ($8/user/mo billed annually).
+- **Organization, custom.** SSO, audit-log export, SLAs, onboarding.
+- **Open source, Team free on public repos.**
 
 ## Growth channels
 
-1. **GitHub Marketplace** listing — natural discovery for a GitHub App.
-2. **Open-source launch** — AGPL-3.0, "Show HN", and a public dashboard of
+1. **GitHub Marketplace** listing, natural discovery for a GitHub App.
+2. **Open-source launch**: AGPL-3.0, "Show HN", and a public dashboard of
    aggregate PR-stall statistics as a linkable data asset.
-3. **Content/SEO** — landing page plus `/pricing`, `/faq`, `/security`, `/docs`,
+3. **Content/SEO**: landing page plus `/pricing`, `/faq`, `/security`, `/docs`,
    `/sitemap.xml`, `/robots.txt` for organic search.
-4. **In-product virality** — every status comment and nudge in a public repo
+4. **In-product virality**: every status comment and nudge in a public repo
    carries a subtle Baton signature, so maintainers of other repos see it.
-5. **Integrations** — Slack/Teams notifications (post-MVP) and a public API.
+5. **Integrations**: Slack/Teams notifications (post-MVP) and a public API.
 
 ## Roadmap
 

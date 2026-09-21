@@ -57,19 +57,19 @@ Canonical schema: `prisma/schema.prisma` (PostgreSQL). A generated SQLite mirror
 preserving identical client shapes. No enums or provider-specific column types
 are used, so both providers stay in sync.
 
-- **User** — GitHub identity; owns sessions and installations.
-- **Session** — server-side session with a SHA-256 `tokenHash`; the raw token
+- **User**: GitHub identity; owns sessions and installations.
+- **Session**: server-side session with a SHA-256 `tokenHash`; the raw token
   lives only in an httpOnly cookie.
-- **AppInstallation** — a GitHub App installation, optionally linked to a User.
-- **Repo** — a repository made visible by an installation, with an `enabled` flag.
-- **RepoSetting** — per-repo feature toggles and nudge thresholds (hours).
-- **PullRequest** — the materialized snapshot + classification for a PR, including
+- **AppInstallation**: a GitHub App installation, optionally linked to a User.
+- **Repo**: a repository made visible by an installation, with an `enabled` flag.
+- **RepoSetting**: per-repo feature toggles and nudge thresholds (hours).
+- **PullRequest**: the materialized snapshot + classification for a PR, including
   `stateEnteredAt` (how long it has been stuck), `nudgeBucketsJson` (which nudges
   fired), and `statusCommentId` (to update the status card in place).
-- **WebhookEvent** — `@@unique([deliveryId, eventType])` for durable idempotency.
-- **Job** — the work queue, with `attempts`, `maxAttempts`, `nextAttemptAt`.
-- **Action** — an append-only ledger of what Baton did to GitHub.
-- **AuditLog** — human/account actions (sign-in etc.).
+- **WebhookEvent**: `@@unique([deliveryId, eventType])` for durable idempotency.
+- **Job**: the work queue, with `attempts`, `maxAttempts`, `nextAttemptAt`.
+- **Action**: an append-only ledger of what Baton did to GitHub.
+- **AuditLog**: human/account actions (sign-in etc.).
 
 ## The state machine
 
@@ -106,7 +106,7 @@ reset when the state actually changes, which makes stall durations accurate.
    backoff until `maxAttempts`. Jobs stuck in `processing` for 5+ minutes are
    recovered by a watchdog at the top of each claim cycle.
 4. `processPrRefresh` re-fetches the single PR via GraphQL, classifies it,
-   upserts the `PullRequest`, then — honoring per-repo settings — upserts the
+   upserts the `PullRequest`, then, honoring per-repo settings, upserts the
    status comment, syncs the state label, and posts a nudge if thresholds and
    bucket counts allow.
 5. Every scheduled sweep (`npm run cron`, expected on a hosted cron) lists open

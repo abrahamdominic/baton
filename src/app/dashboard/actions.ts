@@ -52,13 +52,13 @@ export async function updateRepoSettings(input: z.infer<typeof settingsSchema>):
   revalidatePath("/dashboard");
 }
 
-export async function rescanRepo(repo: string): Promise<void> {
+export async function rescanRepo(fullName: string): Promise<void> {
   const user = await currentUser();
   if (!user) throw new Error("sign-in required");
   const installations = await myInstallations(user);
   const match = installations.flatMap((i) =>
     i.repos
-      .filter((r) => r.name === repo)
+      .filter((r) => r.fullName === fullName)
       .map((r) => ({ repo: r, installationId: i.installationId })),
   )[0];
   if (!match) throw new Error("not your repo");
@@ -69,6 +69,6 @@ export async function rescanRepo(repo: string): Promise<void> {
   for (const pr of prs) {
     await enqueuePrRefresh(match.installationId, match.repo.owner, match.repo.name, pr.number);
   }
-  logger.info("repo-rescanned", { repo, prs: prs.length });
+  logger.info("repo-rescanned", { repo: fullName, prs: prs.length });
   revalidatePath("/dashboard/repos");
 }

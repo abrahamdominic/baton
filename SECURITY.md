@@ -40,8 +40,8 @@ must be documented here and added to the GitHub App manifest deliberately.
 
 ## Tenant isolation
 
-- Dashboard reads are scoped to installations owned by — or matching the login
-  of — the signed-in user.
+- Dashboard reads are scoped to installations owned by, or matching the login
+  of, the signed-in user.
 - Repo-level mutations re-verify ownership server-side before writing.
 - The webhook path carries no user credentials; it is authenticated solely by
   signature.
@@ -61,7 +61,7 @@ days for debugging.
 
 ## Secrets handling
 
-- The App private key is read from base64 env, a file path, or an env value —
+- The App private key is read from base64 env, a file path, or an env value, 
   never from the database or disk under version control.
 - The structured logger redacts fields whose keys look sensitive (`token`,
   `secret`, `password`, `cookie`, `authorization`, `private`, …).

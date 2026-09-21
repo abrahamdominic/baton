@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/site";
-import { IconMenu } from "@/components/icons";
+import { IconMenu, IconGitHub, IconArrowRight, IconCheck } from "@/components/icons";
+import { BatonLogo } from "@/components/logo";
 
 const NAV = [
   { href: "/#how-it-works", label: "How it works" },
+  { href: "/#states", label: "State engine" },
   { href: "/#features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
-  { href: "/faq", label: "FAQ" },
   { href: "/docs", label: "Docs" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 const FOOTER_COLS = [
@@ -15,17 +17,28 @@ const FOOTER_COLS = [
     title: "Product",
     links: [
       { href: "/#how-it-works", label: "How it works" },
+      { href: "/#states", label: "State machine" },
       { href: "/#features", label: "Features" },
-      { href: "/pricing", label: "Pricing" },
-      { href: "/docs", label: "Documentation" },
+      { href: "/pricing", label: "Pricing & tiers" },
+      { href: "/dashboard", label: "Your Move dashboard" },
     ],
   },
   {
-    title: "Resources",
+    title: "Architecture & Security",
     links: [
-      { href: "/faq", label: "FAQ" },
       { href: "/security", label: "Security & privacy" },
-      { href: "/auth/login?next=/dashboard", label: "Sign in" },
+      { href: "/docs#architecture", label: "Deterministic pipeline" },
+      { href: "/docs#thresholds", label: "Threshold engine" },
+      { href: "/docs#self-host", label: "Self-hosting guide" },
+    ],
+  },
+  {
+    title: "Resources & Open Source",
+    links: [
+      { href: "/docs", label: "Documentation" },
+      { href: "/faq", label: "FAQ" },
+      { href: "https://github.com/baton-pr/baton", label: "GitHub repository", external: true },
+      { href: "/auth/login?next=/dashboard", label: "Sign in with GitHub" },
     ],
   },
   {
@@ -33,75 +46,75 @@ const FOOTER_COLS = [
     links: [
       { href: "/legal/privacy", label: "Privacy policy" },
       { href: "/legal/terms", label: "Terms of service" },
+      { href: "https://www.gnu.org/licenses/agpl-3.0.html", label: "AGPL-3.0 License", external: true },
     ],
   },
 ];
 
 export function Logo({ className = "" }: { className?: string }) {
-  return (
-    <Link
-      href="/"
-      className={`flex items-center gap-2 font-mono text-lg font-bold tracking-tight text-ink-50 ${className}`}
-    >
-      <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
-        <rect x="2" y="2" width="20" height="20" rx="5" fill="#5B5BD6" />
-        <g transform="rotate(45 12 12)">
-          <rect x="7" y="11" width="10" height="2.4" rx="1.2" fill="#0B0E14" />
-          <circle cx="17.2" cy="12.2" r="1.9" fill="#0B0E14" />
-        </g>
-      </svg>
-      {SITE_NAME.toLowerCase()}
-    </Link>
-  );
+  return <BatonLogo className={className} />;
 }
 
 export function MarketingHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-800/80 bg-ink-950/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-ink-950/85 backdrop-blur-md">
       <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Logo />
+        <BatonLogo />
 
         <nav className="hidden items-center gap-1 md:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-md px-3 py-2 text-sm text-ink-300 transition-colors hover:bg-ink-800/70 hover:text-ink-50"
+              className="rounded-md px-3 py-1.5 text-xs font-medium text-ink-300 transition-colors hover:bg-white/[0.05] hover:text-white"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <Link href="/auth/login" className="btn btn-ghost btn-sm">
+        <div className="hidden items-center gap-3 md:flex">
+          <a
+            href="https://github.com/baton-pr/baton"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1.5 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:text-white"
+          >
+            <IconGitHub className="h-3.5 w-3.5" />
+            <span>AGPL-3.0</span>
+          </a>
+          <Link href="/auth/login?next=/dashboard" className="btn btn-ghost btn-sm">
             Sign in
           </Link>
-          <Link href="/auth/login?next=/dashboard" className="btn btn-primary btn-sm">
+          <Link href="/install" className="btn btn-primary btn-sm">
             Install Baton
+            <IconArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
+        {/* Mobile menu */}
         <details className="group relative md:hidden">
-          <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border border-ink-700 text-ink-200 transition-colors hover:bg-ink-800 hover:text-ink-50 [&::-webkit-details-marker]:hidden">
+          <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-200 transition-colors hover:bg-ink-850 hover:text-white [&::-webkit-details-marker]:hidden">
             <IconMenu className="h-5 w-5" />
             <span className="sr-only">Open menu</span>
           </summary>
-          <div className="absolute right-0 z-50 mt-2 w-64 rounded-xl border border-ink-700 bg-ink-900 p-2 shadow-lift">
-            {NAV.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-md px-3 py-2.5 text-sm text-ink-200 transition-colors hover:bg-ink-800 hover:text-ink-50"
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="mt-2 flex flex-col gap-2 border-t border-ink-800 pt-2">
-              <Link href="/auth/login" className="btn btn-ghost w-full">
+          <div className="absolute right-0 z-50 mt-3 w-64 rounded-xl border border-white/[0.12] bg-ink-900 p-3">
+            <div className="space-y-1">
+              {NAV.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="block rounded-lg px-3 py-2 text-xs font-medium text-ink-200 transition-colors hover:bg-white/[0.06] hover:text-white"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-col gap-2 border-t border-white/[0.08] pt-3">
+              <Link href="/auth/login?next=/dashboard" className="btn btn-ghost w-full">
                 Sign in
               </Link>
-              <Link href="/auth/login?next=/dashboard" className="btn btn-primary w-full">
+              <Link href="/install" className="btn btn-primary w-full">
                 Install Baton
               </Link>
             </div>
@@ -115,38 +128,73 @@ export function MarketingHeader() {
 export function MarketingFooter() {
   const year = new Date().getFullYear();
   return (
-    <footer className="border-t border-ink-800/80">
-      <div className="container-page grid gap-10 py-14 md:grid-cols-[1.2fr_2fr]">
-        <div className="max-w-xs">
-          <Logo />
-          <p className="mt-4 text-sm leading-relaxed text-ink-400">
-            A GitHub App that keeps pull requests moving by showing whose turn it is, right where
-            the work happens.
-          </p>
-          <p className="mt-6 text-xs text-ink-500">
-            © {year} {SITE_NAME} Software Inc. All rights reserved.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3">
-          {FOOTER_COLS.map((col) => (
-            <div key={col.title}>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink-400">
-                {col.title}
-              </h3>
-              <ul className="mt-3 space-y-2.5">
-                {col.links.map((l) => (
-                  <li key={l.label}>
-                    <Link
-                      href={l.href}
-                      className="text-sm text-ink-300 transition-colors hover:text-ink-50"
-                    >
-                      {l.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+    <footer className="border-t border-white/[0.07] bg-ink-950/60">
+      <div className="container-page py-16">
+        <div className="grid gap-12 lg:grid-cols-[1.3fr_2fr]">
+          <div>
+            <BatonLogo />
+            <p className="mt-4 max-w-sm text-xs leading-relaxed text-ink-400">
+              Deterministic workflow automation for GitHub pull requests. Eliminates review stalls,
+              pins the answer in the thread, and keeps code moving without AI hallucinations.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-ink-400">
+              <span className="flex items-center gap-1.5 rounded-full border border-signal-500/20 bg-signal-500/10 px-2.5 py-1 font-mono text-[11px] text-signal-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-signal-500" />
+                Zero code access
+              </span>
+              <span className="rounded-full border border-white/[0.08] bg-ink-900 px-2.5 py-1 font-mono text-[11px] text-ink-400">
+                AGPL-3.0 Open Source
+              </span>
             </div>
-          ))}
+
+            <p className="mt-8 font-mono text-[11px] text-ink-500">
+              © {year} {SITE_NAME} Software Inc. All rights reserved.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+            {FOOTER_COLS.map((col) => (
+              <div key={col.title}>
+                <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-300">
+                  {col.title}
+                </h3>
+                <ul className="mt-3.5 space-y-2.5">
+                  {col.links.map((l) => (
+                    <li key={l.label}>
+                      {l.external ? (
+                        <a
+                          href={l.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-ink-400 transition-colors hover:text-white"
+                        >
+                          {l.label}
+                        </a>
+                      ) : (
+                        <Link
+                          href={l.href}
+                          className="text-xs text-ink-400 transition-colors hover:text-white"
+                        >
+                          {l.label}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-8 font-mono text-[11px] text-ink-500">
+          <p>Deterministic state machine · No AI code summarization · Self-hostable</p>
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center gap-1.5 text-ink-400">
+              <IconCheck className="h-3 w-3 text-signal-500" />
+              100% test coverage on classifier
+            </span>
+          </div>
         </div>
       </div>
     </footer>

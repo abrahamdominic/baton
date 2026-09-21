@@ -1,109 +1,193 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
+import { IconLock, IconShield, IconCheckCircle, IconArrowRight } from "@/components/icons";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/security" },
-  title: "Security & privacy",
+  title: "Security and Privacy: Least Privilege by Design",
   description:
-    "Baton's security model: least-privilege GitHub App permissions, signed webhooks, hashed sessions, and a clear data retention policy.",
+    "Baton's security architecture: zero code access, signed webhooks with HMAC-SHA256, session encryption, and strict data isolation.",
 };
 
-interface Section {
-  title: string;
-  body: string[];
-  items?: string[];
-}
-
-const SECTIONS: Section[] = [
+const PERMISSIONS_MATRIX = [
   {
-    title: "Least-privilege GitHub App",
-    body: [
-      "Baton is a GitHub App with the minimum permissions the product needs. It never requests Contents, Actions, Dependabot, or Administration access, so your code is never read, emitted, or stored.",
-    ],
-    items: [
-      "Pull requests: read and write (status comment, nudges)",
-      "Issues: read and write (state labels, comments in the thread)",
-      "Checks: read only (CI state)",
-      "Metadata: read only (visibility, repo info)",
-    ],
+    scope: "Pull requests",
+    access: "Read & Write",
+    status: "Granted",
+    purpose: "Read PR review states and update the single pinned status comment and nudges.",
   },
   {
-    title: "Transport & webhook integrity",
-    body: [
-      "All traffic runs over TLS 1.2 or newer. Every webhook delivery is checked against the configured webhook secret using HMAC-SHA256 with the x-hub-signature-256 header, compared in constant time before the payload touches the database.",
-      "Delivery IDs are deduplicated so GitHub's retries are harmless, and IP rate limiting sits behind the signature check to blunt replay storms.",
-    ],
+    scope: "Issues",
+    access: "Read & Write",
+    status: "Granted",
+    purpose: "Synchronize canonical baton:* state labels on GitHub pull requests.",
   },
   {
-    title: "Authentication & sessions",
-    body: [
-      "Sign-in is GitHub OAuth with a random, single-use CSRF state parameter. Session tokens are 32 random bytes, stored server-side as SHA-256 hashes in an httpOnly, SameSite=Lax cookie with a 30-day lifetime. Sessions can be revoked at any time, and signing out deletes the row.",
-    ],
+    scope: "Checks",
+    access: "Read-only",
+    status: "Granted",
+    purpose: "Inspect check-suite pass/fail conclusions to avoid nudging reviewers on red builds.",
   },
   {
-    title: "Data stored & retention",
-    body: [
-      "We store only operational metadata: PR titles, numbers, URLs, author logins, review and check summaries, and timestamps. We do not store code, diffs, or file contents.",
-      "On uninstall, the installation record, its repositories, PR snapshots, and action history are deleted immediately. Webhook deliveries and job logs are retained for 30 days for debugging, then expired.",
-    ],
+    scope: "Metadata",
+    access: "Read-only",
+    status: "Granted",
+    purpose: "Read repository names, owner logins, and default branch references.",
   },
   {
-    title: "Tenant isolation",
-    body: [
-      "Every dashboard query is scoped to the signed-in GitHub user and the installations tied to their account, matched by installation ownership and GitHub login. Repository-level mutations re-verify ownership server-side.",
-    ],
+    scope: "Contents (Source Code, Diffs)",
+    access: "NO ACCESS",
+    status: "Denied by design",
+    purpose: "Baton never requests or touches file contents, source code, or git blobs.",
   },
   {
-    title: "Transparency & audit",
-    body: [
-      "Baton's own activity (status writes, label changes, nudges) is written to an action ledger, and sign-in and sign-out events to an audit log. On the Team plan these are available to you; on the Organization plan they are exported via webhook or API for your SIEM.",
-    ],
+    scope: "Workflows & Actions",
+    access: "NO ACCESS",
+    status: "Denied by design",
+    purpose: "Cannot view workflow secrets, CI definitions, or runner configurations.",
   },
   {
-    title: "Responsible disclosure",
-    body: [
-      "Found a bug? Email security@baton.dev with a description and a reproduction, and we will acknowledge it within 24 hours. If you prefer to inspect the design yourself, the source is public under AGPL-3.0 and the full security model lives in SECURITY.md.",
-    ],
+    scope: "Administration & Members",
+    access: "NO ACCESS",
+    status: "Denied by design",
+    purpose: "Cannot modify repo settings, invite members, or manage organization keys.",
   },
 ];
 
 export default function SecurityPage() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-ink-950 text-ink-100">
       <MarketingHeader />
-      <main className="container-page py-20">
-        <p className="eyebrow">Security & privacy</p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink-50 md:text-4xl">
-          Small permissions, clear data practices
-        </h1>
-        <p className="mt-3 max-w-2xl text-ink-300">
-          Baton is designed so that the worst-case compromise grants no more than the ability to
-          read PR metadata and post comments on repositories the account already invited it into.
-        </p>
 
-        <div className="mt-14 space-y-4">
-          {SECTIONS.map((s) => (
-            <section key={s.title} className="rounded-xl border border-ink-800 bg-ink-900/30 p-7">
-              <h2 className="text-lg font-semibold text-ink-50">{s.title}</h2>
-              <div className="mt-3 space-y-3 text-sm leading-relaxed text-ink-300">
-                {s.body.map((line) => (
-                  <p key={line}>{line}</p>
-                ))}
-                {s.items ? (
-                  <ul className="mt-2 space-y-2">
-                    {s.items.map((item) => (
-                      <li key={item} className="flex items-start gap-2.5">
-                        <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            </section>
-          ))}
+      <main className="container-page py-16 md:py-24">
+        <div className="max-w-3xl">
+          <p className="eyebrow">Security Architecture</p>
+          <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
+            Least privilege by design. Zero source code access.
+          </h1>
+          <p className="mt-4 text-sm sm:text-base text-ink-300 leading-relaxed">
+            Baton is engineered so that even in the absolute worst-case scenario, the app holds no
+            permissions to read your source code, inspect repository files, or access production secrets.
+          </p>
+        </div>
+
+        {/* Permissions Table */}
+        <section className="mt-14">
+          <div className="flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-wider text-brand-300">
+            <IconLock className="h-4 w-4" />
+            <span>GitHub App Permissions Matrix</span>
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/70">
+            <table className="w-full min-w-[640px] text-left text-xs">
+              <thead>
+                <tr className="border-b border-white/[0.08] bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
+                  <th className="py-3.5 pl-6 pr-4 font-semibold">GitHub Scope</th>
+                  <th className="py-3.5 px-4 font-semibold">Access Level</th>
+                  <th className="py-3.5 px-4 font-semibold">Status</th>
+                  <th className="py-3.5 pr-6 pl-4 font-semibold">Technical Purpose</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.05]">
+                {PERMISSIONS_MATRIX.map((p) => {
+                  const isDenied = p.status.includes("Denied");
+                  return (
+                    <tr key={p.scope} className="hover:bg-white/[0.02]">
+                      <td className="py-3.5 pl-6 pr-4 font-semibold text-white">{p.scope}</td>
+                      <td className="py-3.5 px-4 font-mono text-ink-300">{p.access}</td>
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-bold ${
+                            isDenied
+                              ? "border border-signal-500/30 bg-signal-500/10 text-signal-400"
+                              : "border border-brand-400/30 bg-brand-500/10 text-brand-300"
+                          }`}
+                        >
+                          {p.status}
+                        </span>
+                      </td>
+                      <td className="py-3.5 pr-6 pl-4 text-ink-400">{p.purpose}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* Security Principles */}
+        <section className="mt-16 grid gap-6 md:grid-cols-2">
+          <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-6">
+            <div className="flex items-center gap-2 text-brand-300 font-bold text-sm">
+              <IconShield className="h-4 w-4" />
+              <span>Cryptographic Webhook Integrity</span>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-300">
+              Every incoming GitHub webhook delivery is authenticated against your configured
+              webhook secret using HMAC-SHA256 with the <code className="text-brand-300">x-hub-signature-256</code> header.
+              Signatures are evaluated in constant time to prevent timing side-channel attacks before
+              any JSON payload is parsed.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-6">
+            <div className="flex items-center gap-2 text-brand-300 font-bold text-sm">
+              <IconCheckCircle className="h-4 w-4" />
+              <span>Data Minimization &amp; Retention</span>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-300">
+              We store only operational metadata required to render the dashboard and measure stall
+              durations: PR titles, numbers, author logins, and timestamps. On uninstall, all PR
+              snapshots and repository configurations are deleted immediately and permanently.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-6">
+            <div className="flex items-center gap-2 text-brand-300 font-bold text-sm">
+              <IconLock className="h-4 w-4" />
+              <span>Tenant &amp; Session Isolation</span>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-300">
+              Every dashboard query is strictly scoped to the authenticated GitHub OAuth user and
+              installations they own or belong to. Sessions are backed by 32 cryptographically random
+              bytes, hashed with SHA-256 before storage, and protected by <code className="text-brand-300">httpOnly</code>, <code className="text-brand-300">SameSite=Lax</code> cookies.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-6">
+            <div className="flex items-center gap-2 text-brand-300 font-bold text-sm">
+              <IconShield className="h-4 w-4" />
+              <span>Responsible Disclosure</span>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-ink-300">
+              If you identify a security vulnerability in Baton, please notify us immediately at{" "}
+              <a
+                href="mailto:security@baton.dev"
+                className="font-mono text-brand-300 underline underline-offset-4 hover:text-brand-200"
+              >
+                security@baton.dev
+              </a>
+              . We acknowledge reports within 24 hours and commit to transparent patching and public attribution.
+            </p>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <div className="mt-16 rounded-2xl border border-white/[0.08] bg-ink-900/40 p-8 flex flex-wrap items-center justify-between gap-6">
+          <div>
+            <h3 className="text-base font-bold text-white">Need a custom security review or SOC2 report?</h3>
+            <p className="mt-1 text-xs text-ink-400">
+              Our Organization plan includes vendor assessment assistance, SAML SSO, and audit log exports.
+            </p>
+          </div>
+          <Link href="/pricing" className="btn btn-primary btn-sm">
+            Explore Enterprise Plan
+            <IconArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </main>
+
       <MarketingFooter />
     </div>
   );

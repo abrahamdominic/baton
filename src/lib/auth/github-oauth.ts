@@ -12,11 +12,14 @@ interface ExchangeResult {
   error_description?: string;
 }
 
+import { getAppBaseUrl } from "./redirect";
+
 /** Build the GitHub "Sign in with GitHub" URL with a CSRF state param. */
-export function oauthAuthorizeUrl(state: string): string {
+export function oauthAuthorizeUrl(state: string, baseUrl?: string): string {
+  const base = baseUrl ?? getAppBaseUrl();
   const params = new URLSearchParams({
     client_id: config.GITHUB_OAUTH_CLIENT_ID,
-    redirect_uri: `${config.APP_URL}/auth/callback`,
+    redirect_uri: `${base}/auth/callback`,
     scope: "read:user user:email",
     state,
     allow_signup: "true",
@@ -24,7 +27,8 @@ export function oauthAuthorizeUrl(state: string): string {
   return `${GITHUB_AUTHORIZE_URL}?${params.toString()}`;
 }
 
-export async function exchangeCode(code: string): Promise<ExchangeResult> {
+export async function exchangeCode(code: string, baseUrl?: string): Promise<ExchangeResult> {
+  const base = baseUrl ?? getAppBaseUrl();
   const res = await fetch(GITHUB_TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/json", accept: "application/json" },
@@ -32,7 +36,7 @@ export async function exchangeCode(code: string): Promise<ExchangeResult> {
       client_id: config.GITHUB_OAUTH_CLIENT_ID,
       client_secret: config.GITHUB_OAUTH_CLIENT_SECRET,
       code,
-      redirect_uri: `${config.APP_URL}/auth/callback`,
+      redirect_uri: `${base}/auth/callback`,
     }),
   });
   return (await res.json()) as ExchangeResult;

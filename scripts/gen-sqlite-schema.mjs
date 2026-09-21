@@ -24,7 +24,7 @@ text = text.replace(
 
 text = text.replace(
   "// This is the canonical schema and targets PostgreSQL in production.",
-  "// AUTO-GENERATED SQLite mirror of schema.prisma. Do not edit directly —",
+  "// AUTO-GENERATED SQLite mirror of schema.prisma. Do not edit directly, ",
 );
 text = text.replace(
   "// this file (scripts/gen-sqlite-schema.mjs) so the exact same client API and",
