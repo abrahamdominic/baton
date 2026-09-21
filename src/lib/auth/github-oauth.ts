@@ -1,8 +1,15 @@
 import { config } from "../env-boot";
+import { getAppBaseUrl } from "./redirect";
 
 export const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 export const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
 export const GITHUB_API = "https://api.github.com";
+// GitHub appends `iss` to OAuth callbacks so clients can detect mix-up
+// attacks. Validate it when present (older redirects may omit it).
+export const GITHUB_OAUTH_ISSUER = "https://github.com/login/oauth";
+export const GITHUB_OAUTH_CALLBACK_PATH = "/auth/callback";
+
+const GITHUB_TIMEOUT_MS = 10_000;
 
 interface ExchangeResult {
   access_token: string;
@@ -10,16 +17,19 @@ interface ExchangeResult {
   scope: string;
   error?: string;
   error_description?: string;
+  error_uri?: string;
 }
 
-import { getAppBaseUrl } from "./redirect";
+function ghFetch(url: string, init: RequestInit): Promise<Response> {
+  return fetch(url, { signal: AbortSignal.timeout(GITHUB_TIMEOUT_MS), ...init });
+}
 
 /** Build the GitHub "Sign in with GitHub" URL with a CSRF state param. */
 export function oauthAuthorizeUrl(state: string, baseUrl?: string): string {
   const base = baseUrl ?? getAppBaseUrl();
   const params = new URLSearchParams({
     client_id: config.GITHUB_OAUTH_CLIENT_ID,
-    redirect_uri: `${base}/auth/callback`,
+    redirect_uri: `${base}${GITHUB_OAUTH_CALLBACK_PATH}`,
     scope: "read:user user:email",
     state,
     allow_signup: "true",
@@ -27,19 +37,39 @@ export function oauthAuthorizeUrl(state: string, baseUrl?: string): string {
   return `${GITHUB_AUTHORIZE_URL}?${params.toString()}`;
 }
 
+/**
+ * Exchange an authorization `code` for a GitHub token. Form-encoded request
+ * body per GitHub's documented token endpoint; never appears in the browser.
+ */
 export async function exchangeCode(code: string, baseUrl?: string): Promise<ExchangeResult> {
   const base = baseUrl ?? getAppBaseUrl();
-  const res = await fetch(GITHUB_TOKEN_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
-    body: JSON.stringify({
-      client_id: config.GITHUB_OAUTH_CLIENT_ID,
-      client_secret: config.GITHUB_OAUTH_CLIENT_SECRET,
-      code,
-      redirect_uri: `${base}/auth/callback`,
-    }),
+  const body = new URLSearchParams({
+    client_id: config.GITHUB_OAUTH_CLIENT_ID,
+    client_secret: config.GITHUB_OAUTH_CLIENT_SECRET,
+    code,
+    redirect_uri: `${base}${GITHUB_OAUTH_CALLBACK_PATH}`,
   });
-  return (await res.json()) as ExchangeResult;
+  const res = await ghFetch(GITHUB_TOKEN_URL, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as ExchangeResult;
+  } catch {
+    // GitHub proxies occasionally answer non-JSON (HTML, empty body).
+    return {
+      access_token: "",
+      token_type: "",
+      scope: "",
+      error: "invalid_response",
+      error_description: `GitHub token endpoint returned HTTP ${res.status}`,
+    };
+  }
 }
 
 export interface GitHubUser {
@@ -61,9 +91,12 @@ function apiHeaders(token: string): Record<string, string> {
 
 export async function fetchGitHubUser(token: string): Promise<GitHubUser> {
   const [userRes, emailsRes] = await Promise.all([
-    fetch(`${GITHUB_API}/user`, { headers: apiHeaders(token) }),
-    fetch(`${GITHUB_API}/user/emails`, { headers: apiHeaders(token) }),
+    ghFetch(`${GITHUB_API}/user`, { headers: apiHeaders(token) }),
+    ghFetch(`${GITHUB_API}/user/emails`, { headers: apiHeaders(token) }),
   ]);
+  if (!userRes.ok) {
+    throw new Error(`GitHub user endpoint failed with HTTP ${userRes.status}`);
+  }
   const user = (await userRes.json()) as Record<string, unknown> & {
     id?: number;
     login?: string;
@@ -77,9 +110,7 @@ export async function fetchGitHubUser(token: string): Promise<GitHubUser> {
       | { message?: string };
     if (Array.isArray(emails)) {
       primaryEmail =
-        emails.find((e) => e.primary && e.verified)?.email ??
-        emails[0]?.email ??
-        null;
+        emails.find((e) => e.primary && e.verified)?.email ?? emails[0]?.email ?? null;
     }
   }
   return {
@@ -91,12 +122,12 @@ export async function fetchGitHubUser(token: string): Promise<GitHubUser> {
   };
 }
 
-/** Installations available to this OAuth user token (GitHub App only). */
+/** Installations available to this GitHub App user token. */
 export async function fetchUserInstallations(token: string): Promise<number[]> {
-  const res = await fetch(`${GITHUB_API}/user/installations?per_page=100`, {
+  const res = await ghFetch(`${GITHUB_API}/user/installations?per_page=100`, {
     headers: apiHeaders(token),
   });
-  if (!res.ok) return []; // OAuth app token or no installations; safe no-op
+  if (!res.ok) return []; // OAuth App token or no installations; safe no-op
   const data = (await res.json()) as { installations?: { id: number }[] };
   return (data.installations ?? []).map((i) => i.id);
 }

@@ -15,12 +15,24 @@ to `.env` to get started.
 
 ## GitHub OAuth (user sign-in)
 
-Create an OAuth app (or reuse the GitHub App's OAuth credentials). Callback URL:
-`{APP_URL}/auth/callback`.
+Sign-in uses the **GitHub App's user-to-server OAuth credentials** (client ID
+starts with `Ov23…`), not a separate OAuth App. Do not mix an OAuth App's
+client secret with the GitHub App, and do not point the OAuth App callback at
+`/auth/callback` while the GitHub App's setup URL also uses it — `/auth/callback`
+handles both (OAuth `code`+`state` sign-in and GitHub App `installation_id`
+setup), and the two flows are distinguished by their parameters, not the route.
+Callback URL: `{APP_URL}/auth/callback`.
+
+When the user authorizes, GitHub redirects to `/auth/callback` with
+`code`, `state`, and `iss=https://github.com/login/oauth`. The route validates
+`iss` (when present) to prevent OAuth mix-up attacks, verifies the CSRF state
+against the signed `baton_oauth_state` cookie, exchanges the code with the
+client secret in a form-encoded POST body (the secret never appears in any
+URL), upserts the user, and sets the `baton_session` httpOnly cookie.
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `GITHUB_OAUTH_CLIENT_ID` | yes | OAuth client ID. |
+| `GITHUB_OAUTH_CLIENT_ID` | yes | OAuth client ID (from the GitHub App). |
 | `GITHUB_OAUTH_CLIENT_SECRET` | yes | OAuth client secret. |
 
 If these are missing, the app runs but sign-in redirects to `/?oauth_config=1`.
@@ -71,12 +83,21 @@ env vars in production (Postgres + production OAuth redirects). Never commit
 ## Notes
 
 - **Private key formats.** Prefer `BASE64` in production secrets managers; `PATH`
-  for local files; raw `KEY` for quick local testing (watch out for `\n`).
+  for local files; raw `KEY` for quick local testing (watch out for `\n`). The
+  base64-decoded value MUST be the `-----BEGIN RSA PRIVATE KEY-----` PEM text.
+  A value such as `SHA256:…` is not a private key; installation-token calls
+  (`src/lib/github/app.ts`) will fail until a real PEM is provided.
+- **Install token vs sign-in.** Sign-in (OAuth exchange + `/user`) needs only
+  `GITHUB_OAUTH_CLIENT_ID`/`SECRET`; the GitHub App private key is required for
+  webhook processing and the install-registration worker.
 - **Local database.** Local development regenerates the client from
   `prisma/schema.sqlite.prisma`, which hardcodes `file:./dev.db`; `DATABASE_URL`
   is ignored locally. Run `npm run db:sqlite:schema && npm run db:sqlite:push`.
 - **Production database.** Regenerate the Prisma client from the canonical
-  Postgres schema (`npm run db:generate`) and run `npm run db:deploy` before
-  starting the app.
+  Postgres schema (`npm run db:generate`). This repository has no
+  `prisma/migrations`, so production Postgres must be provisioned with
+  `prisma db push --schema prisma/schema.prisma` (or add migrations) BEFORE
+  the first deploy — otherwise the OAuth callback (`/?oauth_error=1`), dashboard,
+  and webhook routes all 500 on their first Prisma query.
 - **Multiple web instances.** The rate limiter is in-memory; front Baton with a
   shared limiter (or a single edge) when scaling out.
