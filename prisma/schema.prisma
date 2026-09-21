@@ -1,0 +1,207 @@
+// Baton database schema.
+//
+// This is the canonical schema and targets PostgreSQL in production.
+// For local development without Postgres, a SQLite mirror is generated from
+// this file (scripts/gen-sqlite-schema.mjs) so the exact same client API and
+// shapes are used everywhere. Keep every model compatible with both providers:
+// no enums, no @db.* column modifiers, no Postgres-only types.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  githubId       Int              @unique
+  login          String
+  name           String?
+  email          String?
+  avatarUrl      String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  sessions       Session[]
+  audits         AuditLog[]
+  installations  AppInstallation[]
+
+  @@index([login])
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  lastSeenAt DateTime @default(now()) @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model AppInstallation {
+  id              String    @id @default(cuid())
+  installationId  Int       @unique
+  accountLogin    String
+  accountType     String // "User" | "Organization"
+  userId          String?
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  uninstalledAt   DateTime?
+  repos           Repo[]
+
+  @@index([accountLogin])
+}
+
+model Repo {
+  id               String          @id @default(cuid())
+  installationId   String
+  installation     AppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  repoId           BigInt          @unique
+  owner            String
+  name             String
+  fullName         String          @unique
+  defaultBranch    String
+  isPrivate        Boolean         @default(false)
+  enabled          Boolean         @default(true)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  setting          RepoSetting?
+  pullRequests     PullRequest[]
+  actions          Action[]
+
+  @@index([installationId])
+  @@index([owner, name])
+  @@index([enabled])
+}
+
+model RepoSetting {
+  id                    String  @id @default(cuid())
+  repoId                String  @unique
+  repo                  Repo    @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  statusCommentEnabled  Boolean @default(true)
+  labelsEnabled         Boolean @default(true)
+  nudgesEnabled         Boolean @default(true)
+  // Hours before a first-response nudge is fired on a PR with no human reply.
+  firstResponseHours    Int     @default(24)
+  // Hours before we nudge a reviewer who has not re-reviewed after the author pushed fixes.
+  reviewFollowUpHours   Int     @default(36)
+  // Hours before we nudge an author who has not responded to requested changes.
+  changesRequiredHours  Int     @default(72)
+  // Hours of failing CI before the author is nudged.
+  ciFailHours           Int     @default(24)
+  // Hours of a merge conflict before the author is nudged.
+  conflictHours         Int     @default(12)
+  // Hours an approved, green PR sits unmerged before the merger is nudged.
+  readyToMergeHours     Int     @default(48)
+  // Max nudges we will ever send for one state on one PR.
+  maxNudgesPerState     Int     @default(1)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model PullRequest {
+  id                     String    @id @default(cuid())
+  repoId                 String
+  repo                   Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  number                 Int
+  ghNodeId               String?
+  title                  String
+  url                    String
+  authorLogin            String
+  headRef                String
+  headSha                String
+  baseRef                String
+  isDraft                Boolean   @default(false)
+  githubState            String // OPEN | CLOSED | MERGED
+  state                  String // Baton classification, see engine/classification.ts
+  mergeableState         String? // UNKNOWN | MERGEABLE | CONFLICTING
+  reviewDecision         String? // APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | ""
+  requestedReviewersJson String    @default("[]")
+  labelsJson             String    @default("[]")
+  checksJson             String    @default("[]")
+  snapshotJson           String    @default("{}")
+  stateEnteredAt         DateTime
+  githubUpdatedAt        DateTime
+  lastCheckedAt          DateTime  @default(now())
+  nudgeBucketsJson       String    @default("[]")
+  statusCommentId        BigInt?
+  firstResponseAt        DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  actions                Action[]
+
+  @@unique([repoId, number])
+  @@index([repoId, state])
+  @@index([repoId, githubUpdatedAt])
+  @@index([stateEnteredAt])
+  @@index([githubState])
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  deliveryId  String
+  eventType   String
+  rawJson     String
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+
+  @@unique([deliveryId, eventType])
+}
+
+model Job {
+  id           String    @id @default(cuid())
+  kind         String
+  status       String    @default("pending") // pending | processing | done | failed | stale
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(5)
+  payloadJson  String
+  error        String?
+  nextAttemptAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  @@index([status, createdAt])
+}
+
+model Action {
+  id          String   @id @default(cuid())
+  repoId      String?
+  repo        Repo?    @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  prId        String?
+  pr          PullRequest? @relation(fields: [prId], references: [id], onDelete: Cascade)
+  type        String // status_comment | label | unlabel | nudge | comment | pr_snapshot
+  targetJson  String?
+  ghReference String?
+  createdAt   DateTime @default(now())
+
+  @@index([repoId, createdAt])
+  @@index([prId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actor      String
+  action     String
+  targetType String
+  targetId   String?
+  detailJson String?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
