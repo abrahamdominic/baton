@@ -30,7 +30,7 @@ export function statusCommentBody(ctx: StatusCommentContext): string {
   const c = ctx.classification;
   const meta = STATE_META[c.state];
   const actors =
-    ctx.actorLabels.length > 0 ? ctx.actorLabels.join(", ") : "—";
+    ctx.actorLabels.length > 0 ? ctx.actorLabels.join(", ") : "No one yet";
   const lines: string[] = [
     `<!-- baton-status -->`,
     `## ${meta.label}`,

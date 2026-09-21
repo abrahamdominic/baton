@@ -93,7 +93,7 @@ export async function upsertStatusComment(
     }
   } catch (e: any) {
     if (e?.status !== 404) throw e;
-    // comment was removed — fall through and recreate
+    // comment was removed; fall through and recreate
   }
   const existing = await findBatonComment(octokit, owner, repo, prNumber, STATUS_MARKER);
   if (existing) {

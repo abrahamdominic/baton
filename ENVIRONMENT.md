@@ -9,8 +9,8 @@ to `.env` to get started.
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
 | `NODE_ENV` | no | `development` | `development` \| `test` \| `production`. |
-| `SITE_URL` | no | `https://baton.dev` | Canonical public URL. Used for sitemap, robots, canonical links, OG metadata, and in-product links. No trailing slash. |
-| `APP_URL` | no | `http://localhost:3000` | Where the app actually runs. Used for OAuth redirects and absolute links in dev. |
+| `SITE_URL` | no | `https://baton-xi.vercel.app` | Canonical public URL. Used for sitemap, robots, canonical links, OG metadata, and in-product links. No trailing slash. |
+| `APP_URL` | no | `https://baton-xi.vercel.app` | Where the app actually runs. Used for OAuth redirects and absolute links. Point at `http://localhost:3000` for local dev. |
 | `DATABASE_URL` | yes (prod) | `""` | PostgreSQL connection string. Not needed for local SQLite development. A production deploy without it fails at the first query. |
 
 ## GitHub OAuth (user sign-in)

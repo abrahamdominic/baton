@@ -17,8 +17,8 @@ function urlOrDefault(fallback: string) {
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  SITE_URL: urlOrDefault("https://baton.dev"),
-  APP_URL: urlOrDefault("http://localhost:3000"),
+  SITE_URL: urlOrDefault("https://baton-xi.vercel.app"),
+  APP_URL: urlOrDefault("https://baton-xi.vercel.app"),
 
   DATABASE_URL: databaseUrlSchema,
 

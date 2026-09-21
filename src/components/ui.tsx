@@ -56,9 +56,9 @@ export function SignInButton({ className = "" }: { className?: string }) {
 
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="card flex flex-col items-center gap-2 px-6 py-12 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-ink-800 border-dashed bg-transparent px-6 py-14 text-center">
       <p className="text-lg font-semibold text-ink-100">{title}</p>
-      {hint ? <p className="max-w-md text-sm text-ink-300">{hint}</p> : null}
+      {hint ? <p className="max-w-md text-sm leading-relaxed text-ink-400">{hint}</p> : null}
     </div>
   );
 }

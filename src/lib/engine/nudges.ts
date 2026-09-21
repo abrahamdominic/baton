@@ -130,7 +130,7 @@ function nudgeBody(
       head = `This PR is still waiting for its **first review** (${classification.reasons[0] ?? "no decision yet"}).`;
       mentions =
         targets.length > 0
-          ? `\n\nTurning it over to ${targets.slice(0, 3).map(reviewerMention).join(", ")} — the author replied to everything so far, so the fastest path is a decision: approve, request changes, or make clear it stays on hold.`
+          ? `\n\nTurning it over to ${targets.slice(0, 3).map(reviewerMention).join(", ")}. The author replied to everything so far, so the fastest path is a decision: approve, request changes, or make clear it stays on hold.`
           : `\n\nIt has no assigned reviewers yet. Assigning someone (even a team) turns a silent queue item into an actual review.`;
       break;
     }
@@ -148,7 +148,7 @@ function nudgeBody(
     }
     case "changes_required": {
       head = `Reviewer feedback is waiting on the author.`;
-      mentions = `\n\n@${input.authorLogin} — this PR has requested changes that haven't been answered yet.`;
+      mentions = `\n\n@${input.authorLogin}, this PR has requested changes that haven't been answered yet.`;
       details = `\n\nIf the feedback is wrong, a reply explaining why is still faster for everyone than silence.`;
       break;
     }
@@ -157,19 +157,19 @@ function nudgeBody(
         .filter((c) => ["FAILURE", "CANCELLED", "TIMED_OUT", "STARTUP_FAILURE"].includes(c.conclusion ?? ""))
         .slice(0, 4);
       head = `CI is failing on this PR.`;
-      mentions = `\n\n@${input.authorLogin} — the failing check(s): ${failing.map((c) => `\`${c.name}\``).join(", ")}.`;
+      mentions = `\n\n@${input.authorLogin}, the failing check(s) are ${failing.map((c) => `\`${c.name}\``).join(", ")}.`;
       details = `\n\nFailing CI blocks this from ever looking mergeable; a fix push restarts the whole pipeline.`;
       break;
     }
     case "conflicts": {
       head = `This PR has **merge conflicts** with \`${input.baseRef}\`.`;
-      mentions = `\n\n@${input.authorLogin} — merge (or rebase) ${input.headRef} and resolve the conflicts.`;
+      mentions = `\n\n@${input.authorLogin}, merge (or rebase) ${input.headRef} and resolve the conflicts.`;
       details = `\n\nConflicted PRs can't be reviewed or merged with confidence, and the drift only grows the longer it waits.`;
       break;
     }
     case "ready_to_merge": {
-      head = `This PR is **approved, green, and conflict-free** — it's just not merged.`;
-      mentions = `\n\n@${input.authorLogin} — it's been ${Math.max(1, Math.round(setting.readyToMergeHours / 24))} days of this.`;
+      head = `This PR is **approved, green, and conflict-free** but it hasn't been merged.`;
+      mentions = `\n\n@${input.authorLogin}, it's been ${Math.max(1, Math.round(setting.readyToMergeHours / 24))} days of this.`;
       details = `\n\nAn approved PR that sits unmerged is a second review with a different name: whoever eventually merges it re-reads context that's already gone stale. Merge it or close it.`;
       break;
     }
@@ -185,7 +185,7 @@ function nudgeBody(
     mentions,
     details,
     "",
-    `<sub>Polite, time-boxed nudge from [Baton](${config.SITE_URL}) — it sends at most ${setting.maxNudgesPerState} reminder(s) per state. [Disable in repo settings](${config.SITE_URL}/dashboard).</sub>`,
+    `<sub>Polite, time-boxed nudge from [Baton](${config.SITE_URL}). It sends at most ${setting.maxNudgesPerState} reminder(s) per state. [Disable in repo settings](${config.SITE_URL}/dashboard).</sub>`,
   ]
     .filter((line) => line !== "")
     .join("\n");

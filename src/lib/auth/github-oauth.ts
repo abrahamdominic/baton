@@ -92,7 +92,7 @@ export async function fetchUserInstallations(token: string): Promise<number[]> {
   const res = await fetch(`${GITHUB_API}/user/installations?per_page=100`, {
     headers: apiHeaders(token),
   });
-  if (!res.ok) return []; // OAuth app token or no installations — safe no-op
+  if (!res.ok) return []; // OAuth app token or no installations; safe no-op
   const data = (await res.json()) as { installations?: { id: number }[] };
   return (data.installations ?? []).map((i) => i.id);
 }

@@ -26,34 +26,34 @@ export default async function RepoPage({
   const openStates = ORDERED_STATES.filter((s) => byState.has(s));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <section>
-        <p className="text-xs uppercase tracking-wide text-ink-400">Repo board</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">
+        <p className="eyebrow">Repo board</p>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink-50">
           {owner}/{repo}
         </h1>
-        <p className="mt-1 text-sm text-ink-300">{board.prs.length} open PRs</p>
+        <p className="mt-1.5 text-sm text-ink-400">{board.prs.length} open PRs</p>
       </section>
 
       {board.prs.length === 0 ? (
         <EmptyState title="Nothing open" hint="All caught up on this repository." />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {openStates.map((state) => {
             const meta = STATE_META[state];
             const prs = byState.get(state)!;
             return (
               <section key={state}>
-                <div className="mb-2 flex items-center gap-2">
+                <div className="mb-3 flex items-center gap-2">
                   <Badge tone={meta.tone}>{meta.label}</Badge>
                   <span className="text-xs text-ink-400">{prs.length}</span>
                 </div>
-                <ul className="space-y-2">
+                <ul className="overflow-hidden rounded-xl border border-ink-800">
                   {prs.map((pr) => {
                     const hours = (Date.now() - pr.stateEnteredAt.getTime()) / 3_600_000;
                     return (
                       <li key={pr.id}>
-                        <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-ink-800/80 bg-ink-900/25 px-5 py-3.5 last:border-b-0">
                           <div className="min-w-0 flex-1">
                             <a
                               href={pr.url}
@@ -61,10 +61,10 @@ export default async function RepoPage({
                               rel="noopener noreferrer"
                               className="block truncate text-sm font-medium text-ink-50 hover:text-brand-300"
                             >
-                              #{pr.number} — {pr.title}
+                              {pr.title}
                             </a>
                             <p className="mt-0.5 text-xs text-ink-400">
-                              by @{pr.authorLogin} · waiting{" "}
+                              #{pr.number} by @{pr.authorLogin} · waiting{" "}
                               <span className="font-medium text-ink-200">
                                 <Duration hours={hours} />
                               </span>

@@ -9,7 +9,7 @@ import { config } from "../lib/env-boot";
  * enqueues refreshes for all open PRs. Exits when done.
  *
  * Run with:  npm run cron   (expected to be triggered by Vercel Cron / GitHub
- * Actions schedule — this process exits after one pass).
+ * Actions schedule; this process exits after one pass).
  */
 export async function runOnce(): Promise<{ repos: number; prsEnqueued: number }> {
   logger.info("cron-start", { intervalMinutes: config.BATON_CRON_INTERVAL_MIN });

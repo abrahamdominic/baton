@@ -10,8 +10,12 @@ html {
   scroll-behavior: smooth;
 }
 
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
 body {
-  @apply bg-ink-950 text-ink-50 antialiased;
+  @apply bg-ink-950 text-ink-100 antialiased;
   text-rendering: optimizeLegibility;
 }
 
@@ -21,34 +25,51 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-2xl border border-ink-700/60 bg-ink-900 shadow-card;
+    @apply rounded-xl border border-ink-700/50 bg-ink-900;
   }
+
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors;
+    @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium text-ink-100 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-400/50 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950;
   }
   .btn-primary {
-    @apply btn bg-brand-500 text-white hover:bg-brand-400;
+    @apply btn bg-brand-500 text-white hover:bg-brand-400 active:bg-brand-600;
   }
   .btn-ghost {
-    @apply btn border border-ink-700 bg-ink-800 text-ink-100 hover:bg-ink-700;
+    @apply btn border border-ink-700 bg-transparent text-ink-200 hover:border-ink-600 hover:bg-ink-800/70 hover:text-ink-50;
   }
+  .btn-sm {
+    @apply h-8 px-3 text-xs;
+  }
+  .btn-lg {
+    @apply h-10 px-5 text-sm;
+  }
+
   .input {
-    @apply rounded-lg border border-ink-700 bg-ink-800 px-3 py-2 text-sm text-ink-50 outline-none focus:border-brand-400;
+    @apply h-9 rounded-md border border-ink-700 bg-ink-900 px-3 text-sm text-ink-50 outline-none placeholder:text-ink-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25;
   }
+
   .chip {
-    @apply inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium;
+    @apply inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium;
   }
-  .chip-info    { @apply chip bg-brand-500/15 text-brand-300; }
-  .chip-warn    { @apply chip bg-warn/15 text-warn; }
-  .chip-danger  { @apply chip bg-danger/15 text-danger; }
-  .chip-success { @apply chip bg-signal-500/15 text-signal-400; }
-  .chip-neutral { @apply chip bg-ink-600/30 text-ink-300; }
+  .chip-info    { @apply chip border-brand-500/25 bg-brand-500/10 text-brand-300; }
+  .chip-warn    { @apply chip border-warn/30 bg-warn/10 text-warn; }
+  .chip-danger  { @apply chip border-danger/30 bg-danger/10 text-danger; }
+  .chip-success { @apply chip border-signal-500/30 bg-signal-500/10 text-signal-400; }
+  .chip-neutral { @apply chip border-ink-600/60 bg-ink-800/50 text-ink-300; }
+
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.14em] text-ink-400;
+  }
 }
 
 .container-page {
-  @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+}
+
+.container-text {
+  @apply mx-auto w-full max-w-2xl px-4 sm:px-6;
 }
 
 .link {
-  @apply text-brand-300 underline decoration-brand-500/40 underline-offset-2 hover:text-brand-400;
+  @apply text-brand-300 underline decoration-brand-500/40 decoration-1 underline-offset-4 transition-colors hover:text-brand-200 hover:decoration-brand-400;
 }

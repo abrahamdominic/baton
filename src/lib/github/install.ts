@@ -56,7 +56,7 @@ export async function fetchInstallationInfo(installationId: number): Promise<Ins
 }
 
 /**
- * Persist an installation + its repositories. Idempotent — safe to call on
+ * Persist an installation + its repositories. Idempotent; safe to call on
  * `installation.created`, `installation_repositories`, and on lazy registration
  * from a webhook/worker.
  */

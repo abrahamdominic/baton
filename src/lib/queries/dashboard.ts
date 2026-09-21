@@ -31,7 +31,7 @@ export function whoseTurnLabel(state: string): string {
     case "ready_to_merge":
       return "Author or maintainer";
     default:
-      return "—";
+      return "No one";
   }
 }
 
@@ -52,7 +52,7 @@ export interface YourMoveItem {
 }
 
 /**
- * "Your move" — every open, non-draft PR on the user's repos that is stalled,
+ * "Your move": every open, non-draft PR on the user's repos that is stalled,
  * ordered by how actionable/oldest it is.
  */
 export async function yourMove(user: SessionUser): Promise<YourMoveItem[]> {
@@ -85,7 +85,7 @@ export async function yourMove(user: SessionUser): Promise<YourMoveItem[]> {
       owner: pr.repo.owner,
       repo: pr.repo.name,
       state: pr.state,
-      stateLabel: STATE_META[pr.state as keyof typeof STATE_META]?.label ?? "—",
+      stateLabel: STATE_META[pr.state as keyof typeof STATE_META]?.label ?? "Unknown",
       stateTone: STATE_META[pr.state as keyof typeof STATE_META]?.tone ?? "neutral",
       whoseTurn: whoseTurnLabel(pr.state),
       hoursInState: (now - pr.stateEnteredAt.getTime()) / 3_600_000,

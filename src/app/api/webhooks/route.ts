@@ -43,7 +43,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return new NextResponse("invalid signature", { status: 401 });
   }
 
-  // Not our event type — still a valid signature, acknowledge quietly.
+  // Not our event type; still a valid signature, acknowledge quietly.
   if (!isEventTracked(eventType)) {
     return new NextResponse("ok", { status: 200 });
   }
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 }
 
 async function isAllowed(ip: string): Promise<boolean> {
-  // 120 webhook deliveries per second per IP — generous; this is defense-in
+  // 120 webhook deliveries per second per IP. Generous; this is defense-in
   // depth against replay storms, not the primary control (idempotency is).
   return rateLimiter.check(`webhook:${ip}`, 120, 1000);
 }

@@ -13,7 +13,7 @@ export function isBotLogin(login: string | null | undefined): boolean {
  * Outputs one of the Baton states and answers the two questions developers
  * actually ask: _what is this PR blocked on_ and _whose turn is it_?
  *
- * This is a pure function — unit-testable and safe to run on every webhook.
+ * This is a pure function; unit-testable and safe to run on every webhook.
  */
 export function classifyPullRequest(input: SnapshotInput, prevState = ""): Classification {
   const now = input.now.getTime();
@@ -27,7 +27,7 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
   if (input.isDraft) {
     return {
       state: "draft",
-      action: "No action needed — the PR is a draft.",
+      action: "No action needed as long as the PR is a draft.",
       reasons: ["PR is a draft."],
       whoseTurn: "author",
       nudgable: false,
@@ -142,11 +142,11 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
       };
     }
     reasons.push(
-      `Author pushed fixes after the "${lastChangeRequest.authorLogin}" change request — a re-review is needed.`,
+      `Author pushed fixes after the "${lastChangeRequest.authorLogin}" change request. A re-review is needed.`,
     );
     return {
       state: "awaiting_review_after_fix",
-      action: `Re-review the latest changes (or approve/request changes) — the author has responded to your feedback.`,
+      action: `Re-review the latest changes (or approve or request changes). The author has responded to your feedback.`,
       reasons,
       whoseTurn: "reviewers",
       nudgable: true,
@@ -156,7 +156,7 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
   }
 
   // ------------------------------------------------------------------
-  // 5. Approved (or commented) — is it mergeable?
+  // 5. Approved (or commented). Is it mergeable?
   // ------------------------------------------------------------------
   if (approvals.length > 0 || commentedReviews.length > 0) {
     const hasApproval = approvals.length > 0;
@@ -219,7 +219,7 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
     action:
       input.requestedReviewerLogins.length > 0 || input.requestedTeamSlugs.length > 0
         ? "Review it (or let the author know who should)."
-        : "Assign a reviewer — an unassigned PR never gets reviewed.",
+        : "Assign a reviewer. An unassigned PR rarely gets reviewed.",
     reasons,
     whoseTurn: "reviewers",
     nudgable: true,

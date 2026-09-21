@@ -32,9 +32,11 @@ const config: Config = {
         warn: "#F59E0B",
         danger: "#EF4444",
         brand: {
+          200: "#A7ACFF",
           300: "#8B93FF",
           400: "#6D6AF5",
           500: "#5B5BD6",
+          600: "#4B4BBA",
         },
       },
       fontFamily: {

@@ -85,7 +85,7 @@ export const STATE_META: Record<BatonState, StateMeta> = {
   draft: {
     key: "draft",
     label: "Draft",
-    short: "In draft — not ready for review",
+    short: "In draft, not ready for review",
     labelName: "",
     tone: "neutral",
     ordering: 0,
@@ -100,7 +100,7 @@ export const STATE_META: Record<BatonState, StateMeta> = {
   },
   awaiting_review_after_fix: {
     key: "awaiting_review_after_fix",
-    label: "Fix pushed — waiting on re-review",
+    label: "Fix pushed, waiting on re-review",
     short: "Author addressed feedback; reviewer hasn't come back",
     labelName: "baton:re-review",
     tone: "info",
@@ -133,7 +133,7 @@ export const STATE_META: Record<BatonState, StateMeta> = {
   conflicts: {
     key: "conflicts",
     label: "Merge conflicts",
-    short: "Branch conflicts with the base — needs a sync",
+    short: "Branch conflicts with the base, needs a sync",
     labelName: "baton:conflicts",
     tone: "danger",
     ordering: 6,
@@ -141,7 +141,7 @@ export const STATE_META: Record<BatonState, StateMeta> = {
   ready_to_merge: {
     key: "ready_to_merge",
     label: "Ready to merge",
-    short: "Approved, green, no conflicts — just needs the merge",
+    short: "Approved, green, no conflicts. Needs the merge",
     labelName: "baton:ready-to-merge",
     tone: "success",
     ordering: 7,

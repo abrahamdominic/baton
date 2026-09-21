@@ -49,7 +49,7 @@ export function dispatchEvent(
   payload: EventPayload,
 ): DispatchResult {
   const appId = getAppId();
-  // Ignore events where *we* are the sender — prevents self-triggered loops.
+  // Ignore events where *we* are the sender. Prevents self-triggered loops.
   if (appId && payload.sender && String(payload.sender.id) === String(appId)) {
     return { registered: false, jobs: 0, handled: "self" };
   }
@@ -79,7 +79,7 @@ export function dispatchEvent(
 
     case "pull_request": {
       // opened, reopened, synchronize, ready_for_review, labeled, unlabeled,
-      // converted_to_draft, edited, closed (merged or not) — a refresh handles all.
+      // converted_to_draft, edited, closed (merged or not); a refresh handles all.
       const id = installationIdOf(payload);
       const repo = repoOf(payload);
       const numbers = prNumbersOfPr(payload);

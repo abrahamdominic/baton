@@ -88,7 +88,7 @@ export async function processPrRefresh(payload: {
   const snapshot = await fetchPrSnapshot(gql, owner, repo, number, now);
 
   if (!snapshot) {
-    // PR no longer exists — mark any stored record closed-ish and stop.
+    // PR no longer exists; mark any stored record closed-ish and stop.
     if (existing) {
       await prisma.pullRequest.update({
         where: { id: existing.id },

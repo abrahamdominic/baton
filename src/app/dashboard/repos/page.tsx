@@ -25,24 +25,25 @@ export default async function ReposPage() {
     return (
       <EmptyState
         title="No repositories yet"
-        hint={`Install Baton on your repositories to start tracking PR states. Repos you install on appear here.`}
+        hint="Install Baton on your repositories to start tracking PR states. Repositories you install on will appear here."
       />
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Repositories</h1>
-          <p className="mt-1 text-sm text-ink-300">
+          <p className="eyebrow">Configuration</p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-ink-50">Repositories</h1>
+          <p className="mt-1.5 text-sm text-ink-400">
             {repos.length} repo{repos.length === 1 ? "" : "s"} across {installations.length} account
             {installations.length === 1 ? "" : "s"}
           </p>
         </div>
         <a
           href={`https://github.com/apps/${config.GITHUB_APP_SLUG}/installations/new`}
-          className="btn-ghost"
+          className="btn btn-ghost btn-sm"
           target="_blank"
           rel="noreferrer"
         >
@@ -60,7 +61,7 @@ export default async function ReposPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/dashboard/repos/${r.owner}/${r.name}`}
-                      className="truncate font-semibold text-ink-50 hover:text-brand-300"
+                      className="truncate font-semibold text-ink-50 transition-colors hover:text-brand-300"
                     >
                       {r.owner}/{r.name}
                     </Link>
@@ -75,19 +76,19 @@ export default async function ReposPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <form action={async () => { "use server"; await setRepoEnabled(r.id, !r.enabled); }}>
-                    <button type="submit" className="btn-ghost text-xs">
+                    <button type="submit" className="btn btn-ghost btn-sm">
                       {r.enabled ? "Pause" : "Resume"}
                     </button>
                   </form>
                   <form action={async () => { "use server"; await rescanRepo(r.name); }}>
-                    <button type="submit" className="btn-ghost text-xs">
+                    <button type="submit" className="btn btn-ghost btn-sm">
                       Re-scan
                     </button>
                   </form>
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-5 grid gap-x-8 gap-y-3 rounded-lg border border-ink-800 bg-ink-900/40 p-4 sm:grid-cols-2 lg:grid-cols-3">
                 {r.setting
                   ? THRESHOLDS.map((t) => (
                       <label key={t.key} className="flex items-center justify-between gap-3 text-sm">
@@ -95,7 +96,7 @@ export default async function ReposPage() {
                           <span className="block font-medium text-ink-100">{t.label}</span>
                           <span className="block text-xs text-ink-400">{t.hint}</span>
                         </span>
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1.5">
                           <input
                             name={t.key}
                             form={`settings-${r.id}`}
@@ -133,7 +134,7 @@ export default async function ReposPage() {
                 }}
                 className="mt-4 flex justify-end"
               >
-                <button type="submit" className="btn-primary text-xs">
+                <button type="submit" className="btn btn-primary btn-sm">
                   Save thresholds
                 </button>
               </form>

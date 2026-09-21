@@ -5,7 +5,7 @@ import { getConfig } from "./config";
 try {
   process.loadEnvFile?.();
 } catch {
-  // no .env file — leave process.env as-is
+  // no .env file; leave process.env as-is
 }
 
 /**

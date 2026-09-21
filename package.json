@@ -2,7 +2,7 @@
   "name": "baton",
   "version": "0.1.0",
   "private": true,
-  "description": "Baton — know whose turn it is to act on every pull request, and unblock stalled work.",
+  "description": "Baton: know whose turn it is to act on every pull request, and unblock stalled work.",
   "license": "AGPL-3.0",
   "scripts": {
     "dev": "next dev",

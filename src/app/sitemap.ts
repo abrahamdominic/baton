@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { config } from "@/lib/env-boot";
 
-/** Public, indexable pages only — never dashboard/auth/private surfaces. */
+/** Public, indexable pages only. Never dashboard, auth, or private surfaces. */
 export const PUBLIC_ROUTES = [
   "",
   "/pricing",

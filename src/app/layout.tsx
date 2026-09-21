@@ -1,16 +1,17 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { config } from "@/lib/env-boot";
+import { SITE_NAME, SITE_TITLE } from "@/lib/site";
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.SITE_URL),
   title: {
-    default: "Baton — Know whose turn it is on every pull request",
-    template: "%s · Baton",
+    default: SITE_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Baton tracks the state of every open pull request — who it's waiting on and for how long — posts it right in the PR, and nudges the person whose turn it is. No more stalled PRs, no more guesswork.",
-  applicationName: "Baton",
+    "Baton is a GitHub App that tracks the state of every open pull request, shows whose turn it is inside the PR, and nudges the right person when work stalls.",
+  applicationName: SITE_NAME,
   keywords: [
     "pull request",
     "PR reviewer",
@@ -22,15 +23,20 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    siteName: "Baton",
+    siteName: SITE_NAME,
     locale: "en_US",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Baton — know whose turn it is" }],
+    url: config.SITE_URL,
+    title: SITE_TITLE,
+    description:
+      "Know whose turn it is on every pull request. Baton shows the state in the PR and nudges the right person.",
+    images: [{ url: `${config.SITE_URL}/opengraph-image`, width: 1200, height: 630, alt: SITE_TITLE }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Baton — Know whose turn it is on every pull request",
+    title: SITE_TITLE,
     description:
-      "Baton tells you which PRs are waiting on you, who's holding up your work, and nudges the right people at the right time.",
+      "Baton tells you which PRs are waiting on you, who is holding up your work, and nudges the right people at the right time.",
+    images: [`${config.SITE_URL}/opengraph-image`],
   },
   robots: {
     index: true,
