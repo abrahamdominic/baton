@@ -16,6 +16,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard");
 
+  if (user.suspendedAt) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-2xl font-bold text-white">Account suspended</h1>
+        <p className="text-sm leading-relaxed text-ink-400">
+          Your Baton account has been suspended. If you believe this is a mistake, contact support
+          at <a href="mailto:support@baton.dev" className="text-brand-300">support@baton.dev</a>.
+        </p>
+        <a href="/auth/logout" className="btn btn-ghost btn-sm">Sign out</a>
+      </main>
+    );
+  }
+
   const githubUrl = `https://github.com/${encodeURIComponent(user.login)}`;
 
   return (
@@ -25,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         name: user.name,
         avatarUrl: user.avatarUrl,
         githubUrl,
+        role: user.role,
       }}
     >
       {children}

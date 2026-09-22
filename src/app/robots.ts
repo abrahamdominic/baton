@@ -11,6 +11,7 @@ export default function robots(): MetadataRoute.Robots {
           // Sensitive / account-scoped surfaces: never exposed to crawlers,
           // including GitHub OAuth entrypoints which carry an OAuth state.
           "/dashboard",
+          "/admin",
           "/auth",
           "/install",
           "/api/",

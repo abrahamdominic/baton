@@ -1,7 +1,7 @@
 import type { Repo } from "@prisma/client";
 import { prisma } from "../db";
 import { logger } from "../logger";
-import { getInstallationToken } from "./app";
+import { getAppOctokit, getInstallationOctokit } from "./app";
 
 export interface InstallationInfo {
   installationId: number;
@@ -13,31 +13,24 @@ export interface InstallationInfo {
 }
 
 /**
- * Fetch an installation's details + repos from the GitHub API using the app token.
+ * Fetch an installation's details + repos from the GitHub API using App JWT and installation token.
  */
 export async function fetchInstallationInfo(installationId: number): Promise<InstallationInfo> {
-  const token = await getInstallationToken(installationId);
-  const headers = {
-    authorization: `Bearer ${token}`,
-    accept: "application/vnd.github+json",
-    "x-github-api-version": "2022-11-28",
-    "user-agent": "baton",
-  };
-
-  const inst = await fetch(
-    `https://api.github.com/app/installations/${installationId}`,
-    { headers },
-  ).then((r) => r.json() as Promise<any>);
+  const appOctokit = getAppOctokit();
+  const instRes = await appOctokit.rest.apps.getInstallation({
+    installation_id: installationId,
+  });
+  const inst = instRes.data;
   if (!inst.id) {
     throw new Error(`GitHub API returned no installation for ${installationId}`);
   }
 
-  const repoRes = await fetch(
-    `https://api.github.com/installation/repositories?per_page=100`,
-    { headers },
-  ).then((r) => r.json() as Promise<any>);
+  const installOctokit = await getInstallationOctokit(installationId);
+  const repoRes = await installOctokit.rest.apps.listReposAccessibleToInstallation({
+    per_page: 100,
+  });
 
-  const repos = (repoRes.repositories ?? []).map((r: any) => ({
+  const repos = (repoRes.data.repositories ?? []).map((r) => ({
     id: Number(r.id),
     name: r.name,
     fullName: r.full_name,
@@ -47,8 +40,8 @@ export async function fetchInstallationInfo(installationId: number): Promise<Ins
 
   return {
     installationId: inst.id,
-    accountLogin: inst.account?.login ?? "unknown",
-    accountType: inst.account?.type ?? "User",
+    accountLogin: (inst.account as any)?.login ?? "unknown",
+    accountType: (inst.account as any)?.type ?? "User",
     targetType: inst.target_type ?? null,
     appId: inst.app_id ?? null,
     repositories: repos,
@@ -77,9 +70,17 @@ export async function registerInstallation(
 
   // Link the installation to a local user whose GitHub login matches, so the
   // per-person dashboard only shows repos the user actually installed on.
+  // Preserve an existing explicit link (made by the install callback for the
+  // authenticated user) — for org installs `accountLogin` may not match the
+  // installing user's login and would otherwise scrub the attribution.
   const user = await prisma.user.findFirst({
     where: { login: accountLogin },
   });
+  const linkedUserId =
+    (await prisma.appInstallation.findUnique({
+      where: { installationId: Number(installationId) },
+      select: { userId: true },
+    }))?.userId ?? user?.id ?? null;
 
   const installation = await prisma.appInstallation.upsert({
     where: { installationId: Number(installationId) },
@@ -87,12 +88,12 @@ export async function registerInstallation(
       installationId: Number(installationId),
       accountLogin,
       accountType,
-      userId: user?.id ?? null,
+      userId: linkedUserId,
     },
     update: {
       accountLogin,
       accountType,
-      userId: user?.id ?? null,
+      userId: linkedUserId,
       uninstalledAt: null,
     },
   });

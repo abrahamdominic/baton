@@ -32,3 +32,10 @@ npm-debug.log*
 next-env.d.ts
 coverage/
 /tsconfig.tsbuildinfo
+
+# vim swap/backup files (may contain secrets from .env)
+*.swp
+*.swo
+*.swx
+*.orig
+*~

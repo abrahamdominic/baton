@@ -52,13 +52,23 @@ npm run worker
 
 Baton needs two things from GitHub, both free to create:
 
-1. **A GitHub App**: webhook URL `{APP_URL}/api/webhooks`, permissions
-   *Pull requests: Read & write*, *Issues: Read & write*, *Checks: Read only*,
-   *Metadata: Read only*. Subscribe to *Pull request*, *Pull request review*,
-   *Pull request review comment*, *Check run*, *Check suite*, *Installation*.
-2. **An OAuth App** (or use the GitHub App's own OAuth credentials), callback
-   URL `https://baton-xi.vercel.app/auth/callback` so users can sign in and
-   reach the dashboard.
+1. **A GitHub App** (installation, repo access, tokens, webhooks):
+   - Webhook URL `{APP_URL}/api/webhooks`, permissions *Pull requests: Read &
+     write*, *Issues: Read & write*, *Checks: Read only*, *Metadata: Read only*.
+     Subscribe to *Pull request*, *Pull request review*, *Pull request review
+     comment*, *Check run*, *Check suite*, *Installation*.
+   - Setup URL `{APP_URL}/auth/install/callback`. If you enable **Request user
+     authorization (OAuth) during installation**, also set the **User
+     authorization callback URL** to `{APP_URL}/auth/install/callback` and put
+     the App's own `client_id`/`client_secret` in `GITHUB_APP_CLIENT_ID` /
+     `GITHUB_APP_CLIENT_SECRET`.
+2. **A standalone GitHub OAuth App** (sign-in/session only), Authorization
+   callback URL `https://baton-xi.vercel.app/auth/callback`, credentials in
+   `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`.
+
+The two integrations are intentionally separate: the OAuth App identifies the
+Baton user; the GitHub App is installed on repositories. Never swap their
+credentials.
 
 See [`ENVIRONMENT.md`](./ENVIRONMENT.md) for every variable.
 

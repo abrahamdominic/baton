@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { IconCheck, IconArrowRight, IconGitHub } from "@/components/icons";
 
-interface Tier {
+export interface Tier {
+  slug: string;
   name: string;
   monthlyPrice: string;
   annualPrice: string;
@@ -24,6 +25,7 @@ interface Tier {
 
 const TIERS: Tier[] = [
   {
+    slug: "individual",
     name: "Individual",
     monthlyPrice: "$0",
     annualPrice: "$0",
@@ -47,6 +49,7 @@ const TIERS: Tier[] = [
     featured: false,
   },
   {
+    slug: "team",
     name: "Team",
     monthlyPrice: "$10",
     annualPrice: "$8",
@@ -73,6 +76,7 @@ const TIERS: Tier[] = [
     highlightBadge: "Most Popular",
   },
   {
+    slug: "organization",
     name: "Organization",
     monthlyPrice: "Custom",
     annualPrice: "Custom",
@@ -131,8 +135,15 @@ const MATRIX = [
   },
 ];
 
-export function PricingView() {
+export function PricingView({
+  overrides = {},
+}: {
+  /** Server-fetched plan overrides keyed by tier slug (e.g. "team"). */
+  overrides?: Record<string, Partial<Tier>>;
+}) {
   const [annual, setAnnual] = useState(false);
+
+  const tiers: Tier[] = TIERS.map((t) => (overrides[t.slug] ? { ...t, ...overrides[t.slug] } : t));
 
   return (
     <div className="space-y-16">
@@ -180,7 +191,7 @@ export function PricingView() {
 
       {/* Tier Cards */}
       <div className="grid gap-8 lg:grid-cols-3">
-        {TIERS.map((t) => {
+        {tiers.map((t) => {
           const price = annual ? t.annualPrice : t.monthlyPrice;
           const period = annual ? t.annualPeriod : t.monthlyPeriod;
           const note = annual ? t.annualNote : t.monthlyNote;

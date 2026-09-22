@@ -23,6 +23,7 @@ const noIndexTag = { key: "X-Robots-Tag", value: "noindex, nofollow" };
 const privateRoutes: { source: string }[] = [
   { source: "/auth/:path*" },
   { source: "/dashboard/:path*" },
+  { source: "/admin/:path*" },
   { source: "/api/:path*" },
   { source: "/install" },
 ];

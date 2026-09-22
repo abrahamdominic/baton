@@ -36,25 +36,32 @@ Baton website  →  /auth/login  →  github.com/login/oauth/authorize
 Sessions are stored server-side (`Session` table, SHA-256 token hash); the raw
 token lives only in an httpOnly, SameSite=Lax cookie (Secure in production).
 
-## GitHub OAuth callback URLs (copy-paste)
+## GitHub callback URLs (copy-paste)
 
-Set exactly one of these as the **callback URL** on the GitHub app you use for
-sign-in (GitHub Apps settings → "Callback URL", or classic OAuth App → "Authorization callback URL"):
+The two GitHub integrations never share a callback.
 
-**Production (required):**
+**GitHub OAuth App** (sign-in only) — "Authorization callback URL":
 
 ```
 https://baton-xi.vercel.app/auth/callback
 ```
 
-**Local development (optional, if you also run locally):**
+**GitHub App** (installation only) — "Setup URL" and, if "Request user
+authorization (OAuth) during installation" is enabled, "User authorization
+callback URL":
+
+```
+https://baton-xi.vercel.app/auth/install/callback
+```
+
+**Local development** (optional, per integration):
 
 ```
 http://localhost:3000/auth/callback
+http://localhost:3000/auth/install/callback
 ```
 
-You may register more than one callback URL (e.g. dev + prod). GitHub only
-allows the exact path that is registered; the app always builds its
+GitHub only allows the exact path that is registered; the app always builds its
 `redirect_uri` from the canonical `APP_URL` in production and from the local
 host in development, so both match automatically.
 
@@ -77,18 +84,32 @@ product data flowing into the dashboard:
 
 So: if you only want the authenticated app experience to be reachable and show
 your GitHub identity with honest empty states, OAuth is sufficient. If you want
-the dashboard populated you also register the Baton GitHub App (or the same
-app's OAuth credentials) and install it on repositories. The Settings page
-shows live "configured / not configured" badges for both.
+the dashboard populated you also register the Baton GitHub App and configure
+it to install on repositories. The Settings page shows live "configured / not
+configured" badges for both.
 
-There are two accepted flavors for the OAuth client ID:
+Keep the OAuth App's `client_id`/`client_secret` in
+`GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`, and the GitHub App's
+own OAuth credentials (only used when the App performs user authorization
+during installation) in `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET`.
+Never swap the two, and never commit them; the repository `.env` is gitignored.
 
-- A **dedicated OAuth App** (client ID starts with `Iv23…`);
-- or the **GitHub App's own OAuth credentials** (client ID starts with `Ov23…`).
+## The installation flow
 
-Both are supported. Keep the client ID and client secret in
-`GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET`. Never commit them; the
-repository `.env` is gitignored.
+```
+Install Baton  →  /install
+  no session        →  /auth/login?next=/install   (GitHub OAuth App sign-in)
+                          →  /auth/callback  →  baton_session set
+  session ok        →  https://github.com/apps/<slug>/installations/new
+                          │ user picks account/repos · GitHub installs
+                          ▼
+                  /auth/install/callback?installation_id=<id>[&code=…]
+                          │ App code (if any) exchanged w/ GitHub App secret
+                          │ installation linked to the signed-in Baton user
+                          │ install_register job enqueued
+                          ▼
+                       /dashboard?installed=1   (installation is registered)
+```
 
 ## Pages
 
@@ -137,8 +158,11 @@ specific, human-readable message per reason:
   database not being provisioned yet; check `DATABASE_URL` and that
   `prisma db push` ran). Every failure is also logged with full context.
 
-The same route also handles the GitHub App **installation** callback
-(`?installation_id=…` → register + `/dashboard?installed=1`), unchanged.
+The same route no longer absorbs the GitHub App **installation** callback.
+Install callbacks now land on the dedicated `/auth/install/callback`
+(`?installation_id=…` → register + link to the signed-in user →
+`/dashboard?installed=1`); a legacy `installation_id` hit on `/auth/callback`
+is forwarded there.
 
 ### OAuth URL fixes (why production stopped breaking)
 

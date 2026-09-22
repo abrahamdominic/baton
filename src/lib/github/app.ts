@@ -21,7 +21,7 @@ export function isAppConfiguredFlag(): boolean {
 }
 
 /** Human identity of the bot (used in comments / label checks via bot login). */
-export const BATON_APP_SLUG = "baton";
+export const BATON_APP_SLUG = config.GITHUB_APP_SLUG || "abrahamdominic";
 
 let appAuth:
   | (ReturnType<typeof createAppAuth> extends never ? never : ReturnType<typeof createAppAuth>)
@@ -33,15 +33,27 @@ function getAppAuth() {
     appAuth = createAppAuth({
       appId: config.GITHUB_APP_ID as number,
       privateKey: privateKey as string,
-      clientId: config.GITHUB_OAUTH_CLIENT_ID || undefined,
-      clientSecret: config.GITHUB_OAUTH_CLIENT_SECRET || undefined,
+      // The GitHub App's OWN client credentials, used by Octokit only for the
+      // App's user-to-server OAuth exchanges (e.g. "Request user authorization
+      // during installation"). Never the standalone OAuth App's credentials.
+      clientId: config.GITHUB_APP_CLIENT_ID || undefined,
+      clientSecret: config.GITHUB_APP_CLIENT_SECRET || undefined,
     });
   }
   return appAuth;
 }
 
 export function getAppOctokit(): Octokit {
-  return new Octokit({ authStrategy: createAppAuth, auth: getAppAuth() });
+  assertAppConfigured();
+  return new Octokit({
+    authStrategy: createAppAuth,
+    auth: {
+      appId: config.GITHUB_APP_ID as number,
+      privateKey: privateKey as string,
+      clientId: config.GITHUB_APP_CLIENT_ID || undefined,
+      clientSecret: config.GITHUB_APP_CLIENT_SECRET || undefined,
+    },
+  });
 }
 
 export function getAppId(): number | null {

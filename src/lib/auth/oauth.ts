@@ -2,6 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 
 export const OAUTH_STATE_COOKIE = "baton_oauth_state";
+export const OAUTH_VERIFIER_COOKIE = "baton_oauth_verifier";
 const STATE_TTL_MS = 10 * 60 * 1000;
 
 export function newOAuthState(): string {
@@ -10,6 +11,16 @@ export function newOAuthState(): string {
 
 export function hashState(state: string): string {
   return createHash("sha256").update(state).digest("hex");
+}
+
+/** Generate a cryptographically random PKCE code verifier (RFC 7636). */
+export function generateCodeVerifier(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/** Generate a PKCE S256 code challenge from a verifier. */
+export function generateCodeChallenge(verifier: string): string {
+  return createHash("sha256").update(verifier).digest("base64url");
 }
 
 /** Store a one-time state hash so a leaked cookie can't be replayed. */

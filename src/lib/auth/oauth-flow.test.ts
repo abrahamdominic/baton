@@ -3,8 +3,13 @@ import { prisma } from "../db";
 import {
   GITHUB_API,
   GITHUB_TOKEN_URL,
+  GITHUB_APP_INSTALL_CALLBACK_PATH,
+  GITHUB_OAUTH_CALLBACK_PATH,
   oauthAuthorizeUrl,
+  githubAppInstallUrl,
   exchangeCode,
+  exchangeGitHubAppCode,
+  githubAppUserIssuer,
   fetchGitHubUser,
   fetchUserInstallations,
 } from "./github-oauth";
@@ -125,6 +130,72 @@ describe("exchangeCode", () => {
     expect(result.error).toBe("invalid_response");
     expect(result.access_token).toBe("");
   });
+
+  it("exchanges a GitHub-App-level code with the App's own credentials + install callback", async () => {
+    const result = await exchangeGitHubAppCode("app_code", BASE);
+    expect(result.access_token).toBe("gho_flow_test_token");
+
+    const tokenCalls = fetchMock.mock.calls.filter(([input]) => String(input) === GITHUB_TOKEN_URL);
+    const [, init] = tokenCalls.at(-1) as [string, RequestInit];
+    const body = String(init.body);
+    // GitHub App credentials come from GITHUB_APP_CLIENT_* (empty in this test
+    // env), NEVER from GITHUB_OAUTH_*, and the code is not sent to a URL.
+    expect(body).toContain("client_id=");
+    expect(body).toContain("client_secret=");
+    expect(body).toContain("code=app_code");
+    expect(body).toContain(`redirect_uri=${encodeURIComponent(`${BASE}${GITHUB_APP_INSTALL_CALLBACK_PATH}`)}`);
+  });
+
+  it("keeps explicit credentials injectable for the GitHub App exchange", async () => {
+    await exchangeCode("x", BASE, { clientId: "Iv1.appclient", clientSecret: "app_secret" }, GITHUB_APP_INSTALL_CALLBACK_PATH);
+    const [, init] = [...fetchMock.mock.calls]
+      .filter(([input]) => String(input) === GITHUB_TOKEN_URL)
+      .at(-1) as [string, RequestInit];
+    const body = String(init.body);
+    expect(body).toContain("client_id=Iv1.appclient");
+    expect(body).toContain("client_secret=app_secret");
+    expect(body).toContain(`redirect_uri=${encodeURIComponent(`${BASE}${GITHUB_APP_INSTALL_CALLBACK_PATH}`)}`);
+  });
+
+  it("never places the GitHub App client secret in a URL", () => {
+    const results = fetchMock.mock.calls.filter(([input]) => String(input) === GITHUB_TOKEN_URL);
+    for (const [input] of results) {
+      expect(String(input)).not.toContain("client_secret=");
+    }
+  });
+});
+
+describe("githubAppInstallUrl", () => {
+  it("builds the GitHub App installation URL pointing to the App installations/new page", () => {
+    const url = githubAppInstallUrl("abrahamdominic");
+    expect(url).toBe("https://github.com/apps/abrahamdominic/installations/new");
+  });
+
+  it("attaches state when provided for post-install linking", () => {
+    const url = githubAppInstallUrl("abrahamdominic", "uid:user_123");
+    expect(url).toBe("https://github.com/apps/abrahamdominic/installations/new?state=uid%3Auser_123");
+  });
+
+  it("never routes to the standalone OAuth App authorize endpoint", () => {
+    const url = githubAppInstallUrl("abrahamdominic");
+    expect(url).not.toContain("/login/oauth/authorize");
+  });
+});
+
+describe("callback separation", () => {
+  it("keeps OAuth App callback and GitHub App install callback strictly distinct", () => {
+    expect(GITHUB_OAUTH_CALLBACK_PATH).toBe("/auth/callback");
+    expect(GITHUB_APP_INSTALL_CALLBACK_PATH).toBe("/auth/install/callback");
+    expect(GITHUB_OAUTH_CALLBACK_PATH).not.toBe(GITHUB_APP_INSTALL_CALLBACK_PATH);
+  });
+});
+
+describe("githubAppUserIssuer", () => {
+  it("matches GitHub's iss for GitHub App user-authorization callbacks", () => {
+    expect(githubAppUserIssuer("baton")).toBe("https://github.com/apps/baton");
+    expect(githubAppUserIssuer("some-slug")).toBe("https://github.com/apps/some-slug");
+    expect(githubAppUserIssuer("abrahamdominic")).toBe("https://github.com/apps/abrahamdominic");
+  });
 });
 
 describe("fetchGitHubUser / fetchUserInstallations", () => {
@@ -154,6 +225,9 @@ describe("verifyOauthState / sanitizeNextPath", () => {
     expect(sanitizeNextPath("https://evil.com")).toBe("/dashboard");
     expect(sanitizeNextPath("/dashboard?installed=1")).toBe("/dashboard?installed=1");
     expect(sanitizeNextPath("/auth/login?next=/x")).toBe("/auth/login?next=/x");
+    expect(sanitizeNextPath("/auth/install/callback?installation_id=123")).toBe(
+      "/auth/install/callback?installation_id=123",
+    );
   });
 });
 
@@ -165,7 +239,8 @@ describe("finishOAuthSignIn (full pipeline)", () => {
     }
     try {
       const result = await finishOAuthSignIn({
-        accessToken: "gho_flow_test_token",
+        // GitHub App user-to-server token: ghu_* (only these can list installs).
+        accessToken: "ghu_flow_test_token",
         next: "/dashboard?plan=team&billing=monthly",
         installationId: TEST_INSTALLATION_ID,
         ip: "10.0.0.1",

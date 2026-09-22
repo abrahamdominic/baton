@@ -3,179 +3,351 @@ import { currentUser } from "@/lib/auth/session";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { config } from "@/lib/env-boot";
 import { setRepoEnabled, updateRepoSettings, rescanRepo } from "../actions";
-import { Badge } from "@/components/ui";
-import { IconBranch } from "@/components/icons";
+import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import {
+  IconBranch,
+  IconRefresh,
+  IconPlay,
+  IconPause,
+  IconChevronRight,
+  IconChevronDown,
+  IconGitHub,
+  IconExternalLink,
+  IconSliders,
+  IconShield,
+} from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
 const THRESHOLDS = [
-  { key: "firstResponseHours" as const, label: "First response", hint: "Awaiting review, no reply yet" },
-  { key: "reviewFollowUpHours" as const, label: "Re-review", hint: "Author pushed fixes" },
-  { key: "changesRequiredHours" as const, label: "Changes required", hint: "Reviewer asked for changes" },
-  { key: "ciFailHours" as const, label: "CI failing", hint: "A check suite is red" },
-  { key: "conflictHours" as const, label: "Conflicts", hint: "Branch drift vs base" },
-  { key: "readyToMergeHours" as const, label: "Ready to merge", hint: "Approved & green, not merged" },
+  {
+    key: "firstResponseHours" as const,
+    label: "First Response",
+    hint: "Initial reviewer response timeout",
+  },
+  {
+    key: "reviewFollowUpHours" as const,
+    label: "Re-review",
+    hint: "Author committed changes, waiting on reviewer",
+  },
+  {
+    key: "changesRequiredHours" as const,
+    label: "Changes Required",
+    hint: "Reviewer requested changes, waiting on author",
+  },
+  {
+    key: "ciFailHours" as const,
+    label: "CI Failing",
+    hint: "Build or test check suite failing",
+  },
+  {
+    key: "conflictHours" as const,
+    label: "Merge Conflicts",
+    hint: "Branch has merge conflicts with base",
+  },
+  {
+    key: "readyToMergeHours" as const,
+    label: "Ready to Merge",
+    hint: "Approved and checks passing, waiting to merge",
+  },
 ];
 
 export default async function ReposPage() {
   const user = await currentUser();
   if (!user) return null;
+
   const installations = await myInstallations(user);
-  const repos = installations.flatMap((i) => i.repos.map((r) => ({ ...r, account: i.accountLogin })));
+  const repos = installations.flatMap((i) =>
+    i.repos.map((r) => ({ ...r, account: i.accountLogin })),
+  );
+
+  const activeCount = repos.filter((r) => r.enabled).length;
+  const pausedCount = repos.length - activeCount;
+  const installUrl = `https://github.com/apps/${config.GITHUB_APP_SLUG}/installations/new`;
 
   if (repos.length === 0) {
     return (
-      <div className="space-y-6">
-        <section className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="eyebrow">Settings &amp; Thresholds</p>
-            <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Tracked Repositories
-            </h1>
-            <p className="mt-1 text-xs text-ink-400">No repositories connected yet.</p>
-          </div>
-        </section>
-        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-ink-900/20 px-6 py-16 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-ink-900 text-brand-300">
-            <IconBranch className="h-6 w-6" />
-          </div>
-          <p className="text-base font-bold text-white">No repositories configured</p>
-          <p className="max-w-md text-xs leading-relaxed text-ink-400">
-            Install Baton on your GitHub repositories to start tracking pull requests. Once the
-            GitHub App is installed, each repository appears here with its per-repo nudge
-            thresholds.
-          </p>
-          <a
-            href={`https://github.com/apps/${config.GITHUB_APP_SLUG}/installations/new`}
-            className="btn btn-primary btn-sm"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Install Baton on GitHub
-          </a>
-        </div>
+      <div className="space-y-8">
+        <PageHeader
+          eyebrow="Repositories &amp; Configuration"
+          title="Tracked Repositories"
+          description="Configure Baton monitoring and polite review stall nudge thresholds per repository."
+        />
+
+        <EmptyState
+          icon={IconBranch}
+          title="No repositories connected"
+          hint="Install the Baton GitHub App on your GitHub accounts to track pull request states and configure polite nudge thresholds."
+          action={
+            <a
+              href={installUrl}
+              className="btn btn-primary btn-sm"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <IconGitHub className="h-3.5 w-3.5" />
+              <span>Install Baton on GitHub</span>
+            </a>
+          }
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-10">
-      <section className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow">Settings &amp; Thresholds</p>
-          <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-            Tracked Repositories
-          </h1>
-          <p className="mt-1 text-xs text-ink-400">
-            {repos.length} repository{repos.length === 1 ? "" : "ies"} connected across {installations.length} account
-            {installations.length === 1 ? "" : "s"}
-          </p>
-        </div>
-        <a
-          href={`https://github.com/apps/${config.GITHUB_APP_SLUG}/installations/new`}
-          className="btn btn-ghost btn-sm"
-          target="_blank"
-          rel="noreferrer"
-        >
-          + Add Repositories
-        </a>
+    <div className="space-y-8">
+      {/* Page Header */}
+      <PageHeader
+        eyebrow="Repositories &amp; Configuration"
+        title="Tracked Repositories"
+        description={`${repos.length} repositor${repos.length === 1 ? "y" : "ies"} monitored across ${installations.length} GitHub account${installations.length === 1 ? "" : "s"}.`}
+        actions={
+          <a
+            href={installUrl}
+            className="btn btn-primary btn-sm"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <IconGitHub className="h-3.5 w-3.5" />
+            <span>+ Add Repositories</span>
+          </a>
+        }
+      />
+
+      {/* Summary KPI Cards */}
+      <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Total Repositories"
+          value={repos.length}
+          detail={`Across ${installations.length} installation${installations.length === 1 ? "" : "s"}`}
+          icon={IconBranch}
+        />
+        <StatCard
+          label="Active Tracking"
+          value={activeCount}
+          detail="Webhooks active & nudges enabled"
+          tone="signal"
+          icon={IconPlay}
+        />
+        <StatCard
+          label="Paused Repositories"
+          value={pausedCount}
+          detail={pausedCount > 0 ? "Temporarily halted" : "Zero paused repos"}
+          tone={pausedCount > 0 ? "warn" : "default"}
+          icon={IconPause}
+        />
+        <StatCard
+          label="Nudge Protection"
+          value="Active"
+          detail="Targeted @mentions on stall"
+          tone="brand"
+          icon={IconShield}
+        />
       </section>
 
-      <ul className="space-y-6">
+      {/* Repository Cards List */}
+      <ul className="space-y-5">
         {repos
           .sort((a, b) => a.owner.localeCompare(b.owner) || a.name.localeCompare(b.name))
-          .map((r) => (
-            <li key={r.id} className="card p-6">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2.5">
+          .map((r) => {
+            const githubRepoUrl = `https://github.com/${encodeURIComponent(r.owner)}/${encodeURIComponent(r.name)}`;
+
+            return (
+              <li
+                key={r.id}
+                className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm transition-all duration-200 hover:border-white/[0.14]"
+              >
+                {/* Repo Card Header */}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.07] bg-ink-950/60 p-5">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <Link
+                        href={`/dashboard/repos/${r.owner}/${r.name}`}
+                        className="font-mono text-base font-bold text-white transition-colors hover:text-brand-300"
+                      >
+                        {r.owner}/{r.name}
+                      </Link>
+                      <Badge tone={r.enabled ? "success" : "neutral"}>
+                        {r.enabled ? "tracking" : "paused"}
+                      </Badge>
+                      <span className="rounded border border-white/[0.08] bg-ink-850 px-2 py-0.5 font-mono text-[10px] text-ink-400">
+                        {r.isPrivate ? "private" : "public"}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-ink-400">
+                      <span>Account: @{r.account}</span>
+                      <span className="text-ink-600">&middot;</span>
+                      <span>Default branch: {r.defaultBranch}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={githubRepoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-ghost btn-sm"
+                      title="View repository on GitHub"
+                    >
+                      <IconGitHub className="h-3.5 w-3.5" />
+                      <IconExternalLink className="h-3 w-3" />
+                    </a>
                     <Link
                       href={`/dashboard/repos/${r.owner}/${r.name}`}
-                      className="truncate font-bold text-base text-white transition-colors hover:text-brand-300 font-mono"
+                      className="btn btn-ghost btn-sm"
                     >
-                      {r.owner}/{r.name}
+                      <span>Repo Board</span>
+                      <IconChevronRight className="h-3 w-3" />
                     </Link>
-                    <Badge tone={r.enabled ? "success" : "neutral"}>
-                      {r.enabled ? "tracking" : "paused"}
-                    </Badge>
-                    {r.isPrivate ? <Badge tone="neutral">private</Badge> : null}
+                    <form
+                      action={async () => {
+                        "use server";
+                        await setRepoEnabled(r.id, !r.enabled);
+                      }}
+                    >
+                      <button
+                        type="submit"
+                        className="btn btn-ghost btn-sm"
+                        title={r.enabled ? "Pause Baton tracking on this repo" : "Resume Baton tracking"}
+                      >
+                        {r.enabled ? (
+                          <>
+                            <IconPause className="h-3 w-3 text-warn-400" />
+                            <span>Pause</span>
+                          </>
+                        ) : (
+                          <>
+                            <IconPlay className="h-3 w-3 text-signal-400" />
+                            <span>Resume</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                    <form
+                      action={async () => {
+                        "use server";
+                        await rescanRepo(`${r.owner}/${r.name}`);
+                      }}
+                    >
+                      <button
+                        type="submit"
+                        className="btn btn-ghost btn-sm"
+                        title="Trigger an immediate full sweep of this repo's pull requests"
+                      >
+                        <IconRefresh className="h-3 w-3" />
+                        <span>Re-scan</span>
+                      </button>
+                    </form>
                   </div>
-                  <p className="mt-1 text-xs text-ink-400 font-mono">
-                    Account: @{r.account} · default branch: {r.defaultBranch}
-                  </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <form action={async () => { "use server"; await setRepoEnabled(r.id, !r.enabled); }}>
-                    <button type="submit" className="btn btn-ghost btn-sm">
-                      {r.enabled ? "Pause Tracking" : "Resume"}
-                    </button>
-                  </form>
-                  <form action={async () => { "use server"; await rescanRepo(`${r.owner}/${r.name}`); }}>
-                    <button type="submit" className="btn btn-ghost btn-sm">
-                      Re-scan Now
-                    </button>
-                  </form>
-                </div>
-              </div>
+                {/* Threshold Summary & Accordion Settings */}
+                <div className="p-5">
+                  {/* Current Active Threshold Summary Pills */}
+                  {r.setting ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-[10px] uppercase font-semibold text-ink-500 mr-1">
+                        Active Thresholds:
+                      </span>
+                      {THRESHOLDS.map((t) => (
+                        <span
+                          key={t.key}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-ink-950/60 px-2 py-0.5 font-mono text-[11px] text-ink-300"
+                        >
+                          <span className="text-ink-400">{t.label}:</span>
+                          <span className="font-bold text-white">{r.setting?.[t.key] ?? 24}h</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
 
-              <div className="mt-5">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400 block mb-3">
-                  Nudge Thresholds (Grace period before polite mention):
-                </span>
-                <div className="grid gap-x-6 gap-y-3 rounded-xl border border-white/[0.06] bg-ink-950/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {r.setting
-                    ? THRESHOLDS.map((t) => (
-                        <label key={t.key} className="flex items-center justify-between gap-3 text-xs">
-                          <span className="min-w-0">
-                            <span className="block font-semibold text-white">{t.label}</span>
-                            <span className="block text-[11px] text-ink-500">{t.hint}</span>
+                  {/* Collapsible Threshold Tuning Panel */}
+                  {r.setting ? (
+                    <details className="group mt-4 border-t border-white/[0.06] pt-3">
+                      <summary className="flex cursor-pointer items-center justify-between py-1 text-xs font-semibold text-ink-300 transition-colors hover:text-white outline-none select-none">
+                        <span className="flex items-center gap-2">
+                          <IconSliders className="h-3.5 w-3.5 text-brand-400" />
+                          <span>Customize Inactivity Thresholds (Hours)</span>
+                        </span>
+                        <IconChevronDown className="h-4 w-4 text-ink-400 transition-transform group-open:rotate-180" />
+                      </summary>
+
+                      <div className="pt-3">
+                        <p className="text-xs text-ink-400 mb-3">
+                          Set the hours of inactivity before Baton automatically leaves a polite @mention
+                          nudge in the PR thread.
+                        </p>
+
+                        <div className="grid gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                          {THRESHOLDS.map((t) => (
+                            <div
+                              key={t.key}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-ink-900/60 px-3 py-2.5"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <label
+                                  htmlFor={`${r.id}-${t.key}`}
+                                  className="block cursor-pointer text-xs font-semibold text-ink-200"
+                                >
+                                  {t.label}
+                                </label>
+                                <span className="block truncate text-[10px] text-ink-500">
+                                  {t.hint}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  id={`${r.id}-${t.key}`}
+                                  name={t.key}
+                                  form={`settings-${r.id}`}
+                                  defaultValue={r.setting?.[t.key] ?? 24}
+                                  type="number"
+                                  min={1}
+                                  max={720}
+                                  className="input h-8 w-16 text-right font-mono text-xs"
+                                />
+                                <span className="font-mono text-xs text-ink-500">h</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Form Submit Footer */}
+                        <form
+                          id={`settings-${r.id}`}
+                          action={async (formData) => {
+                            "use server";
+                            const int = (k: string) => Number(formData.get(k) ?? 24);
+                            await updateRepoSettings({
+                              repoId: r.id,
+                              statusCommentEnabled: true,
+                              labelsEnabled: true,
+                              nudgesEnabled: true,
+                              firstResponseHours: int("firstResponseHours"),
+                              reviewFollowUpHours: int("reviewFollowUpHours"),
+                              changesRequiredHours: int("changesRequiredHours"),
+                              ciFailHours: int("ciFailHours"),
+                              conflictHours: int("conflictHours"),
+                              readyToMergeHours: int("readyToMergeHours"),
+                              maxNudgesPerState: 1,
+                            });
+                          }}
+                          className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3"
+                        >
+                          <span className="font-mono text-[11px] text-ink-500">
+                            Max 1 polite nudge per state transition
                           </span>
-                          <span className="flex items-center gap-1.5">
-                            <input
-                              name={t.key}
-                              form={`settings-${r.id}`}
-                              defaultValue={r.setting?.[t.key] ?? 24}
-                              type="number"
-                              min={1}
-                              max={720}
-                              className="input w-16 text-right font-mono text-xs"
-                            />
-                            <span className="text-xs text-ink-400 font-mono">h</span>
-                          </span>
-                        </label>
-                      ))
-                    : null}
+                          <button type="submit" className="btn btn-primary btn-sm">
+                            Save Thresholds
+                          </button>
+                        </form>
+                      </div>
+                    </details>
+                  ) : null}
                 </div>
-              </div>
-
-              <form
-                id={`settings-${r.id}`}
-                action={async (formData) => {
-                  "use server";
-                  const int = (k: string) => Number(formData.get(k) ?? 24);
-                  await updateRepoSettings({
-                    repoId: r.id,
-                    statusCommentEnabled: true,
-                    labelsEnabled: true,
-                    nudgesEnabled: true,
-                    firstResponseHours: int("firstResponseHours"),
-                    reviewFollowUpHours: int("reviewFollowUpHours"),
-                    changesRequiredHours: int("changesRequiredHours"),
-                    ciFailHours: int("ciFailHours"),
-                    conflictHours: int("conflictHours"),
-                    readyToMergeHours: int("readyToMergeHours"),
-                    maxNudgesPerState: 1,
-                  });
-                }}
-                className="mt-4 flex justify-end"
-              >
-                <button type="submit" className="btn btn-primary btn-sm">
-                  Save Thresholds
-                </button>
-              </form>
-            </li>
-          ))}
+              </li>
+            );
+          })}
       </ul>
     </div>
   );

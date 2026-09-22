@@ -2,9 +2,15 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { prisma } from "../db";
 import { logger } from "../logger";
+import { adminLogins } from "../config";
 
 export const SESSION_COOKIE = "baton_session";
 export const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+/** Bootstrap admins via BATON_ADMIN_LOGINS at sign-in (server-side only). */
+export function defaultRoleForLogin(login: string): string {
+  return adminLogins().includes(login.toLowerCase()) ? "admin" : "user";
+}
 
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -53,6 +59,8 @@ export interface SessionUser {
   name: string | null;
   email: string | null;
   avatarUrl: string | null;
+  role: string;
+  suspendedAt: Date | null;
 }
 
 /** Resolve a request's session token to its user (with expiry check). */
@@ -75,6 +83,8 @@ export async function getUserFromToken(token: string | undefined | null): Promis
     name: u.name,
     email: u.email,
     avatarUrl: u.avatarUrl,
+    role: u.role,
+    suspendedAt: u.suspendedAt,
   };
 }
 

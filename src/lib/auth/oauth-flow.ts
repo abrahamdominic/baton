@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import { logger } from "../logger";
 import { fetchGitHubUser, fetchUserInstallations } from "./github-oauth";
-import { createSession, type SessionUser } from "./session";
+import { createSession, defaultRoleForLogin, type SessionUser } from "./session";
 import { enqueueInstallRegister } from "../engine/jobs";
 
 export interface FinishOAuthSignInParams {
@@ -40,6 +40,7 @@ export async function finishOAuthSignIn(
       name: gh.name,
       email: gh.email,
       avatarUrl: gh.avatar_url,
+      role: defaultRoleForLogin(gh.login),
     },
     update: {
       login: gh.login,
@@ -56,14 +57,38 @@ export async function finishOAuthSignIn(
 
   // Combined flow: GitHub App installation plus freshly-authorized token.
   if (installationId !== null && installationId !== undefined && installationId > 0) {
-    await prisma.appInstallation
-      .updateMany({ where: { installationId }, data: { userId: user.id } })
-      .catch(() => {});
-    void enqueueInstallRegister(installationId).catch(() => {});
+    try {
+      const existing = await prisma.appInstallation.findUnique({
+        where: { installationId },
+        select: { userId: true },
+      });
+      if (!existing) {
+        await prisma.appInstallation.create({
+          data: {
+            installationId,
+            accountLogin: "pending",
+            accountType: "User",
+            userId: user.id,
+          },
+        });
+      } else if (existing.userId !== user.id) {
+        await prisma.appInstallation.update({
+          where: { installationId },
+          data: { userId: user.id },
+        });
+      }
+      void enqueueInstallRegister(installationId).catch(() => {});
+    } catch (e) {
+      logger.warn("oauth-link-installation-failed", { error: String(e), installationId });
+    }
   }
 
   // Link every installation reachable with the user's token to this account.
-  const installationIds = await fetchUserInstallations(accessToken).catch(() => []);
+  // Only GitHub App user-to-server tokens (`ghu_`) can list installations;
+  // standalone OAuth App tokens (`gho_`) get a 401 back, so skip the call.
+  const installationIds = accessToken.startsWith("ghu_")
+    ? await fetchUserInstallations(accessToken).catch(() => [])
+    : [];
   if (installationIds.length > 0) {
     await prisma.appInstallation.updateMany({
       where: { installationId: { in: installationIds } },
@@ -82,6 +107,8 @@ export async function finishOAuthSignIn(
       name: user.name,
       email: user.email,
       avatarUrl: user.avatarUrl,
+      role: user.role,
+      suspendedAt: user.suspendedAt,
     },
     token: session.token,
     expiresAt: session.expiresAt,
