@@ -3,7 +3,8 @@ import { currentUser } from "@/lib/auth/session";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { config } from "@/lib/env-boot";
 import { setRepoEnabled, updateRepoSettings, rescanRepo } from "../actions";
-import { Badge, EmptyState } from "@/components/ui";
+import { Badge } from "@/components/ui";
+import { IconBranch } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -24,10 +25,36 @@ export default async function ReposPage() {
 
   if (repos.length === 0) {
     return (
-      <EmptyState
-        title="No repositories configured"
-        hint="Install Baton on your GitHub repositories to start tracking pull requests. Tracked repositories will appear here."
-      />
+      <div className="space-y-6">
+        <section className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Settings &amp; Thresholds</p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+              Tracked Repositories
+            </h1>
+            <p className="mt-1 text-xs text-ink-400">No repositories connected yet.</p>
+          </div>
+        </section>
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-white/[0.08] bg-ink-900/20 px-6 py-16 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-ink-900 text-brand-300">
+            <IconBranch className="h-6 w-6" />
+          </div>
+          <p className="text-base font-bold text-white">No repositories configured</p>
+          <p className="max-w-md text-xs leading-relaxed text-ink-400">
+            Install Baton on your GitHub repositories to start tracking pull requests. Once the
+            GitHub App is installed, each repository appears here with its per-repo nudge
+            thresholds.
+          </p>
+          <a
+            href={`https://github.com/apps/${config.GITHUB_APP_SLUG}/installations/new`}
+            className="btn btn-primary btn-sm"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Install Baton on GitHub
+          </a>
+        </div>
+      </div>
     );
   }
 

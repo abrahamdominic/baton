@@ -1,5 +1,5 @@
 import { config } from "../env-boot";
-import { getAppBaseUrl } from "./redirect";
+import { getOAuthBaseUrl } from "./redirect";
 
 export const GITHUB_AUTHORIZE_URL = "https://github.com/login/oauth/authorize";
 export const GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token";
@@ -26,7 +26,7 @@ function ghFetch(url: string, init: RequestInit): Promise<Response> {
 
 /** Build the GitHub "Sign in with GitHub" URL with a CSRF state param. */
 export function oauthAuthorizeUrl(state: string, baseUrl?: string): string {
-  const base = baseUrl ?? getAppBaseUrl();
+  const base = baseUrl ?? getOAuthBaseUrl();
   const params = new URLSearchParams({
     client_id: config.GITHUB_OAUTH_CLIENT_ID,
     redirect_uri: `${base}${GITHUB_OAUTH_CALLBACK_PATH}`,
@@ -42,7 +42,7 @@ export function oauthAuthorizeUrl(state: string, baseUrl?: string): string {
  * body per GitHub's documented token endpoint; never appears in the browser.
  */
 export async function exchangeCode(code: string, baseUrl?: string): Promise<ExchangeResult> {
-  const base = baseUrl ?? getAppBaseUrl();
+  const base = baseUrl ?? getOAuthBaseUrl();
   const body = new URLSearchParams({
     client_id: config.GITHUB_OAUTH_CLIENT_ID,
     client_secret: config.GITHUB_OAUTH_CLIENT_SECRET,

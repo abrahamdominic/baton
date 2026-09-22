@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { exchangeCode, GITHUB_OAUTH_ISSUER } from "@/lib/auth/github-oauth";
 import { verifyOauthState, OAUTH_STATE_COOKIE } from "@/lib/auth/oauth";
 import { currentUser, SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth/session";
-import { sanitizeNextPath, getAppBaseUrl } from "@/lib/auth/redirect";
+import { sanitizeNextPath, getAppBaseUrl, getOAuthBaseUrl } from "@/lib/auth/redirect";
 import { finishOAuthSignIn } from "@/lib/auth/oauth-flow";
 import { enqueueInstallRegister } from "@/lib/engine/jobs";
 import { getClientIp } from "@/lib/net";
@@ -20,14 +20,24 @@ export const dynamic = "force-dynamic";
  *  2. OAuth sign-in callback: ?code=...&state=...&iss=https://github.com/login/oauth
  */
 export async function GET(req: NextRequest): Promise<NextResponse> {
+  // Where the user should end up (request host so a preview/custom domain
+  // keeps users on that domain). The OAuth redirect_uri itself must use the
+  // canonical registered callback URL (getOAuthBaseUrl) — see below.
   const baseUrl = getAppBaseUrl(req);
+  // Canonical callback host for the code exchange, matching exactly the
+  // redirect_uri GitHub saw on authorize.
+  const oauthBase = getOAuthBaseUrl(req);
   const params = req.nextUrl.searchParams;
 
   const installationIdParam = params.get("installation_id");
   const code = params.get("code");
   const state = params.get("state");
 
-  const oauthErrorUrl = new URL("/?oauth_error=1", baseUrl);
+  // OAuth failures redirect to the public site with a machine-readable reason
+  // the landing page turns into a human-readable message (instead of the old
+  // bare `?oauth_error=1` that told the user nothing).
+  const oauthFailure = (reason: string) =>
+    NextResponse.redirect(new URL(`/?oauth_error=1&reason=${encodeURIComponent(reason)}`, baseUrl));
   const oauthDeniedUrl = new URL("/?oauth_denied=1", baseUrl);
 
   // User declined authorization on GitHub.
@@ -61,7 +71,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   const iss = params.get("iss");
   if (iss && iss !== GITHUB_OAUTH_ISSUER) {
     logger.warn("oauth-iss-mismatch", { iss, ip: getClientIp(req) });
-    return NextResponse.redirect(oauthErrorUrl);
+    return oauthFailure("iss_mismatch");
   }
 
   // Recover the post-login destination from the state value. The state was
@@ -80,16 +90,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // One-time, constant-time state verification against the cookie set at login.
   if (!code || !(await verifyOauthState(state, req.cookies.get(OAUTH_STATE_COOKIE)?.value))) {
     logger.warn("oauth-state-mismatch", { ip: getClientIp(req) });
-    return NextResponse.redirect(oauthErrorUrl);
+    return oauthFailure("state_mismatch");
   }
 
   try {
-    const exchanged = await exchangeCode(code, baseUrl);
+    const exchanged = await exchangeCode(code, oauthBase);
     if (exchanged.error || !exchanged.access_token) {
       logger.error("oauth-code-exchange-failed", {
         error: exchanged.error_description ?? exchanged.error,
       });
-      return NextResponse.redirect(oauthErrorUrl);
+      return oauthFailure("exchange_failed");
     }
 
     // GitHub's state cookie may also carry a brand-new bare session if the
@@ -121,7 +131,11 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return response;
   } catch (err) {
     // Isolate GitHub/DB failures so users see a friendly banner, not a 500.
+    // A thrown error here is almost always the service database being
+    // unavailable (e.g. DATABASE_URL missing / log-in with Postgres not
+    // provisioned yet), which surfaces downstream of user creation as
+    // `?oauth_error=1` today. Log the full context and label it distinctly.
     logger.error("oauth-callback-failed", { error: String(err), ip: getClientIp(req) });
-    return NextResponse.redirect(oauthErrorUrl);
+    return oauthFailure("server_error");
   }
 }

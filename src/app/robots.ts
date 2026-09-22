@@ -8,8 +8,11 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: "/",
         disallow: [
+          // Sensitive / account-scoped surfaces: never exposed to crawlers,
+          // including GitHub OAuth entrypoints which carry an OAuth state.
           "/dashboard",
           "/auth",
+          "/install",
           "/api/",
           "/_next/",
         ],

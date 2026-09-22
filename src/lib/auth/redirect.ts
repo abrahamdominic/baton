@@ -35,6 +35,33 @@ export function getAppBaseUrl(req?: NextRequest): string {
   return "https://baton-xi.vercel.app";
 }
 
+/**
+ * Canonical base URL used ONLY for building the GitHub OAuth `redirect_uri`.
+ *
+ * In production this ALWAYS resolves to the canonical APP_URL/SITE_URL
+ * (`https://baton-xi.vercel.app`), never the request host. GitHub only allows
+ * an OAuth `redirect_uri` that exactly matches a callback URL registered on
+ * the OAuth App. If a user reaches the site through a custom/preview domain
+ * and the redirect_uri is built from that host, GitHub rejects the request
+ * with `redirect_uri_mismatch` and the user lands on `/?oauth_error=1`.
+ * Both the authorize step (login) and the code exchange (callback) must agree
+ * on this value or the exchange is rejected as well.
+ */
+export function getOAuthBaseUrl(req?: NextRequest): string {
+  if (process.env.NODE_ENV === "production") {
+    for (const candidate of [config.APP_URL, config.SITE_URL]) {
+      if (candidate && !candidate.includes("localhost") && !candidate.includes("127.0.0.1")) {
+        return candidate;
+      }
+    }
+    return "https://baton-xi.vercel.app";
+  }
+  // Local development: localhost (or an explicit APP_URL) is what GitHub has
+  // registered for the dev callback, and request-host resolution keeps
+  // cross-device testing sane.
+  return getAppBaseUrl(req);
+}
+
 /** post-login `next` is only honored for internal paths (anti open-redirect). */
 export function sanitizeNextPath(next: string | null): string {
   if (!next) return "/dashboard";

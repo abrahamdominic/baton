@@ -139,13 +139,31 @@ const COMPARISONS = [
 export default async function LandingPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ oauth_config?: string; oauth_error?: string; oauth_denied?: string }>;
+  searchParams?: Promise<{
+    oauth_config?: string;
+    oauth_error?: string;
+    oauth_denied?: string;
+    reason?: string;
+  }>;
 }) {
   const sp = searchParams ? await searchParams : undefined;
+
+  const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+    exchange_failed:
+      "GitHub rejected the sign-in credentials. Confirm the OAuth Client ID and Client secret, and that https://baton-xi.vercel.app/auth/callback is registered as the callback URL on the GitHub App.",
+    state_mismatch:
+      "Your sign-in request expired or was replayed. Please sign in again from the header — no harm done, just retry.",
+    iss_mismatch:
+      "Sign-in was rejected for security reasons (unexpected OAuth issuer). Please try signing in again.",
+    server_error:
+      "Sign-in could not be completed because the service database is currently unavailable. Please try again shortly.",
+  };
+
   const oauthBanner = sp?.oauth_config
     ? "GitHub sign-in is temporarily unavailable on this deployment because OAuth credentials are not configured. The GitHub App install flow still works."
     : sp?.oauth_error
-      ? "GitHub sign-in failed. Please try again, or install the GitHub App directly from the header."
+      ? (sp.reason && OAUTH_ERROR_MESSAGES[sp.reason]) ||
+        "GitHub sign-in failed. Please try again, or install the GitHub App directly from the header."
       : sp?.oauth_denied
         ? "GitHub sign-in was cancelled. No problem, you can keep browsing or install Baton from the header."
         : null;

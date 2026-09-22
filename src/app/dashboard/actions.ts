@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { currentUser } from "@/lib/auth/session";
+import { currentUser, readSessionCookie, hashToken } from "@/lib/auth/session";
 import { enqueuePrRefresh } from "@/lib/engine/jobs";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { logger } from "@/lib/logger";
@@ -71,4 +71,52 @@ export async function rescanRepo(fullName: string): Promise<void> {
   }
   logger.info("repo-rescanned", { repo: fullName, prs: prs.length });
   revalidatePath("/dashboard/repos");
+}
+
+// ---------------------------------------------------------------------------
+// Account admin: session revocation (settings page)
+// ---------------------------------------------------------------------------
+
+/** Revoke one of the user's own sessions. The current session is handled by
+ * regular sign-out; revoking it here would just log the user out mid-action. */
+export async function revokeSessionById(sessionId: string): Promise<{ revoked: boolean }> {
+  const user = await currentUser();
+  if (!user) throw new Error("sign-in required");
+  const currentToken = await readSessionCookie();
+  const currentHash = currentToken ? hashToken(currentToken) : null;
+
+  const target = await prisma.session.findUnique({
+    where: { id: sessionId },
+    select: { tokenHash: true, userId: true },
+  });
+  if (!target || target.userId !== user.id) throw new Error("not your session");
+  if (currentHash && target.tokenHash === currentHash) {
+    return { revoked: false };
+  }
+  const res = await prisma.session.deleteMany({
+    where: { id: sessionId, userId: user.id },
+  });
+  if (res.count > 0) {
+    logger.info("session-revoked", { actor: user.login, sessionId });
+    revalidatePath("/dashboard/settings");
+  }
+  return { revoked: res.count > 0 };
+}
+
+/** Sign out of every session except the current one. */
+export async function revokeOtherSessions(): Promise<{ revoked: number }> {
+  const user = await currentUser();
+  if (!user) throw new Error("sign-in required");
+  const currentToken = await readSessionCookie();
+  const currentHash = currentToken ? hashToken(currentToken) : null;
+
+  const res = await prisma.session.deleteMany({
+    where: {
+      userId: user.id,
+      ...(currentHash ? { NOT: { tokenHash: currentHash } } : {}),
+    },
+  });
+  logger.info("sessions-revoked-others", { actor: user.login, count: res.count });
+  revalidatePath("/dashboard/settings");
+  return { revoked: res.count };
 }

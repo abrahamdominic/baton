@@ -4,12 +4,12 @@ import { config } from "@/lib/env-boot";
 import { isGitHubConfigured } from "@/lib/config";
 import { oauthAuthorizeUrl } from "@/lib/auth/github-oauth";
 import { newOAuthState, hashState, OAUTH_STATE_COOKIE } from "@/lib/auth/oauth";
-import { sanitizeNextPath, getAppBaseUrl } from "@/lib/auth/redirect";
+import { sanitizeNextPath, getOAuthBaseUrl } from "@/lib/auth/redirect";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
-  const baseUrl = getAppBaseUrl(req);
+  const baseUrl = getOAuthBaseUrl(req);
 
   if (!isGitHubConfigured(config)) {
     return NextResponse.redirect(new URL("/?oauth_config=1", baseUrl));

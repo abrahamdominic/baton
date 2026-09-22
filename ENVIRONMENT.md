@@ -21,7 +21,14 @@ client secret with the GitHub App, and do not point the OAuth App callback at
 `/auth/callback` while the GitHub App's setup URL also uses it — `/auth/callback`
 handles both (OAuth `code`+`state` sign-in and GitHub App `installation_id`
 setup), and the two flows are distinguished by their parameters, not the route.
-Callback URL: `{APP_URL}/auth/callback`.
+Callback URL: `{APP_URL}/auth/callback` (production:
+`https://baton-xi.vercel.app/auth/callback`). The `redirect_uri` is always the
+canonical `APP_URL` in production (`src/lib/auth/redirect.ts`,
+`getOAuthBaseUrl`) — never the incoming request host — so preview or custom
+domains can't trigger GitHub's `redirect_uri_mismatch`. In development it uses
+the local host. Failures redirect with a machine-readable reason
+(`/?oauth_error=1&reason=exchange_failed|state_mismatch|iss_mismatch|server_error`)
+that the landing page renders as specific guidance.
 
 When the user authorizes, GitHub redirects to `/auth/callback` with
 `code`, `state`, and `iss=https://github.com/login/oauth`. The route validates

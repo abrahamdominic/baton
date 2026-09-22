@@ -14,6 +14,19 @@ const securityHeaders = [
   },
 ];
 
+const noIndexTag = { key: "X-Robots-Tag", value: "noindex, nofollow" };
+
+// Account-scoped and auth surfaces are private: even though robots.txt already
+// disallows them, respond with an explicit noindex header for defense-in-depth
+// against crawlers that ignore robots.txt (and to cover query-string OAuth
+// URLs that robots.txt cannot enumerate).
+const privateRoutes: { source: string }[] = [
+  { source: "/auth/:path*" },
+  { source: "/dashboard/:path*" },
+  { source: "/api/:path*" },
+  { source: "/install" },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
@@ -24,7 +37,15 @@ const nextConfig: NextConfig = {
     "@octokit/auth-app",
   ],
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      // Private paths first so they always carry the robots tag regardless of
+      // how overlapping header rules are merged, then the global defaults.
+      ...privateRoutes.map((route) => ({
+        source: route.source,
+        headers: [...securityHeaders, noIndexTag],
+      })),
+      { source: "/(.*)", headers: securityHeaders },
+    ];
   },
 };
 

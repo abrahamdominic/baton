@@ -14,6 +14,9 @@ status comment and a state label on the PR itself, and sends a polite, targeted
 - **Targeted nudges**: one polite reminder per state, to the right person.
 - **Your Move dashboard**: every stalled PR across your repos, sorted by whose
   turn it is and how long it has been waiting.
+- **Authenticated app**: GitHub OAuth sign-in behind a protected dashboard
+  (overview, repositories, activity ledger, account & sessions admin) with
+  sign-out and anti-indexing on every private page. See `DASHBOARD.md`.
 - **Least privilege**: no contents access. Baton never reads your code.
 
 ## Why
@@ -54,7 +57,8 @@ Baton needs two things from GitHub, both free to create:
    *Metadata: Read only*. Subscribe to *Pull request*, *Pull request review*,
    *Pull request review comment*, *Check run*, *Check suite*, *Installation*.
 2. **An OAuth App** (or use the GitHub App's own OAuth credentials), callback
-   URL `{APP_URL}/auth/callback`, so users can sign in.
+   URL `https://baton-xi.vercel.app/auth/callback` so users can sign in and
+   reach the dashboard.
 
 See [`ENVIRONMENT.md`](./ENVIRONMENT.md) for every variable.
 
@@ -100,6 +104,8 @@ for the deep dive.
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md): data model, state machine, pipelines.
 - [`SECURITY.md`](./SECURITY.md): permissions, webhook integrity, threat model.
 - [`ENVIRONMENT.md`](./ENVIRONMENT.md): every environment variable, explained.
+- [`DASHBOARD.md`](./DASHBOARD.md): the authenticated dashboard, GitHub sign-in,
+  the OAuth callback URL, and App-vs-OAuth split.
 - [`CONTRIBUTING.md`](./CONTRIBUTING.md): how to contribute.
 
 ## License
