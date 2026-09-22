@@ -48,7 +48,6 @@ export default async function AdminGithubPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Integrations"
         title="GitHub Integrations &amp; Pipeline"
         description="Real-time status of connected GitHub App installations, tracked repositories, and webhook ingestion events."
         actions={

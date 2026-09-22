@@ -68,7 +68,6 @@ export default async function SettingsPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        eyebrow="Account &amp; Integrations"
         title="Settings &amp; Access"
         description="Manage your authenticated GitHub profile, connected repositories, and active browser sessions."
         actions={

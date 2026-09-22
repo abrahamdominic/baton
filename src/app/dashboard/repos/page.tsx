@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
 import { myInstallations } from "@/lib/queries/dashboard";
+import { getEntitlement } from "@/lib/billing/entitlement";
 import { config } from "@/lib/env-boot";
 import { setRepoEnabled, updateRepoSettings, rescanRepo } from "../actions";
 import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { RepoSyncButton } from "@/components/dashboard/repo-sync-button";
 import {
   IconBranch,
   IconRefresh,
@@ -15,6 +17,7 @@ import {
   IconExternalLink,
   IconSliders,
   IconShield,
+  IconLock,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +59,10 @@ export default async function ReposPage() {
   const user = await currentUser();
   if (!user) return null;
 
-  const installations = await myInstallations(user);
+  const [installations, entitlement] = await Promise.all([
+    myInstallations(user),
+    getEntitlement(user.id),
+  ]);
   const repos = installations.flatMap((i) =>
     i.repos.map((r) => ({ ...r, account: i.accountLogin })),
   );
@@ -69,7 +75,6 @@ export default async function ReposPage() {
     return (
       <div className="space-y-8">
         <PageHeader
-          eyebrow="Repositories &amp; Configuration"
           title="Tracked Repositories"
           description="Configure Baton monitoring and polite review stall nudge thresholds per repository."
         />
@@ -77,17 +82,20 @@ export default async function ReposPage() {
         <EmptyState
           icon={IconBranch}
           title="No repositories connected"
-          hint="Install the Baton GitHub App on your GitHub accounts to track pull request states and configure polite nudge thresholds."
+          hint="Install the Baton GitHub App on your GitHub accounts or sync existing installations to begin monitoring."
           action={
-            <a
-              href={installUrl}
-              className="btn btn-primary btn-sm"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <IconGitHub className="h-3.5 w-3.5" />
-              <span>Install Baton on GitHub</span>
-            </a>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <RepoSyncButton />
+              <a
+                href={installUrl}
+                className="btn btn-primary btn-sm"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <IconGitHub className="h-3.5 w-3.5" />
+                <span>Install Baton on GitHub</span>
+              </a>
+            </div>
           }
         />
       </div>
@@ -98,21 +106,43 @@ export default async function ReposPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        eyebrow="Repositories &amp; Configuration"
         title="Tracked Repositories"
         description={`${repos.length} repositor${repos.length === 1 ? "y" : "ies"} monitored across ${installations.length} GitHub account${installations.length === 1 ? "" : "s"}.`}
         actions={
-          <a
-            href={installUrl}
-            className="btn btn-primary btn-sm"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <IconGitHub className="h-3.5 w-3.5" />
-            <span>+ Add Repositories</span>
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <RepoSyncButton />
+            <a
+              href={installUrl}
+              className="btn btn-primary btn-sm"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <IconGitHub className="h-3.5 w-3.5" />
+              <span>+ Add Repositories</span>
+            </a>
+          </div>
         }
       />
+
+      {/* Free Plan Quota Callout */}
+      {!entitlement.hasPaidAccess && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-500/20 bg-brand-500/[0.04] p-4 text-xs text-ink-300">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 font-mono font-bold text-brand-300 text-xs">
+              {activeCount}/3
+            </span>
+            <div>
+              <p className="font-semibold text-white">Free Plan: {activeCount} of 3 active repositories tracked</p>
+              <p className="text-[11px] text-ink-400">
+                Upgrade to Team or Organization for unlimited repositories and fully customizable stall thresholds.
+              </p>
+            </div>
+          </div>
+          <Link href="/dashboard/billing" className="btn btn-secondary btn-sm shrink-0">
+            Upgrade Plan
+          </Link>
+        </div>
+      )}
 
       {/* Summary KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
@@ -207,8 +237,19 @@ export default async function ReposPage() {
                     >
                       <button
                         type="submit"
-                        className="btn btn-ghost btn-sm"
-                        title={r.enabled ? "Pause Baton tracking on this repo" : "Resume Baton tracking"}
+                        disabled={!r.enabled && !entitlement.hasPaidAccess && activeCount >= 3}
+                        className={`btn btn-ghost btn-sm ${
+                          !r.enabled && !entitlement.hasPaidAccess && activeCount >= 3
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                        title={
+                          r.enabled
+                            ? "Pause Baton tracking on this repo"
+                            : !entitlement.hasPaidAccess && activeCount >= 3
+                            ? "Free plan limit reached (3 active repos). Upgrade to enable."
+                            : "Resume Baton tracking"
+                        }
                       >
                         {r.enabled ? (
                           <>
@@ -268,79 +309,103 @@ export default async function ReposPage() {
                         <span className="flex items-center gap-2">
                           <IconSliders className="h-3.5 w-3.5 text-brand-400" />
                           <span>Customize Inactivity Thresholds (Hours)</span>
+                          {!entitlement.hasPaidAccess && (
+                            <span className="rounded border border-brand-400/30 bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-mono text-brand-300">
+                              Team &amp; Org
+                            </span>
+                          )}
                         </span>
                         <IconChevronDown className="h-4 w-4 text-ink-400 transition-transform group-open:rotate-180" />
                       </summary>
 
                       <div className="pt-3">
-                        <p className="text-xs text-ink-400 mb-3">
-                          Set the hours of inactivity before Baton automatically leaves a polite @mention
-                          nudge in the PR thread.
-                        </p>
-
-                        <div className="grid gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                          {THRESHOLDS.map((t) => (
-                            <div
-                              key={t.key}
-                              className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-ink-900/60 px-3 py-2.5"
-                            >
-                              <div className="min-w-0 flex-1">
-                                <label
-                                  htmlFor={`${r.id}-${t.key}`}
-                                  className="block cursor-pointer text-xs font-semibold text-ink-200"
-                                >
-                                  {t.label}
-                                </label>
-                                <span className="block truncate text-[10px] text-ink-500">
-                                  {t.hint}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  id={`${r.id}-${t.key}`}
-                                  name={t.key}
-                                  form={`settings-${r.id}`}
-                                  defaultValue={r.setting?.[t.key] ?? 24}
-                                  type="number"
-                                  min={1}
-                                  max={720}
-                                  className="input h-8 w-16 text-right font-mono text-xs"
-                                />
-                                <span className="font-mono text-xs text-ink-500">h</span>
-                              </div>
+                        {!entitlement.hasPaidAccess ? (
+                          <div className="rounded-lg border border-brand-500/20 bg-brand-500/[0.04] p-4 text-xs">
+                            <div className="flex items-center gap-2 font-semibold text-white">
+                              <IconLock className="h-3.5 w-3.5 text-brand-400" />
+                              <span>Custom thresholds require a Team or Organization plan</span>
                             </div>
-                          ))}
-                        </div>
+                            <p className="mt-1.5 text-xs text-ink-400 leading-relaxed">
+                              This repository currently uses Baton&apos;s standard defaults (24h first response, 48h re-review). Upgrade your plan to adjust hours per state or configure organization-wide review policies.
+                            </p>
+                            <div className="mt-3">
+                              <Link href="/dashboard/billing" className="btn btn-secondary btn-sm">
+                                Upgrade Plan
+                              </Link>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-xs text-ink-400 mb-3">
+                              Set the hours of inactivity before Baton automatically leaves a polite @mention
+                              nudge in the PR thread.
+                            </p>
 
-                        {/* Form Submit Footer */}
-                        <form
-                          id={`settings-${r.id}`}
-                          action={async (formData) => {
-                            "use server";
-                            const int = (k: string) => Number(formData.get(k) ?? 24);
-                            await updateRepoSettings({
-                              repoId: r.id,
-                              statusCommentEnabled: true,
-                              labelsEnabled: true,
-                              nudgesEnabled: true,
-                              firstResponseHours: int("firstResponseHours"),
-                              reviewFollowUpHours: int("reviewFollowUpHours"),
-                              changesRequiredHours: int("changesRequiredHours"),
-                              ciFailHours: int("ciFailHours"),
-                              conflictHours: int("conflictHours"),
-                              readyToMergeHours: int("readyToMergeHours"),
-                              maxNudgesPerState: 1,
-                            });
-                          }}
-                          className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3"
-                        >
-                          <span className="font-mono text-[11px] text-ink-500">
-                            Max 1 polite nudge per state transition
-                          </span>
-                          <button type="submit" className="btn btn-primary btn-sm">
-                            Save Thresholds
-                          </button>
-                        </form>
+                            <div className="grid gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                              {THRESHOLDS.map((t) => (
+                                <div
+                                  key={t.key}
+                                  className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-ink-900/60 px-3 py-2.5"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <label
+                                      htmlFor={`${r.id}-${t.key}`}
+                                      className="block cursor-pointer text-xs font-semibold text-ink-200"
+                                    >
+                                      {t.label}
+                                    </label>
+                                    <span className="block truncate text-[10px] text-ink-500">
+                                      {t.hint}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <input
+                                      id={`${r.id}-${t.key}`}
+                                      name={t.key}
+                                      form={`settings-${r.id}`}
+                                      defaultValue={r.setting?.[t.key] ?? 24}
+                                      type="number"
+                                      min={1}
+                                      max={720}
+                                      className="input h-8 w-16 text-right font-mono text-xs"
+                                    />
+                                    <span className="font-mono text-xs text-ink-500">h</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Form Submit Footer */}
+                            <form
+                              id={`settings-${r.id}`}
+                              action={async (formData) => {
+                                "use server";
+                                const int = (k: string) => Number(formData.get(k) ?? 24);
+                                await updateRepoSettings({
+                                  repoId: r.id,
+                                  statusCommentEnabled: true,
+                                  labelsEnabled: true,
+                                  nudgesEnabled: true,
+                                  firstResponseHours: int("firstResponseHours"),
+                                  reviewFollowUpHours: int("reviewFollowUpHours"),
+                                  changesRequiredHours: int("changesRequiredHours"),
+                                  ciFailHours: int("ciFailHours"),
+                                  conflictHours: int("conflictHours"),
+                                  readyToMergeHours: int("readyToMergeHours"),
+                                  maxNudgesPerState: 1,
+                                });
+                              }}
+                              className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3"
+                            >
+                              <span className="font-mono text-[11px] text-ink-500">
+                                Max 1 polite nudge per state transition
+                              </span>
+                              <button type="submit" className="btn btn-primary btn-sm">
+                                Save Thresholds
+                              </button>
+                            </form>
+                          </>
+                        )}
                       </div>
                     </details>
                   ) : null}

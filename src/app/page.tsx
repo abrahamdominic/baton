@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   title: "Baton: Know whose turn it is on every pull request",
   description:
-    "Deterministic GitHub App that tracks PR review state, surfaces the blocker in the thread, and nudges the right person when work stalls. Zero code access.",
+    "Deterministic GitHub App that tracks PR review state, surfaces the blocker in the thread, and nudges the right person when work stalls. Metadata-only permissions.",
 };
 
 const SITE_JSON_LD = {
@@ -104,7 +104,7 @@ const FEATURES = [
   },
   {
     icon: IconShield,
-    title: "Zero source code access",
+    title: "No source code read access",
     body: "Baton requests only Pull requests and Issues read/write (for comments/labels), plus read-only Checks and Metadata. It never requests Contents, ASTs, or Secrets.",
   },
 ];
@@ -130,7 +130,7 @@ const COMPARISONS = [
   },
   {
     dimension: "Source code access",
-    baton: "Zero code read (Pull requests and Checks metadata only)",
+    baton: "Metadata-only access (Pull requests and Checks metadata only)",
     staleBot: "Usually requires broad repository access",
     slackPings: "N/A",
   },
@@ -241,7 +241,7 @@ export default async function LandingPage({
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-ink-400">
               <span className="flex items-center gap-1.5">
                 <IconCheck className="h-3.5 w-3.5 text-signal-400" />
-                Zero code or diff access
+                No code or diff access
               </span>
               <span className="flex items-center gap-1.5">
                 <IconCheck className="h-3.5 w-3.5 text-signal-400" />
@@ -287,8 +287,7 @@ export default async function LandingPage({
       {/* The PR Problem: The Stalled Loop vs The Baton Relay */}
       <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl">
-          <p className="eyebrow">The workflow problem</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             Why pull requests stall in engineering teams
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-300">
@@ -396,8 +395,7 @@ export default async function LandingPage({
       {/* How it Works: 3 Deterministic Steps */}
       <section id="how-it-works" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl">
-          <p className="eyebrow">Architecture &amp; Flow</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             From GitHub webhook to unblocked PR
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-300">
@@ -447,8 +445,7 @@ export default async function LandingPage({
       {/* State Engine Interactive Matrix */}
       <section id="states" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl mb-12">
-          <p className="eyebrow">The State Engine</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             Eight canonical states, zero ambiguity
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-300">
@@ -463,8 +460,7 @@ export default async function LandingPage({
       {/* Feature Grid */}
       <section id="features" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl">
-          <p className="eyebrow">Product Features</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             Built for engineering teams that ship daily
           </h2>
           <p className="mt-4 text-sm text-ink-300">
@@ -491,8 +487,7 @@ export default async function LandingPage({
       {/* Interactive Wait Calculator */}
       <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl mb-12">
-          <p className="eyebrow">Impact Calculator</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             How many hours is your team waiting?
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-300">
@@ -507,8 +502,7 @@ export default async function LandingPage({
       {/* Comparison Grid */}
       <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl mb-12">
-          <p className="eyebrow">Market Comparison</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-white md:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
             Why teams choose Baton over alternatives
           </h2>
           <p className="mt-4 text-sm leading-relaxed text-ink-300">
@@ -549,7 +543,7 @@ export default async function LandingPage({
             <div>
               <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-signal-400">
                 <IconLock className="h-4 w-4" />
-                Zero-Code Security Guarantee
+                Metadata-Only Security Guarantee
               </div>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
                 Baton never reads your repository code or diffs

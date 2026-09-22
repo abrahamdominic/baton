@@ -105,7 +105,6 @@ export default async function ActivityPage({
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        eyebrow="Audit &amp; Event Ledger"
         title="Activity Ledger"
         description="Chronological audit of what Baton executed across your repositories: targeted stall nudges and pull request state transitions."
         actions={

@@ -8,18 +8,38 @@ import { enqueuePrRefresh } from "@/lib/engine/jobs";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { logger } from "@/lib/logger";
 
+import { getEntitlement } from "@/lib/billing/entitlement";
+import { registerInstallation } from "@/lib/github/install";
+
 /** Tenant check: does this repo belong to the signed-in user's installations? */
-async function assertRepoAccess(repoId: string): Promise<{ repoId: string }> {
+async function assertRepoAccess(repoId: string): Promise<{ repoId: string; user: NonNullable<Awaited<ReturnType<typeof currentUser>>> }> {
   const user = await currentUser();
   if (!user) throw new Error("sign-in required");
-  const installations = await myInstallations(user);
+  const installations = await myInstallations(user, { allRepos: true });
   const owned = installations.some((i) => i.repos.some((r) => r.id === repoId));
   if (!owned) throw new Error("not your repo");
-  return { repoId };
+  return { repoId, user };
 }
 
 export async function setRepoEnabled(repoId: string, enabled: boolean): Promise<void> {
-  await assertRepoAccess(repoId);
+  const { user } = await assertRepoAccess(repoId);
+
+  if (enabled) {
+    const entitlement = await getEntitlement(user.id);
+    if (!entitlement.hasPaidAccess) {
+      const installations = await myInstallations(user, { allRepos: true });
+      const currentActive = installations.reduce(
+        (sum, inst) => sum + inst.repos.filter((r) => r.enabled && r.id !== repoId).length,
+        0,
+      );
+      if (currentActive >= 3) {
+        throw new Error(
+          "Free tier is limited to 3 active repositories. Upgrade to Team or Organization to monitor unlimited repositories.",
+        );
+      }
+    }
+  }
+
   await prisma.repo.update({ where: { id: repoId }, data: { enabled } });
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/repos");
@@ -42,7 +62,15 @@ const settingsSchema = z.object({
 export async function updateRepoSettings(input: z.infer<typeof settingsSchema>): Promise<void> {
   const parsed = settingsSchema.safeParse(input);
   if (!parsed.success) throw new Error("invalid settings");
-  await assertRepoAccess(parsed.data.repoId);
+  const { user } = await assertRepoAccess(parsed.data.repoId);
+
+  const entitlement = await getEntitlement(user.id);
+  if (!entitlement.hasPaidAccess) {
+    throw new Error(
+      "Customizing per-repo inactivity thresholds is available on Team and Organization plans. Please upgrade to customize.",
+    );
+  }
+
   const { repoId, ...data } = parsed.data;
   await prisma.repoSetting.update({
     where: { repoId },
@@ -50,6 +78,35 @@ export async function updateRepoSettings(input: z.infer<typeof settingsSchema>):
   });
   revalidatePath("/dashboard/repos");
   revalidatePath("/dashboard");
+}
+
+/** Synchronize all accessible repositories from GitHub App installations */
+export async function syncUserRepositories(): Promise<{ count: number }> {
+  const user = await currentUser();
+  if (!user) throw new Error("sign-in required");
+
+  const installations = await myInstallations(user, { allRepos: true });
+  let totalRepos = 0;
+
+  for (const inst of installations) {
+    try {
+      const info = await registerInstallation(inst.installationId, {
+        accountLogin: inst.accountLogin,
+        accountType: inst.accountType,
+      });
+      totalRepos += info.repositories.length;
+    } catch (err) {
+      logger.error("sync-user-repos-failed", {
+        installationId: inst.installationId,
+        error: String(err),
+      });
+    }
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/repos");
+  revalidatePath("/dashboard/settings");
+  return { count: totalRepos };
 }
 
 export async function rescanRepo(fullName: string): Promise<void> {

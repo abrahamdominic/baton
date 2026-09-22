@@ -43,7 +43,6 @@ export default async function AdminPaymentsPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Payments"
         title="Payment Transactions"
         description="Inspect credit card and on-chain cryptocurrency transactions. USDC orders require on-chain event verification on Base."
         actions={

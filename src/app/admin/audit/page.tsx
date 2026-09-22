@@ -18,7 +18,6 @@ export default async function AdminAuditPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Security &amp; Compliance"
         title="Security Audit Log"
         description="Immutable administrative event ledger. Rows are append-only and cannot be updated, modified, or purged."
         actions={

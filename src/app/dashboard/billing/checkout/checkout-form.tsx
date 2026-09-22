@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { IconArrowRight, IconCopy, IconShield, IconLock, IconAlertCircle, IconGitHub } from "@/components/icons";
+import { IconArrowRight, IconCopy, IconShield, IconAlertCircle, IconCreditCard, IconCoins } from "@/components/icons";
 
 interface CheckoutFormProps {
   plan: {
@@ -200,8 +200,8 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 disabled={state === "creating" || props.plan.priceCustom}
                 className="btn btn-primary btn-lg justify-center"
               >
-                <IconLock className="h-4 w-4" />
-                Pay with card
+                <IconCreditCard className="h-4 w-4" />
+                <span>{state === "creating" ? "Processing..." : "Pay with Credit Card"}</span>
               </button>
             ) : null}
             {props.providers.usdc ? (
@@ -211,8 +211,8 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 disabled={state === "creating" || props.plan.priceCustom}
                 className="btn btn-ghost btn-lg justify-center"
               >
-                <IconGitHub className="h-4 w-4" />
-                Pay with USDC on Base
+                <IconCoins className="h-4 w-4 text-brand-300" />
+                <span>{state === "creating" ? "Generating Order..." : "Pay with USDC on Base"}</span>
               </button>
             ) : null}
           </div>

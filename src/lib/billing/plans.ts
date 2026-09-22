@@ -9,16 +9,79 @@ import type { PlanRecord } from "./types";
  * dashboard edits (supabase `plans`), so prices never drift between pages.
  */
 
+export const DEFAULT_PLANS: PlanRecord[] = [
+  {
+    id: "plan_team_default",
+    slug: "team",
+    name: "Team",
+    description: "For engineering teams that want to ship fast and stop PR stalls.",
+    monthly_price_cents: 1000,
+    annual_price_cents: 800,
+    price_custom: false,
+    currency: "USD",
+    features: [
+      "Unlimited repositories",
+      "Deterministic state classifier",
+      "Per-repo customizable nudge thresholds",
+      "Automated @-mention reviewer nudges",
+      "Team-wide repository boards",
+      "Your Move queue with priority sorting",
+    ],
+    limits: { maxRepos: null },
+    stripe_product_id: null,
+    stripe_monthly_price_id: null,
+    stripe_annual_price_id: null,
+    is_active: true,
+    is_public: true,
+    sort_order: 10,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "plan_org_default",
+    slug: "organization",
+    name: "Organization",
+    description: "For scaling engineering organizations with compliance, unlimited repos, and priority SLAs.",
+    monthly_price_cents: 5000,
+    annual_price_cents: 48000,
+    price_custom: false,
+    currency: "USD",
+    features: [
+      "Everything in Team",
+      "Unlimited repositories & team members",
+      "Organization-wide review stall policies",
+      "SAML 2.0 & SCIM SSO integration",
+      "Audit log export via streaming webhook or API",
+      "Priority SLA with 99.9% uptime guarantee",
+    ],
+    limits: { maxRepos: null },
+    stripe_product_id: null,
+    stripe_monthly_price_id: null,
+    stripe_annual_price_id: null,
+    is_active: true,
+    is_public: true,
+    sort_order: 20,
+    created_at: "2026-01-01T00:00:00.000Z",
+    updated_at: "2026-01-01T00:00:00.000Z",
+  },
+];
+
 export async function listPlans(opts: { includeInactive?: boolean } = {}): Promise<PlanRecord[]> {
-  const sb = getAdminClient();
-  const select = sb
-    .from("plans")
-    .select("*")
-    .order("sort_order", { ascending: true });
-  if (!opts.includeInactive) select.eq("is_public", true).eq("is_active", true);
-  const { data, error } = await select;
-  if (error) throw new Error(`plans.list failed: ${error.message}`);
-  return (data ?? []).map((r) => planFromRow(r as Row));
+  try {
+    const sb = getAdminClient();
+    const select = sb
+      .from("plans")
+      .select("*")
+      .order("sort_order", { ascending: true });
+    if (!opts.includeInactive) select.eq("is_public", true).eq("is_active", true);
+    const { data, error } = await select;
+    if (error || !data || data.length === 0) {
+      return DEFAULT_PLANS;
+    }
+    return data.map((r) => planFromRow(r as Row));
+  } catch {
+    return DEFAULT_PLANS;
+  }
 }
 
 export async function publicPlans(): Promise<PlanRecord[]> {
@@ -26,17 +89,29 @@ export async function publicPlans(): Promise<PlanRecord[]> {
 }
 
 export async function getPlanBySlug(slug: string): Promise<PlanRecord | null> {
-  const sb = getAdminClient();
-  const { data, error } = await sb.from("plans").select("*").eq("slug", slug).maybeSingle();
-  if (error) throw new Error(`plans.get failed: ${error.message}`);
-  return data ? planFromRow(data as Row) : null;
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb.from("plans").select("*").eq("slug", slug).maybeSingle();
+    if (error || !data) {
+      return DEFAULT_PLANS.find((p) => p.slug === slug) ?? null;
+    }
+    return planFromRow(data as Row);
+  } catch {
+    return DEFAULT_PLANS.find((p) => p.slug === slug) ?? null;
+  }
 }
 
 export async function getPlanById(id: string): Promise<PlanRecord | null> {
-  const sb = getAdminClient();
-  const { data, error } = await sb.from("plans").select("*").eq("id", id).maybeSingle();
-  if (error) throw new Error(`plans.get failed: ${error.message}`);
-  return data ? planFromRow(data as Row) : null;
+  try {
+    const sb = getAdminClient();
+    const { data, error } = await sb.from("plans").select("*").eq("id", id).maybeSingle();
+    if (error || !data) {
+      return DEFAULT_PLANS.find((p) => p.id === id || p.slug === id) ?? null;
+    }
+    return planFromRow(data as Row);
+  } catch {
+    return DEFAULT_PLANS.find((p) => p.id === id || p.slug === id) ?? null;
+  }
 }
 
 export interface PlanInput {

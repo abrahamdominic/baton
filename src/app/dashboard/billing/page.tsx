@@ -77,7 +77,6 @@ export default async function BillingPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        eyebrow="Commerce &amp; Entitlements"
         title="Billing &amp; Subscription"
         description="Manage your Baton subscription plan, invoice history, and crypto payment options."
         actions={

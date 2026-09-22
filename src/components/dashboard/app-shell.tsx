@@ -311,11 +311,6 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-ink-900/60 px-2.5 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-signal-400 ring-2 ring-signal-400/20" />
-              <span className="font-mono text-[10px] font-medium text-ink-300">Engine Active</span>
-            </div>
-
             <Link
               href="/dashboard/repos"
               className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"

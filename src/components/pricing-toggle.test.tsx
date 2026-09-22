@@ -32,19 +32,22 @@ describe("PricingView billing toggle", () => {
     expect(screen.queryByText("$8")).toBeNull();
   });
 
-  it("marks the selected tab and keeps Free and Enterprise prices stable", () => {
+  it("marks the selected tab and switches Organization price between $50 monthly and $40 annual", () => {
     render(<PricingView />);
 
     const monthlyTab = screen.getByRole("tab", { name: /monthly billing/i });
     const annualTab = screen.getByRole("tab", { name: /annual billing/i });
     expect(monthlyTab.getAttribute("aria-selected")).toBe("true");
     expect(annualTab.getAttribute("aria-selected")).toBe("false");
+    expect(screen.getByText("$0")).toBeTruthy();
+    expect(screen.getAllByText("$50").length).toBeGreaterThan(0);
 
     fireEvent.click(annualTab);
 
     expect(annualTab.getAttribute("aria-selected")).toBe("true");
     expect(monthlyTab.getAttribute("aria-selected")).toBe("false");
     expect(screen.getByText("$0")).toBeTruthy();
-    expect(screen.getAllByText("Custom").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
+    expect(screen.queryByText("$50")).toBeNull();
   });
 });

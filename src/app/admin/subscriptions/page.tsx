@@ -58,7 +58,6 @@ export default async function AdminSubscriptionsPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Subscriptions"
         title="Subscription Records"
         description="Lifecycle state machine and entitlement overrides. All administrative modifications are audited to the security log."
         actions={

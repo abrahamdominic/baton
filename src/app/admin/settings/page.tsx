@@ -95,7 +95,6 @@ export default async function AdminSettingsPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Environment"
         title="Environment &amp; Settings"
         description="Read-only deployment readiness checklist. Features degrade gracefully if optional external providers are unconfigured."
         actions={

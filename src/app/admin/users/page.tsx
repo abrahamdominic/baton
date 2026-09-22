@@ -50,7 +50,6 @@ export default async function AdminUsersPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Access Control"
         title="User Accounts &amp; Roles"
         description="Inspect registered GitHub accounts, manage administrative roles, and enforce account suspensions with audited confirmation."
         actions={

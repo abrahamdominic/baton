@@ -200,14 +200,6 @@ export function IconTerminal(props: P) {
   );
 }
 
-export function IconSparkles(props: P) {
-  return (
-    <svg {...base(props)}>
-      <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
-    </svg>
-  );
-}
-
 export function IconChevronRight(props: P) {
   return (
     <svg {...base(props)}>
@@ -355,6 +347,16 @@ export function IconCreditCard(props: P) {
     <svg {...base(props)}>
       <rect x="2" y="5" width="20" height="14" rx="2" />
       <line x1="2" y1="10" x2="22" y2="10" />
+    </svg>
+  );
+}
+
+export function IconCoins(props: P) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M18 10.5a6 6 0 0 1-5.5 5.5" />
+      <path d="M18 16a6 6 0 0 1-6 6" />
     </svg>
   );
 }

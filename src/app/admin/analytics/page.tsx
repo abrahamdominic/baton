@@ -26,7 +26,6 @@ export default async function AdminAnalyticsPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Analytics"
         title="Analytics &amp; Conversion Funnels"
         description="Lifecycle distribution for customer subscriptions, conversion checkpoints, and payment confirmation status."
         actions={

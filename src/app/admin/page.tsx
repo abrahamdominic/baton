@@ -49,7 +49,6 @@ export default async function AdminOverviewPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin Operations"
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/30 bg-signal-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-signal-400">
             <span className="h-1.5 w-1.5 rounded-full bg-signal-400" />

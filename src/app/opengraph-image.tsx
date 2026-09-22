@@ -170,7 +170,7 @@ export default function OpengraphImage() {
           }}
         >
           <span style={{ width: 10, height: 10, borderRadius: 5, background: SIGNAL_400 }} />
-          <span>Deterministic PR Workflow · Zero Code Access</span>
+          <span>Deterministic PR Workflow · Least-Privilege by Design</span>
         </div>
       </div>
     ),

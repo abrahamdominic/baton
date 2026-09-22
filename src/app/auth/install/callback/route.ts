@@ -20,6 +20,7 @@ import {
 import type { GitHubUser } from "@/lib/auth/github-oauth";
 import { getAppBaseUrl } from "@/lib/auth/redirect";
 import { enqueueInstallRegister } from "@/lib/engine/jobs";
+import { registerInstallation } from "@/lib/github/install";
 import { getClientIp } from "@/lib/net";
 
 export const dynamic = "force-dynamic";
@@ -134,10 +135,22 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       });
     }
     void enqueueInstallRegister(installationId).catch(() => {});
+    try {
+      await registerInstallation(installationId, { accountLogin: user.login });
+    } catch (e) {
+      logger.warn("app-install-immediate-register-fallback-to-queue", { installationId, error: String(e) });
+    }
 
     if (appUserToken) {
       const installationIds = await fetchUserInstallations(appUserToken).catch(() => []);
-      for (const id of installationIds) void enqueueInstallRegister(id).catch(() => {});
+      for (const id of installationIds) {
+        void enqueueInstallRegister(id).catch(() => {});
+        try {
+          await registerInstallation(id, { accountLogin: user.login });
+        } catch {
+          // Synchronous registration best-effort fallback to enqueued job
+        }
+      }
     }
   } catch (err) {
     logger.error("app-install-callback-db-failed", { error: String(err), ip: getClientIp(req) });

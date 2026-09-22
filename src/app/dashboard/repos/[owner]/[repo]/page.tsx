@@ -56,7 +56,6 @@ export default async function RepoPage({
         </div>
 
         <PageHeader
-          eyebrow="Repository PR Board"
           title={`${owner}/${repo}`}
           description={`${board.prs.length} open pull request${board.prs.length === 1 ? "" : "s"} tracked across review lifecycle states.`}
           actions={

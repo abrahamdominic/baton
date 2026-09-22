@@ -78,26 +78,26 @@ const TIERS: Tier[] = [
   {
     slug: "organization",
     name: "Organization",
-    monthlyPrice: "Custom",
-    annualPrice: "Custom",
-    monthlyPeriod: "annual contract",
-    annualPeriod: "annual contract",
-    monthlyNote: "Tailored to your team size and security requirements",
-    annualNote: "Custom pricing with annual commitment discount",
-    blurb: "For scaling engineering organizations with compliance and SLA needs.",
+    monthlyPrice: "$50",
+    annualPrice: "$40",
+    monthlyPeriod: "per month",
+    annualPeriod: "per month, billed annually",
+    monthlyNote: "Billed monthly at $50/month",
+    annualNote: "Billed annually at $480/year (save 20%)",
+    blurb: "For scaling engineering organizations with compliance, unlimited repos, and priority SLAs.",
     features: [
       "Everything in Team",
+      "Unlimited repositories & team members",
+      "Organization-wide review stall policies",
       "SAML 2.0 and SCIM SSO integration",
       "Audit log export via streaming webhook or API",
       "Dedicated Customer Success Engineer",
       "Custom SLA with 99.9% uptime guarantee",
-      "Self-hosted deployment support",
-      "Security questionnaire and vendor review",
     ],
-    ctaMonthly: "Contact Enterprise Sales",
-    ctaAnnual: "Contact Enterprise Sales",
-    checkoutUrlMonthly: "mailto:sales@baton.dev?subject=Baton%20Organization%20Plan%20Inquiry%20(Monthly)",
-    checkoutUrlAnnual: "mailto:sales@baton.dev?subject=Baton%20Organization%20Plan%20Inquiry%20(Annual)",
+    ctaMonthly: "Choose Organization (Monthly)",
+    ctaAnnual: "Choose Organization (Annual)",
+    checkoutUrlMonthly: "/dashboard/billing/checkout?plan=plan_org_default&billing=monthly",
+    checkoutUrlAnnual: "/dashboard/billing/checkout?plan=plan_org_default&billing=annual",
     featured: false,
   },
 ];
@@ -110,7 +110,7 @@ const MATRIX = [
       { feature: "Live pinned status comment", free: "Included", team: "Included", org: "Included" },
       { feature: "Real-time baton:* labels", free: "Included", team: "Included", org: "Included" },
       { feature: "Whose-turn resolution", free: "Included", team: "Included", org: "Included" },
-      { feature: "Zero source code access guarantee", free: "Included", team: "Included", org: "Included" },
+      { feature: "Metadata-only access guarantee (no code read)", free: "Included", team: "Included", org: "Included" },
     ],
   },
   {
@@ -324,7 +324,9 @@ export function PricingView({
                 <th className="py-4 px-4 font-semibold text-brand-300">
                   Team ({annual ? "$8/mo billed annually" : "$10/mo"})
                 </th>
-                <th className="py-4 pr-6 pl-4 font-semibold text-white">Organization</th>
+                <th className="py-4 pr-6 pl-4 font-semibold text-white">
+                  Organization ({annual ? "$40/mo billed annually" : "$50/mo"})
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06]">

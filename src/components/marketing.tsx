@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/site";
-import { IconMenu, IconGitHub, IconArrowRight, IconCheck } from "@/components/icons";
+import { IconMenu, IconGitHub, IconArrowRight } from "@/components/icons";
 import { BatonLogo } from "@/components/logo";
 
 const NAV = [
@@ -141,7 +141,7 @@ export function MarketingFooter() {
             <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-ink-400">
               <span className="flex items-center gap-1.5 rounded-full border border-signal-500/20 bg-signal-500/10 px-2.5 py-1 font-mono text-[11px] text-signal-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-signal-500" />
-                Zero code access
+                Least-privilege metadata
               </span>
               <span className="rounded-full border border-white/[0.08] bg-ink-900 px-2.5 py-1 font-mono text-[11px] text-ink-400">
                 AGPL-3.0 Open Source
@@ -187,13 +187,10 @@ export function MarketingFooter() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-8 font-mono text-[11px] text-ink-500">
-          <p>Deterministic state machine · No AI code summarization · Self-hostable</p>
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-1.5 text-ink-400">
-              <IconCheck className="h-3 w-3 text-signal-500" />
-              100% test coverage on classifier
-            </span>
+        <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-8 text-xs text-ink-500">
+          <p>Engineered for high-performing engineering teams shipping daily.</p>
+          <div className="flex items-center gap-4 text-ink-400 font-mono text-[11px]">
+            <span>Status: Operational</span>
           </div>
         </div>
       </div>

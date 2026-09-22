@@ -12,8 +12,7 @@ export default function PrivacyPage() {
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <MarketingHeader />
       <main className="container-text py-16 md:py-24">
-        <p className="eyebrow">Legal &amp; Compliance</p>
-        <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+        <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           Privacy Policy
         </h1>
         <p className="mt-2 text-xs font-mono text-ink-400">

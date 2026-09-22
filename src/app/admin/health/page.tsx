@@ -51,7 +51,6 @@ export default async function AdminHealthPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Operations"
         title="System Health &amp; Queue Status"
         description="Real-time error logs, warning telemetry, and background worker queue metrics for continuous operation."
         actions={

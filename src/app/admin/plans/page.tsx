@@ -23,7 +23,6 @@ export default async function AdminPlansPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        eyebrow="Admin &middot; Catalog"
         title="Plan Catalog"
         description="Configure subscription tiers served on the public pricing page and checkout flow. All plan modifications are audited."
         actions={

@@ -260,5 +260,8 @@ revoke all on public.plans, public.subscriptions, public.payments,
 -- ---------------------------------------------------------------------------
 insert into public.plans (slug, name, description, monthly_price_cents, annual_price_cents, price_custom, currency, sort_order, is_active, is_public) values
     ('team', 'Team', 'For engineering teams that want to ship fast and stop PR stalls.', 1000, 800, false, 'USD', 10, true, true),
-    ('organization', 'Organization', 'For scaling engineering organizations with compliance and SLA needs.', 0, 0, true, 'USD', 20, true, true)
-on conflict (slug) do nothing;
+    ('organization', 'Organization', 'For scaling engineering organizations with compliance, unlimited repos, and priority SLAs.', 5000, 48000, false, 'USD', 20, true, true)
+on conflict (slug) do update set
+    monthly_price_cents = 5000,
+    annual_price_cents = 48000,
+    price_custom = false;

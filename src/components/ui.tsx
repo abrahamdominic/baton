@@ -104,7 +104,9 @@ export function PageHeader({
   return (
     <section className="flex flex-col gap-4 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
-        {eyebrow ? (
+        {badge && !eyebrow ? (
+          <div className="mb-2 flex items-center gap-2">{badge}</div>
+        ) : eyebrow ? (
           <div className="mb-1 flex items-center gap-2">
             <span className="eyebrow">{eyebrow}</span>
             {badge ? <div className="ml-1">{badge}</div> : null}

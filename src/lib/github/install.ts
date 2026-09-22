@@ -26,17 +26,31 @@ export async function fetchInstallationInfo(installationId: number): Promise<Ins
   }
 
   const installOctokit = await getInstallationOctokit(installationId);
-  const repoRes = await installOctokit.rest.apps.listReposAccessibleToInstallation({
-    per_page: 100,
-  });
+  const repos: { id: number; name: string; fullName: string; defaultBranch: string; private: boolean }[] = [];
+  let page = 1;
 
-  const repos = (repoRes.data.repositories ?? []).map((r) => ({
-    id: Number(r.id),
-    name: r.name,
-    fullName: r.full_name,
-    defaultBranch: r.default_branch ?? "main",
-    private: Boolean(r.private),
-  }));
+  while (page <= 50) {
+    const repoRes = await installOctokit.rest.apps.listReposAccessibleToInstallation({
+      per_page: 100,
+      page,
+    });
+    const batch = repoRes.data.repositories ?? [];
+    for (const r of batch) {
+      repos.push({
+        id: Number(r.id),
+        name: r.name,
+        fullName: r.full_name,
+        defaultBranch: r.default_branch ?? "main",
+        private: Boolean(r.private),
+      });
+    }
+
+    const totalCount = repoRes.data.total_count;
+    if (batch.length < 100 || (typeof totalCount === "number" && repos.length >= totalCount)) {
+      break;
+    }
+    page++;
+  }
 
   return {
     installationId: inst.id,
@@ -112,11 +126,13 @@ export async function registerInstallation(
         enabled: true,
       },
       update: {
+        installationId: installation.id,
         owner: r.fullName.split("/")[0],
         name: r.name,
         fullName: r.fullName,
         defaultBranch: r.defaultBranch,
         isPrivate: r.private,
+        enabled: true,
       },
     });
     // ensure settings exist

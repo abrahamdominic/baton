@@ -51,7 +51,6 @@ export default async function CheckoutPage({
       </div>
 
       <PageHeader
-        eyebrow="Secure Checkout"
         title={
           <span>
             {plan.name} &middot; <span className="capitalize">{interval}</span>

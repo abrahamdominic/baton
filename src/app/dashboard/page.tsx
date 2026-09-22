@@ -23,14 +23,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 5) return "Working late";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
-
 function ActivityRow({ item }: { item: ActivityItem }) {
   const isNudge = item.type === "nudge";
   const hoursAgo = (Date.now() - item.createdAt.getTime()) / 3_600_000;
@@ -93,7 +85,6 @@ export default async function DashboardPage({
 
   const plan = resolvedParams?.plan === "team" ? "team" : null;
   const billing = resolvedParams?.billing === "annual" ? "annual" : "monthly";
-  const displayName = user.name?.trim() || user.login;
   const activeView = resolvedParams?.view ?? "all";
 
   // Handle pricing checkout handoff
@@ -167,7 +158,6 @@ export default async function DashboardPage({
 
       {/* Page Header */}
       <PageHeader
-        eyebrow={`${greeting()}, ${displayName}`}
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/30 bg-signal-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-signal-400">
             <span className="h-1.5 w-1.5 rounded-full bg-signal-400" />

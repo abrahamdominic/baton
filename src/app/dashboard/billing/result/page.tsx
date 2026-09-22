@@ -41,8 +41,7 @@ export default async function PaymentResultPage({
 
   const header = (
     <div className="mb-8 text-center">
-      <p className="eyebrow justify-center">Payment status</p>
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">{planName}</h1>
+      <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">{planName}</h1>
       <p className="mt-1 text-xs text-ink-400">{amountLabel} · paid {formatDate(payment.paid_at ?? payment.created_at)}</p>
     </div>
   );
