@@ -151,12 +151,18 @@ export default async function LandingPage({
   const OAUTH_ERROR_MESSAGES: Record<string, string> = {
     exchange_failed:
       "GitHub rejected the sign-in credentials. Confirm the OAuth Client ID and Client secret, and that https://baton-xi.vercel.app/auth/callback is registered as the callback URL on the GitHub App.",
+    github_api:
+      "GitHub could not complete the sign-in on its end (GitHub API error). Please try signing in again in a moment.",
     state_mismatch:
       "Your sign-in request expired or was replayed. Please sign in again from the header — no harm done, just retry.",
     iss_mismatch:
       "Sign-in was rejected for security reasons (unexpected OAuth issuer). Please try signing in again.",
     server_error:
       "Sign-in could not be completed because the service database is currently unavailable. Please try again shortly.",
+    db_misconfigured:
+      "Sign-in could not be completed because the service database is not configured on this deployment.",
+    db_unreachable:
+      "Sign-in could not be completed because the service database could not be reached. Please try again shortly.",
   };
 
   const oauthBanner = sp?.oauth_config

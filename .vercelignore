@@ -1,0 +1,5 @@
+.vercel/.env.pull
+.agents
+.claude
+skills-lock.json
+prisma/*.deploy.prisma

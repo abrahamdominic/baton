@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { exchangeCode, GITHUB_OAUTH_ISSUER, GITHUB_OAUTH_CALLBACK_PATH } from "@/lib/auth/github-oauth";
+import { exchangeCode, GITHUB_OAUTH_ISSUER, GITHUB_OAUTH_CALLBACK_PATH, GitHubApiError } from "@/lib/auth/github-oauth";
 import { verifyOauthState, OAUTH_STATE_COOKIE, OAUTH_VERIFIER_COOKIE } from "@/lib/auth/oauth";
 import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth/session";
 import { sanitizeNextPath, getAppBaseUrl, getOAuthBaseUrl } from "@/lib/auth/redirect";
@@ -147,28 +147,61 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     response.cookies.set(OAUTH_VERIFIER_COOKIE, "", { path: "/", maxAge: 0 });
     return response;
   } catch (err) {
-    // Isolate GitHub/DB failures so users see a friendly banner, not a 500.
-    // A throw here is almost always the service database being unavailable.
-    // Classify it so the operator log names the exact cause instead of the
-    // generic "database currently unavailable" banner masking everything.
+    // Classify the failure so users see the truth and operators can find the
+    // real cause: GitHub API problems are NOT "database unavailable", a missing
+    // or invalid DATABASE_URL is NOT a GitHub error, and RLS/Prisma failures
+    // are logged with the underlying message while the browser only ever sees
+    // a safe generic string.
+    if (err instanceof GitHubApiError) {
+      logger.error("oauth-callback-github-api", {
+        endpoint: err.endpoint,
+        status: err.status,
+        error: err.message,
+        ip: getClientIp(req),
+      });
+      return oauthFailure("github_api");
+    }
+
+    const issue = databaseUrlIssue();
+    const prismaInit =
+      err instanceof Error &&
+      (/PrismaClientInitializationError/.test(err.name) ||
+        /Error validating datasource/i.test(err.message) ||
+        /You must provide a nonempty URL/.test(err.message));
+    const prismaConnect =
+      err instanceof Error &&
+      (/\bP1001\b|\bP1002\b|\bP1003\b|\bP1012\b|\bECONNREFUSED\b|\blogin failed\b/i.test(err.message));
+
     if (process.env.NODE_ENV === "production") {
-      const issue = databaseUrlIssue();
       if (issue) {
         logger.error("oauth-callback-db-misconfigured", {
           detail: issue,
           hint: "Set a real PostgreSQL DATABASE_URL on the deployment, then run `npm run db:deploy` (prisma migrate deploy) before signing in.",
-          error: String(err),
+          error: err instanceof Error ? err.message : String(err),
+          errorName: err instanceof Error ? err.name : typeof err,
           ip: getClientIp(req),
         });
-      } else {
+        return oauthFailure("db_misconfigured");
+      } else if (prismaInit || prismaConnect) {
         logger.error("oauth-callback-db-unreachable", {
-          error: String(err),
+          error: err instanceof Error ? err.message : String(err),
           hint: "DATABASE_URL is syntactically valid but the first query failed; check host/port/credentials and that `prisma migrate deploy` has run.",
+          ip: getClientIp(req),
+        });
+        return oauthFailure("db_unreachable");
+      } else {
+        logger.error("oauth-callback-failed", {
+          error: err instanceof Error ? err.message : String(err),
+          errorName: err instanceof Error ? err.name : typeof err,
           ip: getClientIp(req),
         });
       }
     } else {
-      logger.error("oauth-callback-failed", { error: String(err), ip: getClientIp(req) });
+      logger.error("oauth-callback-failed", {
+        error: err instanceof Error ? err.message : String(err),
+        errorName: err instanceof Error ? err.name : typeof err,
+        ip: getClientIp(req),
+      });
     }
     return oauthFailure("server_error");
   }

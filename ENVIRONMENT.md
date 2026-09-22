@@ -96,7 +96,7 @@ must be set in the hosting provider's environment settings:
 | `GITHUB_APP_ID` | yes | App installs cannot be associated. |
 | `GITHUB_APP_PRIVATE_KEY_BASE64` | yes | App API calls fail. |
 | `GITHUB_APP_WEBHOOK_SECRET` | yes | Webhook route returns 500. |
-| `GITHUB_APP_SLUG` | no (default `baton`) | Install links use `baton`. Verify against the real app. |
+| `GITHUB_APP_SLUG` | no (default `abrahamdominic`) | Install links use `abrahamdominic`. This is the live GitHub App slug — keep it. |
 | `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET` | only if "Request user authorization during installation" is enabled | App code exchange fails (`/dashboard` redirect) if set incorrectly or using OAuth App values. |
 
 ### GitHub configuration (exact URLs)
@@ -123,11 +123,20 @@ sign-in and install attempt fails. Fix it in the hosting provider's settings:
 2. Set `DATABASE_URL` to that `postgresql://…` string in the deployment's
    environment variables — do **not** copy the SQLite `file:./dev.db` value
    from `.env`; that only works locally against the SQLite mirror.
+   For a Neon store, use the **unpooled/direct** URL (`POSTGRES_URL_NON_POOLING`),
+   not the `-pooler` URL, unless the schema sets `connection_limit = 1`.
 3. Run the migration against that database once:
    `npm run db:deploy` (or `npx prisma migrate deploy --schema prisma/schema.prisma`).
 4. Redeploy. Vercel logs will now show `oauth-callback-db-unreachable` (URL is
    valid but the host/migrate step failed) instead of `oauth-callback-db-misconfigured`
    (URL missing/invalid), or no error at all.
+
+**Current production state:** resolved. `DATABASE_URL` on Vercel (Production +
+Preview) points at the Neon store `neon-camel-compass` (direct connection), and
+migrations `0000_init` + `0001_admin_role` have been applied there. The OAuth
+callback now also classifies failures as `github_api`, `db_misconfigured`,
+`db_unreachable`, or `server_error` and the landing page shows a matching,
+still honest reason instead of collapsing everything into "database unavailable".
 
 Per-repo equivalent: `.env` locally (SQLite + localhost OAuth redirects), Vercel
 env vars in production (Postgres + production OAuth redirects). Never commit

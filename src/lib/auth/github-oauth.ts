@@ -16,6 +16,22 @@ export const GITHUB_APP_INSTALL_CALLBACK_PATH = "/auth/install/callback";
 
 const GITHUB_TIMEOUT_MS = 10_000;
 
+/**
+ * Raised when GitHub itself rejects a request (auth, exchange, or user/email
+ * fetch). Distinguished from database and configuration failures so callers
+ * can surface the true cause instead of blaming the database.
+ */
+export class GitHubApiError extends Error {
+  readonly status?: number;
+  readonly endpoint: string;
+  constructor(endpoint: string, status: number, message: string) {
+    super(message);
+    this.name = "GitHubApiError";
+    this.endpoint = endpoint;
+    this.status = status;
+  }
+}
+
 interface ExchangeResult {
   access_token: string;
   token_type: string;
@@ -160,7 +176,7 @@ export async function fetchGitHubUser(token: string): Promise<GitHubUser> {
     ghFetch(`${GITHUB_API}/user/emails`, { headers: apiHeaders(token) }),
   ]);
   if (!userRes.ok) {
-    throw new Error(`GitHub user endpoint failed with HTTP ${userRes.status}`);
+    throw new GitHubApiError("/user", userRes.status, `GitHub user endpoint failed with HTTP ${userRes.status}`);
   }
   const user = (await userRes.json()) as Record<string, unknown> & {
     id?: number;
