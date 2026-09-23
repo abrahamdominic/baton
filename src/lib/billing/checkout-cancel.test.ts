@@ -110,7 +110,7 @@ describe("cancelPendingCheckout", () => {
   });
 
   it("aborts when the payment was already confirmed (authoritative race winner)", async () => {
-    (cancelCheckoutPayment as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (cancelCheckoutPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       id: "pay-1",
       status: "confirmed",
       payment_provider: "stripe",
@@ -131,9 +131,45 @@ describe("cancelPendingCheckout", () => {
   });
 
   it("still closes the subscription when the checkout has no open payment", async () => {
-    (findOpenPaymentForSubscription as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (findOpenPaymentForSubscription as ReturnType<typeof vi.fn>).mockImplementationOnce(() =>
+      Promise.resolve(null),
+    );
     const result = await cancelPendingCheckout("user-1", "sub-1");
     expect(cancelCheckoutPayment).not.toHaveBeenCalled();
+    expect(result.subscription.status).toBe("canceled");
+  });
+
+  it("stays idempotent when the payment row was already cancelled (double cancel)", async () => {
+    (cancelCheckoutPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      id: "pay-1",
+      status: "cancelled",
+      payment_provider: "stripe",
+      stripe_checkout_session_id: "cs_test_abc",
+    });
+    const result = await cancelPendingCheckout("user-1", "sub-1");
+    expect(result.subscription.status).toBe("canceled");
+  });
+
+  it("aborts when the payment is already rejected/refunded", async () => {
+    (cancelCheckoutPayment as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      id: "pay-1",
+      status: "rejected",
+      payment_provider: "stripe",
+      stripe_checkout_session_id: "cs_test_abc",
+    });
+    await expect(cancelPendingCheckout("user-1", "sub-1")).rejects.toThrow("already closed");
+  });
+
+  it("a second cancel on an already-cancelled subscription is refused", async () => {
+    mockSubStatus = "canceled";
+    await expect(cancelPendingCheckout("user-1", "sub-1")).rejects.toThrow("can no longer be cancelled");
+  });
+
+  it("does not abort the checkout cancel when Stripe expire fails", async () => {
+    (getStripe().checkout.sessions.expire as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("session not found"),
+    );
+    const result = await cancelPendingCheckout("user-1", "sub-1");
     expect(result.subscription.status).toBe("canceled");
   });
 });

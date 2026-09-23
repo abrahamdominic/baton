@@ -261,25 +261,27 @@ export default async function BillingPage() {
 
       {/* Pending Checkout Card */}
       {pendingCheckout ? (
-        <section className="overflow-hidden rounded-xl border border-warn-500/25 bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-            <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
+        <section className="rounded-xl border border-warn-500/25 bg-ink-900/60 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-warn-300">
+              <IconAlertCircle className="h-3.5 w-3.5" />
               {pendingStatusLabel}
             </span>
-            <span className="font-mono text-[11px] text-ink-500">
+            <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-500">
+              <IconClock className="h-3 w-3" />
               started {formatDate(pendingCheckout.created_at)}
             </span>
           </div>
 
           <div className="p-5 sm:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="space-y-2">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h3 className="text-lg font-bold text-white">
                     {pendingCheckout.plan?.name ?? "Plan"}
                   </h3>
                   <span
-                    className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
+                    className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
                       pendingCheckout.status,
                     )}`}
                   >
@@ -287,7 +289,7 @@ export default async function BillingPage() {
                   </span>
                   {pendingPayment ? (
                     <span
-                      className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
+                      className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
                         pendingPayment.status,
                       )}`}
                     >
@@ -296,41 +298,58 @@ export default async function BillingPage() {
                   ) : null}
                 </div>
 
-                <p className="text-xs leading-relaxed text-ink-300">
+                <p className="max-w-xl text-xs leading-relaxed text-ink-300">
                   {pendingCheckout.status === "payment_failed" ? (
                     <>
                       Your payment for this checkout did not clear. Retry it now or cancel it and
                       start fresh — this never blocks you from switching plans.
                     </>
                   ) : pendingPayment?.status === "confirmed" ? (
-                    <>This checkout is being activated. If it does not resolve, contact support.</>
+                    <>This checkout's payment is confirmed and being activated. If it does not
+                      resolve shortly, contact support.</>
                   ) : (
                     <>
-                      You started this {pendingInterval} checkout but have not finished paying yet.
-                      Continue it to activate {pendingCheckout.plan?.name ?? "your plan"}, or cancel it
-                      and choose something different.
+                      You started this {pendingInterval} checkout on{" "}
+                      <span className="font-mono text-ink-200">
+                        {formatDate(pendingCheckout.created_at)}
+                      </span>{" "}
+                      but have not finished paying yet. Continue it to activate{" "}
+                      {pendingCheckout.plan?.name ?? "your plan"}, or cancel it and choose something
+                      different.
                     </>
                   )}
                 </p>
 
                 {pendingPayment ? (
-                  <p className="font-mono text-sm font-bold tabular-nums text-white">
-                    {formatMoney(pendingPayment.amount)} {pendingPayment.currency}{" "}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 font-mono text-sm tabular-nums text-white">
+                    <span className="font-bold">
+                      {formatMoney(pendingPayment.amount)} {pendingPayment.currency}
+                    </span>
                     <span className="text-[11px] font-normal text-ink-400">
                       {pendingPayment.payment_provider === "usdc" ? (
                         <>
-                          via USDC on {pendingPayment.crypto_network ?? "Base"} · saved as{" "}
+                          via USDC on {pendingPayment.crypto_network ?? "Base"} &middot;{" "}
                           {pendingInterval}
                         </>
                       ) : (
-                        <>via card (Stripe) · saved as {pendingInterval}</>
+                        <>via card (Stripe) &middot; {pendingInterval}</>
                       )}
                     </span>
+                    {pendingPayment.crypto_transaction_hash ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-500/30 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
+                        <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
+                        hash submitted
+                      </span>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="font-mono text-[11px] text-ink-500">
+                    No payment created yet — checkout will collect it when you continue.
                   </p>
-                ) : null}
+                )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:w-56 lg:flex-col lg:items-stretch xl:w-64">
                 <ResumeCheckoutButton
                   subscriptionId={pendingCheckout.id}
                   isPaymentFailed={pendingCheckout.status === "payment_failed"}
@@ -338,9 +357,17 @@ export default async function BillingPage() {
                 <PendingCheckoutControls
                   subscriptionId={pendingCheckout.id}
                   planName={pendingCheckout.plan?.name ?? "this plan"}
-                  hasSubmittedCryptoTx={Boolean(
-                    pendingPayment?.status === "pending_verification" && pendingPayment?.crypto_transaction_hash,
-                  )}
+                  interval={pendingInterval}
+                  hasSubmittedCryptoTx={Boolean(pendingPayment?.crypto_transaction_hash)}
+                  paymentSummary={
+                    pendingPayment
+                      ? `${formatMoney(pendingPayment.amount)} ${pendingPayment.currency} · ${
+                          pendingPayment.payment_provider === "usdc"
+                            ? `USDC on ${pendingPayment.crypto_network ?? "Base"}`
+                            : "Stripe"
+                        } · ${pendingInterval}`
+                      : null
+                  }
                 />
               </div>
             </div>

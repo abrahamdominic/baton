@@ -12,6 +12,7 @@ import {
 import { findOpenPaymentForSubscription } from "@/lib/billing/payments";
 import { getStripe } from "@/lib/billing/stripe";
 import { BillingInputError } from "@/lib/billing/errors";
+import { resolveResumeRoute } from "@/lib/billing/resume-route";
 
 export interface BillingActionState {
   ok: boolean;
@@ -127,11 +128,13 @@ export async function reactivateCurrentSubscriptionAction(
 }
 
 /**
- * Resume a pending checkout without creating a new one. For Stripe we revive the
- * ORIGINAL Checkout Session when it is still open (returns its live URL); once it
- * is complete we point at the result page so the confirmed state is shown. Only
- * an expired/missing session falls back to the checkout page, which reuses the
- * same pending subscription row (never a duplicate).
+ * Resume a pending checkout without creating a new one. The routing decision is
+ * a pure function (`resolveResumeRoute`) over server-authoritative state:
+ *  - Stripe with a still-open Checkout Session  -> its live URL (no duplicate).
+ *  - Money already moved (session complete)     -> the result page.
+ *  - USDC awaiting verification                 -> the result page.
+ *  - Otherwise                                 -> the checkout page, which
+ *    reuses the SAME pending subscription row (never a duplicate).
  */
 export async function resumeCheckoutAction(
   subscriptionId: string,
@@ -141,40 +144,45 @@ export async function resumeCheckoutAction(
     if (subscription.status !== "pending" && subscription.status !== "payment_failed") {
       return { ok: false, error: "This checkout can no longer be continued." };
     }
-    const payment = await findOpenPaymentForSubscription(subscription.id);
     const plan = subscription.plan;
     if (!plan) return { ok: false, error: "This checkout's plan is no longer available." };
 
-    if (!payment || payment.payment_provider === "usdc") {
-      return {
-        ok: true,
-        url: payment ? `/dashboard/billing/result?payment=${payment.id}` : "/pricing",
-      };
-    }
+    const payment = await findOpenPaymentForSubscription(subscription.id);
+    const interval =
+      (payment?.metadata as { interval?: string } | null)?.interval === "annual" ? "annual" : "monthly";
 
-    if (payment.stripe_checkout_session_id) {
+    let stripeSession: { status: "open" | "complete" | "expired" | "missing"; url?: string | null } | null = null;
+    if (payment?.payment_provider === "stripe" && payment.stripe_checkout_session_id) {
       try {
         const session = await getStripe().checkout.sessions.retrieve(
           payment.stripe_checkout_session_id,
         );
-        if (session.status === "open" && session.url) {
-          return { ok: true, url: session.url };
-        }
-        if (session.status === "complete") {
-          return { ok: true, url: `/dashboard/billing/result?payment=${payment.id}` };
+        if (session.status === "open" || session.status === "complete") {
+          stripeSession = { status: session.status, url: session.url };
+        } else {
+          stripeSession = { status: "expired", url: null };
         }
       } catch {
-        // Session missing or Stripe unavailable: fall through to a fresh session
-        // against the SAME pending subscription.
+        stripeSession = { status: "missing" };
       }
     }
 
-    const interval =
-      (payment.metadata as { interval?: string } | null)?.interval === "annual" ? "annual" : "monthly";
-    return {
-      ok: true,
-      url: `/dashboard/billing/checkout?plan=${subscription.plan_id}&billing=${interval}`,
-    };
+    const route = resolveResumeRoute({
+      subscriptionStatus: subscription.status,
+      planId: subscription.plan_id,
+      planSlug: plan.slug,
+      interval,
+      paymentProvider: payment?.payment_provider ?? null,
+      paymentStatus: payment?.status ?? null,
+      hasCryptoTxHash: Boolean(payment?.crypto_transaction_hash),
+      paymentId: payment?.id ?? null,
+      stripeSession,
+    });
+
+    if (route.kind === "closed") {
+      return { ok: false, error: "This checkout can no longer be continued. Refresh your billing page." };
+    }
+    return { ok: true, url: route.url };
   } catch (err) {
     if (err instanceof BillingInputError) return { ok: false, error: err.message };
     return { ok: false, error: "Could not resume this checkout. Try again or contact support." };
