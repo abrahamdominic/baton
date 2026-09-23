@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
 import { getEntitlement } from "@/lib/billing/entitlement";
+import { getPlanById, getPlanBySlug } from "@/lib/billing/plans";
 import {
   yourMove,
   myInstallations,
@@ -71,6 +72,24 @@ export default async function DashboardPage({
   const user = await currentUser();
   if (!user) return null;
 
+  const planParam = resolvedParams?.plan;
+  const billing = resolvedParams?.billing === "annual" ? "annual" : "monthly";
+  const activeView = resolvedParams?.view ?? "all";
+
+  // Pricing/checkout handoff: resolve the selected plan (by slug or id) and
+  // route to its real checkout page. The checkout page handles users who are
+  // already on the plan or renewing a live USDC subscription, so every
+  // sign-in from the pricing page lands on the correct checkout instead of
+  // bouncing back to /pricing.
+  if (planParam) {
+    const plan =
+      (await getPlanBySlug(planParam).catch(() => null)) ??
+      (await getPlanById(planParam).catch(() => null));
+    if (plan && plan.is_active) {
+      redirect(`/dashboard/billing/checkout?plan=${plan.id}&billing=${billing}`);
+    }
+  }
+
   const [items, installations, recent, entitlement] = await Promise.all([
     yourMove(user),
     myInstallations(user),
@@ -82,20 +101,6 @@ export default async function DashboardPage({
   const stalled = items.filter((p) => p.hoursInState >= 24).length;
   const waitingReviewers = items.filter((p) => p.whoseTurn === "Reviewers").length;
   const waitingAuthor = items.filter((p) => p.whoseTurn === "Author").length;
-
-  const plan = resolvedParams?.plan === "team" ? "team" : null;
-  const billing = resolvedParams?.billing === "annual" ? "annual" : "monthly";
-  const activeView = resolvedParams?.view ?? "all";
-
-  // Handle pricing checkout handoff
-  if (!entitlement.hasPaidAccess && plan) {
-    const teamPlan = entitlement.subscription?.plan;
-    redirect(
-      teamPlan
-        ? `/dashboard/billing/checkout?plan=${teamPlan.id}&billing=${billing}`
-        : "/pricing",
-    );
-  }
 
   // Filter items based on active view
   let filteredItems = items;
@@ -341,7 +346,7 @@ export default async function DashboardPage({
                   ? "No PRs currently awaiting reviewer engagement"
                   : activeView === "author"
                   ? "No PRs currently awaiting author updates"
-                  : "Queue is clear — zero blocked pull requests"
+                  : "Queue is clear. Zero blocked pull requests"
               }
               hint={
                 items.length === 0

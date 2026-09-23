@@ -3,6 +3,8 @@ import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconLock, IconShield, IconCheckCircle, IconArrowRight } from "@/components/icons";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/security" },
   title: "Security and Privacy: Least Privilege by Design",

@@ -12,7 +12,7 @@ import type { PaymentProvider, SubscriptionRecord, SubscriptionStatus } from "./
 /**
  * Subscription service. Entitlement lives here (in Supabase), and every status
  * change goes through an explicitly validated transition + lifecycle event.
- * The client can never set a status — these are server-only operations.
+ * The client can never set a status: these are server-only operations.
  */
 
 const OPEN_STATUSES: SubscriptionStatus[] = [
@@ -308,7 +308,7 @@ export async function reactivateSubscription(id: string): Promise<SubscriptionRe
   });
 }
 
-/** Period ended with cancel_at_period_end set — final cancellation. */
+/** Period ended with cancel_at_period_end set: final cancellation. */
 export async function completeCancellation(id: string): Promise<SubscriptionRecord> {
   return transitionSubscription(id, {
     to: "canceled",
@@ -320,7 +320,7 @@ export async function completeCancellation(id: string): Promise<SubscriptionReco
 }
 
 // ---------------------------------------------------------------------------
-// Checkout preparation (plan changes reuse the row — no duplicate subscriptions)
+// Checkout preparation (plan changes reuse the row, no duplicate subscriptions)
 // ---------------------------------------------------------------------------
 
 export interface PreparedSubscription {
@@ -330,8 +330,8 @@ export interface PreparedSubscription {
   /** True when the user is already active on this plan (no purchase needed). */
   alreadyOnPlan: boolean;
   /**
-   * True when the user is renewing a live USDC subscription (manual renewal —
-   * USDC has no automatic recurring billing). The same row is reused and the
+   * True when the user is renewing a live USDC subscription (manual renewal,
+   * since USDC has no automatic recurring billing). The same row is reused and the
    * period is extended after on-chain verification (nk.md §9).
    */
   renewal: boolean;
@@ -379,7 +379,7 @@ export async function prepareSubscriptionForCheckout(
     return { subscription: existing, planChanged: false, alreadyOnPlan: true, renewal: false };
   }
 
-  // Plan change on a live subscription — reuse the row.
+  // Plan change on a live subscription: reuse the row.
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("subscriptions")

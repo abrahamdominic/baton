@@ -26,7 +26,7 @@ import config from "./neon";
 const { postgres } = parseEnv(config, ["DATABASE_URL"]);
 console.log(postgres.databaseUrl);
 
-// Selecting across services — only these keys are validated.
+// Selecting across services - only these keys are validated.
 const env = parseEnv(config, ["DATABASE_URL", "NEON_AUTH_BASE_URL"]);
 console.log(env.postgres.databaseUrl, env.auth.baseUrl);
 ```

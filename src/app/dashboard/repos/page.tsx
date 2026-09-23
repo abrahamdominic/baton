@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
 import { myInstallations } from "@/lib/queries/dashboard";
-import { getEntitlement } from "@/lib/billing/entitlement";
+import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { config } from "@/lib/env-boot";
 import { setRepoEnabled, updateRepoSettings, rescanRepo } from "../actions";
 import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
@@ -69,6 +69,9 @@ export default async function ReposPage() {
 
   const activeCount = repos.filter((r) => r.enabled).length;
   const pausedCount = repos.length - activeCount;
+  const maxRepos = entitlement.maxRepos;
+  const limitReached = maxRepos !== null && activeCount >= maxRepos;
+  const canCustomThresholds = hasFeature(entitlement, FEATURE_KEYS.customThresholds);
   const installUrl = `https://github.com/apps/${config.GITHUB_APP_SLUG}/installations/new`;
 
   if (repos.length === 0) {
@@ -125,14 +128,14 @@ export default async function ReposPage() {
       />
 
       {/* Free Plan Quota Callout */}
-      {!entitlement.hasPaidAccess && (
+      {!entitlement.hasPaidAccess && maxRepos !== null && (
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-brand-500/20 bg-brand-500/[0.04] p-4 text-xs text-ink-300">
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-500/10 font-mono font-bold text-brand-300 text-xs">
-              {activeCount}/3
+              {activeCount}/{maxRepos}
             </span>
             <div>
-              <p className="font-semibold text-white">Free Plan: {activeCount} of 3 active repositories tracked</p>
+              <p className="font-semibold text-white">Free Plan: {activeCount} of {maxRepos} active repositories tracked</p>
               <p className="text-[11px] text-ink-400">
                 Upgrade to Team or Organization for unlimited repositories and fully customizable stall thresholds.
               </p>
@@ -237,17 +240,19 @@ export default async function ReposPage() {
                     >
                       <button
                         type="submit"
-                        disabled={!r.enabled && !entitlement.hasPaidAccess && activeCount >= 3}
+                        disabled={!r.enabled && !entitlement.hasPaidAccess && limitReached}
                         className={`btn btn-ghost btn-sm ${
-                          !r.enabled && !entitlement.hasPaidAccess && activeCount >= 3
+                          !r.enabled && !entitlement.hasPaidAccess && limitReached
                             ? "opacity-50 cursor-not-allowed"
                             : ""
                         }`}
                         title={
                           r.enabled
                             ? "Pause Baton tracking on this repo"
-                            : !entitlement.hasPaidAccess && activeCount >= 3
-                            ? "Free plan limit reached (3 active repos). Upgrade to enable."
+                            : !entitlement.hasPaidAccess && limitReached
+                            ? maxRepos !== null
+                              ? `Free plan limit reached (${maxRepos} active repos). Upgrade to enable.`
+                              : "Upgrade to enable"
                             : "Resume Baton tracking"
                         }
                       >
@@ -309,7 +314,7 @@ export default async function ReposPage() {
                         <span className="flex items-center gap-2">
                           <IconSliders className="h-3.5 w-3.5 text-brand-400" />
                           <span>Customize Inactivity Thresholds (Hours)</span>
-                          {!entitlement.hasPaidAccess && (
+                          {!canCustomThresholds && (
                             <span className="rounded border border-brand-400/30 bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-mono text-brand-300">
                               Team &amp; Org
                             </span>
@@ -319,7 +324,7 @@ export default async function ReposPage() {
                       </summary>
 
                       <div className="pt-3">
-                        {!entitlement.hasPaidAccess ? (
+                        {!canCustomThresholds ? (
                           <div className="rounded-lg border border-brand-500/20 bg-brand-500/[0.04] p-4 text-xs">
                             <div className="flex items-center gap-2 font-semibold text-white">
                               <IconLock className="h-3.5 w-3.5 text-brand-400" />

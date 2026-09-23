@@ -3,6 +3,8 @@ import { config } from "@/lib/env-boot";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconCheckCircle, IconShield, IconActivity, IconTerminal, IconGitHub, IconBell } from "@/components/icons";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/docs" },
   title: "Documentation: The Deterministic PR State Engine",

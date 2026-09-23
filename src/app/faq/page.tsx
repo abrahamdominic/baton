@@ -3,6 +3,8 @@ import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconGitHub, IconArrowRight } from "@/components/icons";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/faq" },
   title: "Frequently Asked Questions: Baton",

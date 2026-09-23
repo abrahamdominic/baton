@@ -154,7 +154,7 @@ export default async function LandingPage({
     github_api:
       "GitHub could not complete the sign-in on its end (GitHub API error). Please try signing in again in a moment.",
     state_mismatch:
-      "Your sign-in request expired or was replayed. Please sign in again from the header — no harm done, just retry.",
+      "Your sign-in request expired or was replayed. Please sign in again from the header. No harm done, just retry.",
     iss_mismatch:
       "Sign-in was rejected for security reasons (unexpected OAuth issuer). Please try signing in again.",
     server_error:

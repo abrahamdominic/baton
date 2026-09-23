@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 /**
  * Entry modes (kept for backward compatibility):
  *
- *  1. GitHub App install / setup callback: ?installation_id=<id> — forwarded to
+ *  1. GitHub App install / setup callback: ?installation_id=<id>, forwarded to
  *     /auth/install/callback. May also carry ?code= (GitHub App user
  *     authorization during installation) which is exchanged with the GitHub
  *     App's OWN credentials there, never with the OAuth App's.
@@ -23,7 +23,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest): Promise<NextResponse> {
   // Where the user should end up (request host so a preview/custom domain
   // keeps users on that domain). The OAuth redirect_uri itself must use the
-  // canonical registered callback URL (getOAuthBaseUrl) — see below.
+  // canonical registered callback URL (getOAuthBaseUrl), see below.
   const baseUrl = getAppBaseUrl(req);
   // Canonical callback host for the code exchange, matching exactly the
   // redirect_uri GitHub saw on authorize.

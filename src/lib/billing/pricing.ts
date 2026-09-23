@@ -21,6 +21,6 @@ export function planIntervalLabel(interval: BillingInterval): string {
 }
 
 export function planBillingNote(plan: Pick<PlanRecord, "price_custom" | "name">, interval: BillingInterval): string {
-  if (plan.price_custom) return `${plan.name} is custom-priced — contact us to get started.`;
+  if (plan.price_custom) return `${plan.name} is custom-priced. Contact us to get started.`;
   return interval === "annual" ? "Billed annually." : "Billed monthly.";
 }

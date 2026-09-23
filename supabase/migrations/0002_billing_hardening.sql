@@ -4,7 +4,7 @@
 -- DB-level ordering constraints that the server also enforces, added after the
 -- initial schema so existing environments can apply this incrementally:
 --   * at most ONE open (pending / pending_verification) payment per
---     subscription — tail UDP payments and retried stripe sessions can never
+--     subscription: tail UDP payments and retried stripe sessions can never
 --     double-book the same checkout;
 --   * a few extra query indexes for the admin analytics surfaces.
 -- ============================================================================

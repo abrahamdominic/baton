@@ -33,6 +33,6 @@ describe("PricingView component", () => {
 
   it("never contains em dashes", () => {
     const html = ReactDOMServer.renderToString(<PricingView />);
-    expect(html.includes("—")).toBe(false);
+    expect(html.includes("\u2014")).toBe(false);
   });
 });

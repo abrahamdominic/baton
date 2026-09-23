@@ -3,7 +3,7 @@
  *
  * Identity note: Baton signs users in through GitHub OAuth and stores the
  * session in its own database (Prisma/Postgres). Supabase therefore does not
- * hold a *separate* user identity — `user_id` on these tables is Baton's
+ * hold a *separate* user identity: `user_id` on these tables is Baton's
  * `User.id`. All access happens server-side (service role); RLS denies the
  * anon/authenticated PostgREST roles entirely.
  */
@@ -41,7 +41,7 @@ export const PAYMENT_STATUSES = [
 ] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
-/** USD minor unit (cents) — the "major unit with 2 decimals" of a price. */
+/** USD minor unit (cents): the "major unit with 2 decimals" of a price. */
 export type Cents = number;
 
 export interface PlanRecord {
@@ -125,17 +125,58 @@ export interface SubscriptionEventRecord {
   created_at: string;
 }
 
+/**
+ * Machine-readable entitlement keys. Plan rows declare which of these they
+ * grant (plan.limits.features); the entitlement resolver turns that into a
+ * FeatureMap the UI and server actions consult. Everything a plan can unlock
+ * is enumerated here so gates can never silently round-trip unknown strings.
+ */
+export const FEATURE_KEYS = {
+  /** No repository cap (plan.limits.maxRepos = null). */
+  unlimitedRepos: "unlimited_repos",
+  /** Per-repo inactivity threshold customization. */
+  customThresholds: "custom_thresholds",
+  /** Team workspaces: shared boards, members, invites, roles. */
+  teamWorkspace: "team_workspace",
+  /** Organization workspaces: members, invites, roles, shared boards. */
+  organizationWorkspace: "organization_workspace",
+  /** Organization-wide review stall policies. */
+  orgPolicies: "organization_policies",
+  /** Organization audit log export (CSV/JSON). */
+  auditExport: "audit_export",
+} as const;
+export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];
+export type FeatureMap = Partial<Record<FeatureKey, boolean>>;
+
+/** Plan.limits shape the entitlement resolver understands. */
+export interface PlanLimits {
+  /** Max active repositories (null = unlimited). */
+  maxRepos?: number | null;
+  /** Max workspace members the plan allows (null = unlimited). */
+  maxMembers?: number | null;
+  /** Machine keys the plan grants; human display strings live in plan.features. */
+  features?: FeatureKey[];
+}
+
 export interface Entitlement {
   /** The resolved plan slug ("free" when no paid plan is active). */
   planSlug: string;
   planName: string;
   /** true when the backend considers the user entitled to the selected plan. */
   hasPaidAccess: boolean;
-  /** Live subscription row driving access (null for free). */
+  /** Max active repositories the plan allows (null = unlimited). */
+  maxRepos: number | null;
+  /** Max workspace members the plan allows (null = unlimited). */
+  maxMembers: number | null;
+  /** Feature gates derived from the resolved plan's limits. */
+  features: FeatureMap;
+  /** Live subscription row driving access (null for free/admin). */
   subscription: SubscriptionRecord | null;
   status: SubscriptionStatus;
   /** Human label for the status, safe to display. */
   statusLabel: string;
+  /** Which rule produced this entitlement. */
+  source: "own" | "workspace" | "admin";
 }
 
 export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {

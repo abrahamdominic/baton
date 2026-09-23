@@ -8,7 +8,7 @@ import { enqueuePrRefresh } from "@/lib/engine/jobs";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { logger } from "@/lib/logger";
 
-import { getEntitlement } from "@/lib/billing/entitlement";
+import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { registerInstallation } from "@/lib/github/install";
 
 /** Tenant check: does this repo belong to the signed-in user's installations? */
@@ -26,15 +26,15 @@ export async function setRepoEnabled(repoId: string, enabled: boolean): Promise<
 
   if (enabled) {
     const entitlement = await getEntitlement(user.id);
-    if (!entitlement.hasPaidAccess) {
+    if (!entitlement.hasPaidAccess && entitlement.maxRepos !== null) {
       const installations = await myInstallations(user, { allRepos: true });
       const currentActive = installations.reduce(
         (sum, inst) => sum + inst.repos.filter((r) => r.enabled && r.id !== repoId).length,
         0,
       );
-      if (currentActive >= 3) {
+      if (currentActive >= entitlement.maxRepos) {
         throw new Error(
-          "Free tier is limited to 3 active repositories. Upgrade to Team or Organization to monitor unlimited repositories.",
+          `Free tier is limited to ${entitlement.maxRepos} active repositories. Upgrade to Team or Organization to monitor unlimited repositories.`,
         );
       }
     }
@@ -65,7 +65,7 @@ export async function updateRepoSettings(input: z.infer<typeof settingsSchema>):
   const { user } = await assertRepoAccess(parsed.data.repoId);
 
   const entitlement = await getEntitlement(user.id);
-  if (!entitlement.hasPaidAccess) {
+  if (!hasFeature(entitlement, FEATURE_KEYS.customThresholds)) {
     throw new Error(
       "Customizing per-repo inactivity thresholds is available on Team and Organization plans. Please upgrade to customize.",
     );

@@ -7,11 +7,11 @@ import { PricingView } from "./pricing-view";
 afterEach(cleanup);
 
 describe("PricingView billing toggle", () => {
-  it("switches the Team price between $10 monthly and $8 annual and updates the checkout link", () => {
+  it("switches the Team price between $10 monthly and $96 annual and updates the checkout link", () => {
     render(<PricingView />);
 
     expect(screen.getAllByText("$10").length).toBeGreaterThan(0);
-    expect(screen.queryByText("$8")).toBeNull();
+    expect(screen.queryByText("$96")).toBeNull();
     const monthlyCta = screen.getByRole("link", {
       name: /start 14-day free trial \(monthly\)/i,
     });
@@ -19,7 +19,7 @@ describe("PricingView billing toggle", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: /annual billing/i }));
 
-    expect(screen.getAllByText("$8").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$96").length).toBeGreaterThan(0);
     expect(screen.queryByText("$10")).toBeNull();
     const annualCta = screen.getByRole("link", {
       name: /start 14-day free trial \(annual\)/i,
@@ -29,10 +29,10 @@ describe("PricingView billing toggle", () => {
     fireEvent.click(screen.getByRole("tab", { name: /monthly billing/i }));
 
     expect(screen.getAllByText("$10").length).toBeGreaterThan(0);
-    expect(screen.queryByText("$8")).toBeNull();
+    expect(screen.queryByText("$96")).toBeNull();
   });
 
-  it("marks the selected tab and switches Organization price between $50 monthly and $40 annual", () => {
+  it("marks the selected tab and switches Organization price between $50 monthly and $480 annual", () => {
     render(<PricingView />);
 
     const monthlyTab = screen.getByRole("tab", { name: /monthly billing/i });
@@ -47,7 +47,7 @@ describe("PricingView billing toggle", () => {
     expect(annualTab.getAttribute("aria-selected")).toBe("true");
     expect(monthlyTab.getAttribute("aria-selected")).toBe("false");
     expect(screen.getByText("$0")).toBeTruthy();
-    expect(screen.getAllByText("$40").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$480").length).toBeGreaterThan(0);
     expect(screen.queryByText("$50")).toBeNull();
   });
 });

@@ -14,7 +14,7 @@ export interface SystemEventInput {
 
 /**
  * Record an application error/event for the admin health page.
- * Safe messages only — never secrets, tokens, or raw payloads.
+ * Safe messages only: never secrets, tokens, or raw payloads.
  */
 export async function recordSystemEvent(input: SystemEventInput): Promise<void> {
   const sb = getAdminClient();

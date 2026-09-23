@@ -221,7 +221,7 @@ async function onInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
   const subscription = await getSubscriptionByProviderSubId(subscriptionId);
   if (!subscription) return;
   if (subscription.status === "pending") {
-    // Initial purchase failed before activation — the pending row goes to
+    // Initial purchase failed before activation: the pending row goes to
     // payment_failed (pending -> past_due is not a legal transition).
     await markSubscriptionPaymentFailed(subscription.id, {
       source: "stripe",
@@ -264,7 +264,7 @@ async function onSubscriptionDeleted(subscription: Stripe.Subscription): Promise
   if (local.cancel_at_period_end) {
     await completeCancellation(local.id);
   } else {
-    // Unexpected deletion — treat as expiration.
+    // Unexpected deletion: treat as expiration.
     await expireSubscription(local.id);
   }
 }

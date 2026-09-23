@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   alternates: { canonical: "/legal/terms" },
   title: "Terms of Service: Baton",

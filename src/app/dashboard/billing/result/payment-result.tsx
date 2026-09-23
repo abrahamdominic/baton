@@ -41,7 +41,7 @@ function copyFor(result: VerifyResponse | null): Copy | null {
     return {
       tone: "warn",
       title: "We couldn’t reach the chain just yet",
-      body: "Your transaction wasn’t tampered with — our verifier just couldn’t reach a Base node in time. Tap “Check again” in a minute; no action is needed from you.",
+      body: "Your transaction wasn’t tampered with. Our verifier just couldn’t reach a Base node in time. Tap “Check again” in a minute; no action is needed from you.",
     };
   }
   if (result.code === "not_mined") {
@@ -54,7 +54,7 @@ function copyFor(result: VerifyResponse | null): Copy | null {
   if (result.code === "insufficient_finality") {
     return {
       tone: "warn",
-      title: "Almost there — finality pending",
+      title: "Almost there: finality pending",
       body: "Your transaction is confirmed on Base but still needs a few more blocks. This is settled automatically; check again shortly.",
     };
   }

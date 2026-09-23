@@ -95,7 +95,7 @@ export function PageHeader({
   badge,
   actions,
 }: {
-  eyebrow?: string;
+  eyebrow?: React.ReactNode;
   title: React.ReactNode;
   description?: React.ReactNode;
   badge?: React.ReactNode;

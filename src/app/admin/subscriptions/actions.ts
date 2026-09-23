@@ -33,7 +33,7 @@ function requireConfirm(formData: FormData): void {
 
 /**
  * Apply a subscription override. `confirm` must be an explicit checkbox in the
- * form ("sensitive actions require confirmation" — nk.md §17).
+ * form ("sensitive actions require confirmation", nk.md §17).
  */
 export async function overrideSubscriptionAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();

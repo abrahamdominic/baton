@@ -52,9 +52,9 @@ const TIERS: Tier[] = [
     slug: "team",
     name: "Team",
     monthlyPrice: "$10",
-    annualPrice: "$8",
+    annualPrice: "$96",
     monthlyPeriod: "per user / month",
-    annualPeriod: "per user / month",
+    annualPeriod: "per user / year",
     monthlyNote: "Billed monthly at $10/user/month",
     annualNote: "Billed annually at $96/user/year (save 20%)",
     blurb: "For engineering teams that want to ship fast and stop PR stalls.",
@@ -65,13 +65,12 @@ const TIERS: Tier[] = [
       "Automated @-mention reviewer nudges",
       "Team-wide repository boards",
       "Your Move queue with priority sorting",
-      "Slack notifications roadmap preview",
       "Priority email and GitHub support",
     ],
     ctaMonthly: "Start 14-Day Free Trial (Monthly)",
     ctaAnnual: "Start 14-Day Free Trial (Annual)",
-    checkoutUrlMonthly: "/auth/login?next=%2Fdashboard%3Fplan%3Dteam%26billing%3Dmonthly",
-    checkoutUrlAnnual: "/auth/login?next=%2Fdashboard%3Fplan%3Dteam%26billing%3Dannual",
+    checkoutUrlMonthly: "/dashboard/billing/checkout?plan=plan_team_default&billing=monthly",
+    checkoutUrlAnnual: "/dashboard/billing/checkout?plan=plan_team_default&billing=annual",
     featured: true,
     highlightBadge: "Most Popular",
   },
@@ -79,20 +78,18 @@ const TIERS: Tier[] = [
     slug: "organization",
     name: "Organization",
     monthlyPrice: "$50",
-    annualPrice: "$40",
+    annualPrice: "$480",
     monthlyPeriod: "per month",
-    annualPeriod: "per month, billed annually",
+    annualPeriod: "per year, billed annually",
     monthlyNote: "Billed monthly at $50/month",
     annualNote: "Billed annually at $480/year (save 20%)",
-    blurb: "For scaling engineering organizations with compliance, unlimited repos, and priority SLAs.",
+    blurb: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
     features: [
       "Everything in Team",
       "Unlimited repositories & team members",
       "Organization-wide review stall policies",
-      "SAML 2.0 and SCIM SSO integration",
-      "Audit log export via streaming webhook or API",
-      "Dedicated Customer Success Engineer",
-      "Custom SLA with 99.9% uptime guarantee",
+      "Team roles, invitations & permissions with audit trail",
+      "Audit log export (CSV/JSON)",
     ],
     ctaMonthly: "Choose Organization (Monthly)",
     ctaAnnual: "Choose Organization (Annual)",
@@ -128,9 +125,10 @@ const MATRIX = [
       { feature: "Repositories tracked", free: "Up to 3 repos", team: "Unlimited", org: "Unlimited" },
       { feature: "Your Move personal dashboard", free: "Included", team: "Included", org: "Included" },
       { feature: "Repo-level boards", free: "Not included", team: "Included", org: "Included" },
-      { feature: "SAML SSO and SCIM", free: "Not included", team: "Not included", org: "Included" },
-      { feature: "Audit log export API", free: "Not included", team: "Not included", org: "Included" },
-      { feature: "Uptime SLA", free: "Best effort", team: "99.5%", org: "99.9% financially backed" },
+      { feature: "Team workspaces & member invitations", free: "Not included", team: "Included", org: "Included" },
+      { feature: "Organization workspaces & roles", free: "Not included", team: "Not included", org: "Included" },
+      { feature: "Organization-wide review policies", free: "Not included", team: "Not included", org: "Included" },
+      { feature: "Audit log export (CSV/JSON)", free: "Not included", team: "Not included", org: "Included" },
     ],
   },
 ];
@@ -322,10 +320,10 @@ export function PricingView({
                 <th className="py-4 pl-6 pr-4 font-semibold">Features</th>
                 <th className="py-4 px-4 font-semibold text-white">Individual ($0)</th>
                 <th className="py-4 px-4 font-semibold text-brand-300">
-                  Team ({annual ? "$8/mo billed annually" : "$10/mo"})
+                  Team ({annual ? "$96/user/yr" : "$10/user/mo"})
                 </th>
                 <th className="py-4 pr-6 pl-4 font-semibold text-white">
-                  Organization ({annual ? "$40/mo billed annually" : "$50/mo"})
+                  Organization ({annual ? "$480/yr" : "$50/mo"})
                 </th>
               </tr>
             </thead>

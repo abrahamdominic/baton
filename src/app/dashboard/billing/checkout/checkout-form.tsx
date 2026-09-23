@@ -183,7 +183,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
           {props.plan.priceCustom ? (
             <div className="flex items-start gap-2 rounded-lg bg-warn-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-warn-200">
               <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              This plan is custom-priced. Self-serve checkout is not available — email
+              This plan is custom-priced. Self-serve checkout is not available. Email
               sales@baton.dev to get started.
             </div>
           ) : null}
@@ -238,7 +238,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
             <div className="flex items-baseline justify-between">
               <span className="text-xs font-medium text-ink-400">Exact amount to send</span>
               <span className="font-mono text-xl font-extrabold tabular-nums text-white">
-                {order.amountMinor > 0 ? `${(order.amountMinor / 100).toFixed(2)} USDC` : "—"}
+                {order.amountMinor > 0 ? `${(order.amountMinor / 100).toFixed(2)} USDC` : "N/A"}
               </span>
             </div>
 
@@ -263,7 +263,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
 
             <ul className="space-y-1.5 text-[11px] leading-relaxed text-ink-400">
               <li>· Network must be {order.network} (mainnet); sending from another chain will lose funds.</li>
-              <li>· Send the exact {order.token} amount shown — mismatches are rejected.</li>
+              <li>· Send the exact {order.token} amount shown. Mismatches are rejected.</li>
               <li>· Confirm in your wallet, then paste the transaction hash below to mark it for verification.</li>
             </ul>
 
@@ -295,7 +295,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 </span>
               ) : (
                 <>
-                  I&apos;ve sent it — verify
+                  I&apos;ve sent it, verify
                   <IconArrowRight className="h-4 w-4" />
                 </>
               )}

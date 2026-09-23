@@ -40,7 +40,7 @@ create table if not exists public.plans (
 );
 
 -- ---------------------------------------------------------------------------
--- Subscriptions (entitlement — separate from payments)
+-- Subscriptions (entitlement, separate from payments)
 -- ---------------------------------------------------------------------------
 create table if not exists public.subscriptions (
     id                       uuid primary key default gen_random_uuid(),

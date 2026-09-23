@@ -40,13 +40,13 @@ token lives only in an httpOnly, SameSite=Lax cookie (Secure in production).
 
 The two GitHub integrations never share a callback.
 
-**GitHub OAuth App** (sign-in only) — "Authorization callback URL":
+**GitHub OAuth App** (sign-in only), "Authorization callback URL":
 
 ```
 https://baton-xi.vercel.app/auth/callback
 ```
 
-**GitHub App** (installation only) — "Setup URL" and, if "Request user
+**GitHub App** (installation only), "Setup URL" and, if "Request user
 authorization (OAuth) during installation" is enabled, "User authorization
 callback URL":
 
@@ -67,7 +67,7 @@ host in development, so both match automatically.
 
 ### Do I need a GitHub App, or is OAuth enough?
 
-**OAuth alone gives you the dashboard shell and GitHub identity** — sign in,
+**OAuth alone gives you the dashboard shell and GitHub identity**: sign in,
 the sidebar, Settings, and everything that reads your GitHub account. You do
 *not* need a GitHub App for that part.
 
@@ -126,21 +126,21 @@ All authenticated pages live under `/dashboard` and inherit the layout guard +
 
 ### Data readers
 
-- `src/lib/queries/dashboard.ts` — all read-side queries, always scoped to the
+- `src/lib/queries/dashboard.ts`: all read-side queries, always scoped to the
   signed-in user (user-linked installations or the user's own GitHub login).
-- `src/lib/auth/session.ts` — session cookie read/write, `currentUser()`.
-- `src/app/dashboard/actions.ts` — server actions: enable/pause repos, update
+- `src/lib/auth/session.ts`: session cookie read/write, `currentUser()`.
+- `src/app/dashboard/actions.ts`: server actions: enable/pause repos, update
   thresholds, re-scan, revoke sessions.
 
 ### Layout & navigation
 
-- `src/app/dashboard/layout.tsx` — server component: session guard, noindex
+- `src/app/dashboard/layout.tsx`: server component: session guard, noindex
   metadata, renders `<AppShell>`.
-- `src/components/dashboard/app-shell.tsx` — client component: fixed **sidebar
+- `src/components/dashboard/app-shell.tsx`: client component: fixed **sidebar
   on desktop** (logo, Workspace: Overview / Repositories / Activity, Account:
   Settings, GitHub identity block, Sign out) and a **mobile sheet** navigation
   off a top bar (avatar + hamburger). Active link is derived from `usePathname`.
-- `src/app/dashboard/loading.tsx` — skeleton while the first dashboard segment
+- `src/app/dashboard/loading.tsx`: skeleton while the first dashboard segment
   streams.
 
 ### OAuth failure handling
@@ -150,11 +150,11 @@ the callback hit one of several distinct failures. The callback now categorizes
 and redirects with `/?oauth_error=1&reason=…`, and the landing page renders a
 specific, human-readable message per reason:
 
-- `exchange_failed` — GitHub rejected the credentials (bad client ID/secret, or
+- `exchange_failed`: GitHub rejected the credentials (bad client ID/secret, or
   callback URL not registered).
-- `state_mismatch` — stale/replayed CSRF state; retry.
-- `iss_mismatch` — unexpected OAuth issuer (mix-up protection).
-- `server_error` — an exception during sign-in (most commonly the service
+- `state_mismatch`: stale/replayed CSRF state; retry.
+- `iss_mismatch`: unexpected OAuth issuer (mix-up protection).
+- `server_error`: an exception during sign-in (most commonly the service
   database not being provisioned yet; check `DATABASE_URL` and that
   `prisma db push` ran). Every failure is also logged with full context.
 

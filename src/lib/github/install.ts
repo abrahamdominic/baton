@@ -85,7 +85,7 @@ export async function registerInstallation(
   // Link the installation to a local user whose GitHub login matches, so the
   // per-person dashboard only shows repos the user actually installed on.
   // Preserve an existing explicit link (made by the install callback for the
-  // authenticated user) — for org installs `accountLogin` may not match the
+  // authenticated user). For org installs `accountLogin` may not match the
   // installing user's login and would otherwise scrub the attribution.
   const user = await prisma.user.findFirst({
     where: { login: accountLogin },

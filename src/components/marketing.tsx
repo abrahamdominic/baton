@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { SITE_NAME } from "@/lib/site";
+import { currentUser } from "@/lib/auth/session";
 import { IconMenu, IconGitHub, IconArrowRight } from "@/components/icons";
 import { BatonLogo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   { href: "/#how-it-works", label: "How it works" },
@@ -55,7 +57,11 @@ export function Logo({ className = "" }: { className?: string }) {
   return <BatonLogo className={className} />;
 }
 
-export function MarketingHeader() {
+export async function MarketingHeader() {
+  const user = await currentUser();
+  const accountHref = user ? "/dashboard" : "/auth/login?next=/dashboard";
+  const accountLabel = user ? "Dashboard" : "Sign in";
+
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.07] bg-ink-950/85 backdrop-blur-md">
       <div className="container-page flex h-16 items-center justify-between gap-4">
@@ -74,6 +80,7 @@ export function MarketingHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
+          <ThemeToggle />
           <a
             href="https://github.com/baton-pr/baton"
             target="_blank"
@@ -83,13 +90,20 @@ export function MarketingHeader() {
             <IconGitHub className="h-3.5 w-3.5" />
             <span>AGPL-3.0</span>
           </a>
-          <Link href="/auth/login?next=/dashboard" className="btn btn-ghost btn-sm">
-            Sign in
+          <Link href={accountHref} className="btn btn-ghost btn-sm">
+            {accountLabel}
           </Link>
-          <Link href="/install" className="btn btn-primary btn-sm">
-            Install Baton
-            <IconArrowRight className="h-3.5 w-3.5" />
-          </Link>
+          {user ? (
+            <Link href="/dashboard" className="btn btn-primary btn-sm">
+              Your Move Queue
+              <IconArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          ) : (
+            <Link href="/install" className="btn btn-primary btn-sm">
+              Install Baton
+              <IconArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          )}
         </div>
 
         {/* Mobile menu */}
@@ -99,6 +113,9 @@ export function MarketingHeader() {
             <span className="sr-only">Open menu</span>
           </summary>
           <div className="absolute right-0 z-50 mt-3 w-64 rounded-xl border border-white/[0.12] bg-ink-900 p-3">
+            <div className="flex items-center justify-end pb-2">
+              <ThemeToggle className="h-8 w-8" />
+            </div>
             <div className="space-y-1">
               {NAV.map((item) => (
                 <Link
@@ -111,11 +128,14 @@ export function MarketingHeader() {
               ))}
             </div>
             <div className="mt-3 flex flex-col gap-2 border-t border-white/[0.08] pt-3">
-              <Link href="/auth/login?next=/dashboard" className="btn btn-ghost w-full">
-                Sign in
+              <Link href={accountHref} className="btn btn-ghost w-full">
+                {accountLabel}
               </Link>
-              <Link href="/install" className="btn btn-primary w-full">
-                Install Baton
+              <Link
+                href={user ? "/dashboard" : "/install"}
+                className="btn btn-primary w-full"
+              >
+                {user ? "Your Move Queue" : "Install Baton"}
               </Link>
             </div>
           </div>
@@ -125,8 +145,18 @@ export function MarketingHeader() {
   );
 }
 
-export function MarketingFooter() {
+export async function MarketingFooter() {
+  const user = await currentUser();
   const year = new Date().getFullYear();
+  const accountLink = {
+    href: user ? "/dashboard" : "/auth/login?next=/dashboard",
+    label: user ? "Dashboard" : "Sign in with GitHub",
+  };
+  const footerCols = FOOTER_COLS.map((col) => ({
+    ...col,
+    links: col.links.map((l) => (l.label === "Sign in with GitHub" ? { ...l, ...accountLink } : l)),
+  }));
+
   return (
     <footer className="border-t border-white/[0.07] bg-ink-950/60">
       <div className="container-page py-16">
@@ -154,7 +184,7 @@ export function MarketingFooter() {
           </div>
 
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
-            {FOOTER_COLS.map((col) => (
+            {footerCols.map((col) => (
               <div key={col.title}>
                 <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-300">
                   {col.title}

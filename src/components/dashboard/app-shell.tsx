@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BatonLogo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   IconActivity,
   IconBranch,
@@ -17,6 +18,8 @@ import {
   IconChevronRight,
   IconTerminal,
   IconGitHub,
+  IconUsers,
+  IconBuilding,
 } from "@/components/icons";
 
 interface NavItem {
@@ -30,6 +33,8 @@ interface NavItem {
 const WORKSPACE_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
   { href: "/dashboard/repos", label: "Repositories", icon: IconBranch },
+  { href: "/dashboard/team", label: "Teams", icon: IconUsers },
+  { href: "/dashboard/organization", label: "Organizations", icon: IconBuilding },
   { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
 ];
 
@@ -246,6 +251,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle className="h-8 w-8" />
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -310,9 +316,10 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Link
-              href="/dashboard/repos"
+<div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link
+            href="/dashboard/repos"
               className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
             >
               <IconGitHub className="h-3 w-3" />

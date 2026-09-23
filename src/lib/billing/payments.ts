@@ -16,7 +16,7 @@ import { recordSystemEvent } from "./system-events";
 import type { Cents, PaymentProvider, PaymentRecord, PaymentStatus, PaymentType } from "./types";
 
 /**
- * Payment service — records payment attempts. Payments are separate from
+ * Payment service: records payment attempts. Payments are separate from
  * subscriptions: a confirmed payment only entitles a user after the server
  * activates the subscription (see verifyUsdcPaymentNow / Stripe webhooks).
  */
@@ -336,7 +336,7 @@ export async function applyUsdcPaymentToSubscription(payment: {
  * Mark a subscription `payment_failed` after a rejected USDC payment, but only
  * when the subscription is actually waiting on this payment (pending rows from
  * a first purchase or plan change). Rejecting a manual renewal payment must not
- * yank access from a live subscription — the user keeps access until period end.
+ * yank access from a live subscription: the user keeps access until period end.
  */
 async function failSubscriptionOnRejectedPayment(payment: { subscription_id: string | null; id: string }, reason: string) {
   if (!payment.subscription_id) return;
@@ -408,7 +408,7 @@ export async function verifyUsdcPaymentNow(paymentId: string): Promise<UsdcVerif
     return { ok: false, code: result.code, detail: result.detail, payment };
   }
 
-  // Hard rejection — never activate the subscription.
+  // Hard rejection: never activate the subscription.
   const rejected = await rejectPayment(payment.id, result.code);
   await failSubscriptionOnRejectedPayment(payment, result.code);
   await recordSystemEvent({

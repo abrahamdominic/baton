@@ -16,7 +16,7 @@ export const DEFAULT_PLANS: PlanRecord[] = [
     name: "Team",
     description: "For engineering teams that want to ship fast and stop PR stalls.",
     monthly_price_cents: 1000,
-    annual_price_cents: 800,
+    annual_price_cents: 9600,
     price_custom: false,
     currency: "USD",
     features: [
@@ -27,7 +27,11 @@ export const DEFAULT_PLANS: PlanRecord[] = [
       "Team-wide repository boards",
       "Your Move queue with priority sorting",
     ],
-    limits: { maxRepos: null },
+    limits: {
+      maxRepos: null,
+      maxMembers: 25,
+      features: ["custom_thresholds", "team_workspace", "unlimited_repos"],
+    },
     stripe_product_id: null,
     stripe_monthly_price_id: null,
     stripe_annual_price_id: null,
@@ -41,7 +45,7 @@ export const DEFAULT_PLANS: PlanRecord[] = [
     id: "plan_org_default",
     slug: "organization",
     name: "Organization",
-    description: "For scaling engineering organizations with compliance, unlimited repos, and priority SLAs.",
+    description: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
     monthly_price_cents: 5000,
     annual_price_cents: 48000,
     price_custom: false,
@@ -50,11 +54,21 @@ export const DEFAULT_PLANS: PlanRecord[] = [
       "Everything in Team",
       "Unlimited repositories & team members",
       "Organization-wide review stall policies",
-      "SAML 2.0 & SCIM SSO integration",
-      "Audit log export via streaming webhook or API",
-      "Priority SLA with 99.9% uptime guarantee",
+      "Team roles, invitations & permissions with audit trail",
+      "Audit log export (CSV/JSON)",
     ],
-    limits: { maxRepos: null },
+    limits: {
+      maxRepos: null,
+      maxMembers: 1000,
+      features: [
+        "custom_thresholds",
+        "team_workspace",
+        "organization_workspace",
+        "organization_policies",
+        "audit_export",
+        "unlimited_repos",
+      ],
+    },
     stripe_product_id: null,
     stripe_monthly_price_id: null,
     stripe_annual_price_id: null,
@@ -144,6 +158,18 @@ export function validatePlanInput(input: PlanInput): void {
   }
   if (!Number.isSafeInteger(input.annual_price_cents) || input.annual_price_cents < 0) {
     throw new BillingInputError("Annual price must be a non-negative integer in cents.");
+  }
+  if (
+    !input.price_custom &&
+    input.monthly_price_cents > 0 &&
+    input.annual_price_cents > 0
+  ) {
+    const expectedAnnual = Math.round((input.monthly_price_cents * 12 * 4) / 5);
+    if (input.annual_price_cents !== expectedAnnual) {
+      throw new BillingInputError(
+        `Annual price must be exactly 20% off the monthly rate: expected ${expectedAnnual} cents ($${(expectedAnnual / 100).toFixed(2)}/year) for a $${(input.monthly_price_cents / 100).toFixed(2)}/month plan.`,
+      );
+    }
   }
 }
 

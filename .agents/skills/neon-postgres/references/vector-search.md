@@ -4,13 +4,13 @@ Use `lakebase_vector` for approximate nearest-neighbor retrieval over embeddings
 
 ## Contents
 
-- [Create the extension](#create-the-extension) — enable `lakebase_vector` and its `pgvector` dependency
-- [Prepare embeddings](#prepare-embeddings) — define the vector column and keep embedding dimensions consistent
-- [Build the index](#build-the-index) — match the distance metric, operator class, and query operator
-- [Tune the index](#tune-the-index) — configure index-build options and concurrent index management
-- [Query](#query) — rank by vector distance or filter by a similarity radius
-- [Tune search](#tune-search) — inspect the index and tune recall against latency
-  - [Use prefilter selectively](#use-prefilter-selectively) — apply selective filters before ANN scoring
+- [Create the extension](#create-the-extension) - enable `lakebase_vector` and its `pgvector` dependency
+- [Prepare embeddings](#prepare-embeddings) - define the vector column and keep embedding dimensions consistent
+- [Build the index](#build-the-index) - match the distance metric, operator class, and query operator
+- [Tune the index](#tune-the-index) - configure index-build options and concurrent index management
+- [Query](#query) - rank by vector distance or filter by a similarity radius
+- [Tune search](#tune-search) - inspect the index and tune recall against latency
+  - [Use prefilter selectively](#use-prefilter-selectively) - apply selective filters before ANN scoring
 
 ## Create the Extension
 

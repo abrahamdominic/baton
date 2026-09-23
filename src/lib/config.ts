@@ -51,7 +51,7 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().default(""),
 
   // Comma-separated GitHub logins granted the admin role at sign-in
-  // (bootstrap only — real admins are managed server-side afterwards).
+  // (bootstrap only; real admins are managed server-side afterwards).
   BATON_ADMIN_LOGINS: z.string().default(""),
 
   // ---------------------------------------------------------------
@@ -154,7 +154,7 @@ export function isGitHubConfigured(env: Env = getConfig()): boolean {
 /**
  * Return a human-readable explanation of why DATABASE_URL cannot serve the
  * canonical PostgreSQL schema, or null when it is a usable connection string.
- * Does NOT verify reachability — a syntactically valid URL may still point at
+ * Does NOT verify reachability: a syntactically valid URL may still point at
  * a host that is down, in which case the first Prisma query throws.
  */
 export function databaseUrlIssue(env: Env = getConfig()): string | null {

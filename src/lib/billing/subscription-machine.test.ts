@@ -38,7 +38,7 @@ describe("subscription-machine transitions", () => {
     expect(canTransition("past_due", "expired")).toBe(true);
   });
 
-  it("mirrors nk.md §23 — no shortcuts around a verified activation", () => {
+  it("mirrors nk.md §23: no shortcuts around a verified activation", () => {
     expect(canTransition("none", "active")).toBe(false);
     expect(canTransition("pending", "canceled")).toBe(false);
     expect(canTransition("payment_failed", "canceled")).toBe(false);
@@ -140,7 +140,7 @@ describe("nk.md §25 lifecycle journeys", () => {
   });
 
   it("a second delivery of the same event is a no-op (idempotent reprocess)", () => {
-    // A re-delivered webhook/payment converging on the same status is legal —
+    // A re-delivered webhook/payment converging on the same status is legal:
     // the DB unique constraints prevent duplicate payments/subscriptions.
     expect(canTransition("active", "active")).toBe(true);
     expect(canTransition("past_due", "past_due")).toBe(true);

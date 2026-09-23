@@ -58,7 +58,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await processStripeEvent(event);
   } catch (err) {
-    // Processing failed — delete the idempotency row so Stripe's retry can
+    // Processing failed: delete the idempotency row so Stripe's retry can
     // reprocess the event fresh rather than being silently dropped.
     await deleteWebhookEvent(event.id);
     logger.error("stripe-webhook-processing-failed", {

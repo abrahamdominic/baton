@@ -58,7 +58,7 @@ export default async function PaymentResultPage({
             <h2 className="text-lg font-bold text-white">Payment confirmed</h2>
             <p className="mt-1.5 text-xs leading-relaxed text-ink-300">
               Your {planName} plan is now active{payment.payment_provider === "usdc" ? " (verified on-chain)" : ""}.
-              Your account has full access — go keep your pull requests moving.
+              Your account has full access. Go keep your pull requests moving.
             </p>
             {txUrl ? (
               <a href={txUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-300 hover:text-brand-200">
@@ -172,7 +172,7 @@ export default async function PaymentResultPage({
     );
   }
 
-  // pending_verification (USDC) — the live client verifies on-chain.
+  // pending_verification (USDC): the live client verifies on-chain.
   return (
     <div className="mx-auto max-w-2xl">
       {header}

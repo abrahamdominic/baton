@@ -31,6 +31,14 @@ model User {
   sessions       Session[]
   audits         AuditLog[]
   installations  AppInstallation[]
+  ownedTeams     Team[]               @relation("TeamOwner")
+  teamMemberships TeamMember[]        @relation("TeamMembership")
+  teamInvitesSent TeamInvite[]        @relation("TeamInviter")
+  teamSharesAdded TeamInstallation[]  @relation("TeamInstaller")
+  ownedOrganizations Organization[]   @relation("OrgOwner")
+  organizationMembers OrganizationMember[]
+  organizationInvites OrganizationInvite[] @relation("OrgInviter")
+  organizationSharesAdded OrganizationInstallation[] @relation("OrgInstaller")
 
   @@index([login])
   @@index([role])
@@ -62,6 +70,8 @@ model AppInstallation {
   updatedAt       DateTime  @updatedAt
   uninstalledAt   DateTime?
   repos           Repo[]
+  teamLinks       TeamInstallation[]
+  organizationLinks OrganizationInstallation[]
 
   @@index([accountLogin])
 }
@@ -209,4 +219,147 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@index([action, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Team & Organization workspaces
+//
+// A workspace lets an owner (who pays for the plan) share Baton boards across
+// member GitHub installations, invite members, and hand out roles. Invites are
+// addressed to a GitHub login; the signed-in user's login gates acceptance, and
+// the invite carries a server-issued token for a future link-based flow. Roles:
+// owner / admin / member. Workspace entitlements resolve from the owner's
+// active subscription (see src/lib/billing/entitlement.ts).
+// ---------------------------------------------------------------------------
+
+model Team {
+  id           String             @id @default(cuid())
+  slug         String             @unique
+  name         String
+  ownerId      String
+  owner        User               @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  members      TeamMember[]
+  invites      TeamInvite[]
+  installations TeamInstallation[]
+
+  @@index([ownerId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("TeamMembership", fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("member") // owner | admin | member
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model TeamInvite {
+  id                String   @id @default(cuid())
+  teamId            String
+  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  githubLogin       String
+  email             String?
+  role              String   @default("member") // owner | admin | member
+  token             String   @unique
+  invitedById       String
+  invitedBy         User     @relation("TeamInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  status            String   @default("pending") // pending | accepted | revoked | expired
+  expiresAt         DateTime
+  acceptedByUserId  String?
+  createdAt         DateTime @default(now())
+
+  @@unique([teamId, githubLogin])
+  @@index([status, expiresAt])
+}
+
+model TeamInstallation {
+  id             String         @id @default(cuid())
+  teamId         String
+  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  installationId String         @unique
+  installation   AppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  addedById      String?
+  addedBy        User?          @relation("TeamInstaller", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+}
+
+model Organization {
+  id            String                @id @default(cuid())
+  slug          String                @unique
+  name          String
+  ownerId       String
+  owner         User                  @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  members       OrganizationMember[]
+  invites       OrganizationInvite[]
+  installations OrganizationInstallation[]
+  policy        OrganizationPolicy?
+
+  @@index([ownerId])
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("member") // owner | admin | member
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model OrganizationInvite {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubLogin       String
+  email             String?
+  role              String       @default("member") // owner | admin | member
+  token             String       @unique
+  invitedById       String
+  invitedBy         User         @relation("OrgInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  status            String       @default("pending") // pending | accepted | revoked | expired
+  expiresAt         DateTime
+  acceptedByUserId  String?
+  createdAt         DateTime     @default(now())
+
+  @@unique([organizationId, githubLogin])
+  @@index([status, expiresAt])
+}
+
+model OrganizationInstallation {
+  id             String         @id @default(cuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  installationId String         @unique
+  installation   AppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  addedById      String?
+  addedBy        User?          @relation("OrgInstaller", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+}
+
+model OrganizationPolicy {
+  id                   String       @id @default(cuid())
+  organizationId       String       @unique
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firstResponseHours   Int          @default(24)
+  reviewFollowUpHours  Int          @default(36)
+  changesRequiredHours Int          @default(72)
+  ciFailHours          Int          @default(24)
+  conflictHours        Int          @default(12)
+  readyToMergeHours    Int          @default(48)
+  maxNudgesPerState    Int          @default(1)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
 }

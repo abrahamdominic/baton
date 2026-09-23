@@ -1,6 +1,6 @@
 # Claimable Neon
 
-Claimable Neon provisions a temporary Neon project — Lakebase Postgres, and optionally the Data API and Managed Better Auth — before a human creates an account. The agent holds an identity assertion, not a Neon API key. A human can later claim the project into their organization.
+Claimable Neon provisions a temporary Neon project - Lakebase Postgres, and optionally the Data API and Managed Better Auth - before a human creates an account. The agent holds an identity assertion, not a Neon API key. A human can later claim the project into their organization.
 
 This flow follows the [auth.md](https://claimable.neon.tech/auth.md) protocol. Fetch `https://claimable.neon.tech/auth.md` for request and response fields. REST is on `https://claimable.neon.tech`. Use the table below; do not invent other identity paths.
 
