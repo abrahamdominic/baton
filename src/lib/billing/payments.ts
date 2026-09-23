@@ -273,7 +273,16 @@ async function setPaymentStatus(
 }
 
 export async function confirmPayment(paymentId: string): Promise<PaymentRecord> {
-  return setPaymentStatus(paymentId, "confirmed", { paid_at: new Date().toISOString() });
+  const sb = getAdminClient();
+  const { data, error } = await sb
+    .from("payments")
+    .update({ status: "confirmed", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq("id", paymentId)
+    .in("status", ["pending", "pending_verification"])
+    .select("*")
+    .single();
+  if (error) throw new Error(`payments.confirm failed: ${error.message}`);
+  return paymentFromRow(data as Row);
 }
 
 export async function failPayment(paymentId: string, reason: string): Promise<PaymentRecord> {
@@ -447,6 +456,9 @@ export async function verifyUsdcPaymentNow(paymentId: string): Promise<UsdcVerif
   const result = await verifyUsdcTransaction(settings, payment.crypto_transaction_hash, payment.amount);
 
   if (result.ok) {
+    // Atomic claim: confirmPayment only matches pending/pending_verification,
+    // so a concurrent verification can never double-confirm (and therefore
+    // never double-extend) a subscription.
     const confirmed = await confirmPayment(payment.id);
     await applyUsdcPaymentToSubscription(payment);
     await recordSystemEvent({
@@ -498,6 +510,13 @@ export async function adminVerifyPayment(opts: {
   if (!payment) throw new BillingInputError("Payment not found.");
   if (payment.payment_provider !== "usdc") {
     throw new BillingInputError("Only USDC payments support manual verification.");
+  }
+  if (payment.status !== "pending" && payment.status !== "pending_verification") {
+    throw new BillingInputError(
+      payment.status === "confirmed"
+        ? "This payment is already confirmed."
+        : "This payment can no longer be reviewed.",
+    );
   }
 
   await recordPaymentVerification({

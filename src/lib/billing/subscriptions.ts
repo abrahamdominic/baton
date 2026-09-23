@@ -7,7 +7,7 @@ import { recordSystemEvent } from "./system-events";
 import { subscriptionFromRow, type Row } from "./records";
 import { validateTransition } from "./subscription-machine";
 import { BillingInputError } from "./errors";
-import type { PaymentProvider, SubscriptionRecord, SubscriptionStatus } from "./types";
+import type { PaymentProvider, PlanRecord, SubscriptionRecord, SubscriptionStatus } from "./types";
 
 /**
  * Subscription service. Entitlement lives here (in Supabase), and every status
@@ -91,13 +91,25 @@ export interface CreateSubscriptionInput {
   provider: PaymentProvider;
 }
 
-/** Create a fresh subscription in `pending`. Never creates duplicate pending rows. */
+/** Create a fresh subscription in `pending`. Never creates duplicate open rows. */
 export async function createSubscription(input: CreateSubscriptionInput): Promise<SubscriptionRecord> {
   const existing = await getCurrentSubscription(input.userId);
   if (existing) {
     if (existing.status === "pending" && existing.plan_id === input.planId) return existing;
     if (existing.status === "pending") {
       throw new BillingInputError("A subscription is already pending. Resolve it before starting another.");
+    }
+    if (existing.status === "payment_failed") {
+      // Retry of an orphaned/failed checkout: reuse the SAME row instead of
+      // inserting a second open `pending` row (see prepareSubscriptionForCheckout).
+      const plan = await getPlanById(input.planId);
+      const retried = await retryFailedSubscription(
+        existing,
+        input.provider,
+        input.planId,
+        existing.plan ?? plan!,
+      );
+      return retried.subscription;
     }
   }
   const sb = getAdminClient();
@@ -376,6 +388,12 @@ export async function prepareSubscriptionForCheckout(
       // subscriber can voluntarily pay to extend the same plan (nk.md §9).
       return { subscription: existing, planChanged: false, alreadyOnPlan: false, renewal: true };
     }
+    if (existing.status === "payment_failed") {
+      // Orphaned/failed checkout on the same plan: the user is NOT entitled
+      // (payment_failed is an unpaid status), so allow a retry by resetting the
+      // row to pending. Legal transition per the state machine (nk.md §5).
+      return retryFailedSubscription(existing, provider, planId, plan);
+    }
     return { subscription: existing, planChanged: false, alreadyOnPlan: true, renewal: false };
   }
 
@@ -414,6 +432,53 @@ export async function prepareSubscriptionForCheckout(
     newPlanId: planId,
     source: provider,
     metadata: { previousPlanSlug: existing.plan?.slug ?? null, newPlanSlug: plan.slug },
+  });
+  return { subscription: sub, planChanged: true, alreadyOnPlan: false, renewal: false };
+}
+
+/**
+ * Reset a `payment_failed` subscription row back to `pending` so the user can
+ * retry checkout on the same plan without duplicating the subscription. The
+ * row keeps its id (and invoice/audit history); provider and period fields are
+ * cleared for the retried payment exactly like a plan change.
+ */
+async function retryFailedSubscription(
+  existing: SubscriptionRecord,
+  provider: PaymentProvider,
+  planId: string,
+  plan: PlanRecord,
+): Promise<PreparedSubscription> {
+  const sb = getAdminClient();
+  const { data, error } = await sb
+    .from("subscriptions")
+    .update({
+      status: "pending",
+      payment_provider: provider,
+      provider_customer_id: null,
+      provider_subscription_id: null,
+      current_period_start: null,
+      current_period_end: null,
+      cancel_at_period_end: false,
+      canceled_at: null,
+      started_at: null,
+      ended_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.id)
+    .select("*")
+    .single();
+  if (error) throw new Error(`subscriptions.checkout-retry failed: ${error.message}`);
+  const sub = subscriptionFromRow(data as Row);
+  sub.plan = plan;
+
+  await recordSubscriptionEvent({
+    subscriptionId: sub.id,
+    userId: sub.user_id,
+    eventType: "subscription_payment_retried",
+    previousStatus: existing.status,
+    newStatus: "pending",
+    source: provider,
+    metadata: { planSlug: plan.slug },
   });
   return { subscription: sub, planChanged: true, alreadyOnPlan: false, renewal: false };
 }

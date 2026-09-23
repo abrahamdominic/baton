@@ -5,12 +5,7 @@ import { listPlans } from "@/lib/billing/plans";
 import { listPaymentsForUser } from "@/lib/billing/payments";
 import { adminTargets } from "@/lib/billing/subscription-machine";
 import type { SubscriptionRecord } from "@/lib/billing/types";
-import {
-  overrideSubscriptionAction,
-  changePlanAction,
-  reactivateSubscriptionAction,
-  markCanceledAction,
-} from "./actions";
+import { SubscriptionActions } from "./subscription-actions";
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/types";
 import { IconArrowLeft, IconLayers } from "@/components/icons";
 import { EmptyState, PageHeader } from "@/components/ui";
@@ -220,113 +215,13 @@ async function SubscriptionRow({ subscription: sub, plans }: RowProps) {
 
         {/* Administrative Override Actions */}
         <div className="flex shrink-0 flex-wrap items-center gap-2 pt-1 lg:pt-0">
-          {/* Change Plan */}
-          {canPlanChange ? (
-            <form action={changePlanAction} className="flex items-center gap-1.5">
-              <input type="hidden" name="subscriptionId" value={sub.id} />
-              <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                <input
-                  type="checkbox"
-                  name="confirm"
-                  aria-label="Confirm plan change"
-                  className="h-3.5 w-3.5 accent-brand-500 rounded"
-                />
-                <select
-                  name="planId"
-                  defaultValue={sub.plan?.id ?? ""}
-                  className="rounded bg-ink-900 px-2 py-0.5 text-xs text-white outline-none border border-white/[0.1]"
-                >
-                  {plans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                <button type="submit" className="btn btn-ghost btn-sm h-7 text-xs ml-1">
-                  Change Plan
-                </button>
-              </label>
-            </form>
-          ) : null}
-
-          {/* Force Active */}
-          {targets.includes("active") ? (
-            <form action={overrideSubscriptionAction} className="flex items-center gap-1.5">
-              <input type="hidden" name="subscriptionId" value={sub.id} />
-              <input type="hidden" name="to" value="active" />
-              <input type="hidden" name="reason" value="admin override to active" />
-              <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                <input
-                  type="checkbox"
-                  name="confirm"
-                  aria-label="Confirm force active"
-                  className="h-3.5 w-3.5 accent-brand-500 rounded"
-                />
-                <button type="submit" className="btn btn-ghost btn-sm h-7 text-xs text-signal-300">
-                  Force Active
-                </button>
-              </label>
-            </form>
-          ) : null}
-
-          {/* Reopen Pending */}
-          {targets.includes("pending") ? (
-            <form action={overrideSubscriptionAction} className="flex items-center gap-1.5">
-              <input type="hidden" name="subscriptionId" value={sub.id} />
-              <input type="hidden" name="to" value="pending" />
-              <input type="hidden" name="reason" value="admin reopens subscription for checkout" />
-              <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                <input
-                  type="checkbox"
-                  name="confirm"
-                  aria-label="Confirm reopen"
-                  className="h-3.5 w-3.5 accent-brand-500 rounded"
-                />
-                <button type="submit" className="btn btn-ghost btn-sm h-7 text-xs">
-                  Reopen Pending
-                </button>
-              </label>
-            </form>
-          ) : null}
-
-          {/* Reactivate / Uncancel */}
-          {targets.includes("active") && sub.cancel_at_period_end ? (
-            <form action={reactivateSubscriptionAction} className="flex items-center gap-1.5">
-              <input type="hidden" name="subscriptionId" value={sub.id} />
-              <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                <input
-                  type="checkbox"
-                  name="confirm"
-                  aria-label="Confirm un-cancel"
-                  className="h-3.5 w-3.5 accent-brand-500 rounded"
-                />
-                <button type="submit" className="btn btn-ghost btn-sm h-7 text-xs text-signal-300">
-                  Un-cancel
-                </button>
-              </label>
-            </form>
-          ) : null}
-
-          {/* Mark Canceled */}
-          {canCancel ? (
-            <form action={markCanceledAction} className="flex items-center gap-1.5">
-              <input type="hidden" name="subscriptionId" value={sub.id} />
-              <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                <input
-                  type="checkbox"
-                  name="confirm"
-                  aria-label="Confirm cancellation"
-                  className="h-3.5 w-3.5 accent-danger-500 rounded"
-                />
-                <button
-                  type="submit"
-                  className="btn btn-ghost btn-sm h-7 text-xs text-danger-300 hover:border-danger-500/40"
-                >
-                  Cancel
-                </button>
-              </label>
-            </form>
-          ) : null}
+          <SubscriptionActions
+            subscription={sub}
+            plans={plans}
+            targets={targets}
+            canPlanChange={canPlanChange}
+            canCancel={canCancel}
+          />
         </div>
       </div>
     </li>

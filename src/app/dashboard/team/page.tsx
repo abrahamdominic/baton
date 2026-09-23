@@ -52,6 +52,39 @@ export default async function TeamsPage() {
         }
       />
 
+      {invites.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-brand-500/25 bg-ink-900/50 shadow-sm">
+          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
+              Team invitations for you
+            </span>
+          </div>
+          <ul className="divide-y divide-white/[0.05]">
+            {invites.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-white">{inv.team.name}</p>
+                  <p className="mt-0.5 font-mono text-[11px] text-ink-400">
+                    Invited by @{inv.invitedBy.login} as {inv.role}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <AcceptInviteButton
+                    kind="team"
+                    workspaceId={inv.teamId}
+                    label="Accept"
+                  />
+                  <DeclineInviteButton kind="team" workspaceId={inv.teamId} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {!canUseTeams ? (
         <EmptyState
           icon={IconUsers}
@@ -66,40 +99,6 @@ export default async function TeamsPage() {
         />
       ) : (
         <>
-          {invites.length > 0 ? (
-            <section className="overflow-hidden rounded-xl border border-brand-500/25 bg-ink-900/50 shadow-sm">
-              <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
-                  Team invitations for you
-                </span>
-                <span className="font-mono text-[11px] text-ink-500">expires in 14 days</span>
-              </div>
-              <ul className="divide-y divide-white/[0.05]">
-                {invites.map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{inv.team.name}</p>
-                      <p className="mt-0.5 font-mono text-[11px] text-ink-400">
-                        Invited by @{inv.invitedBy.login} as {inv.role}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AcceptInviteButton
-                        kind="team"
-                        workspaceId={inv.teamId}
-                        label="Accept"
-                      />
-                      <DeclineInviteButton kind="team" workspaceId={inv.teamId} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
           {/* Create team */}
           <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
             <h2 className="text-sm font-bold text-white">Create a team</h2>

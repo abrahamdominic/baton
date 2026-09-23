@@ -30,14 +30,6 @@ interface NavItem {
   exact?: boolean;
 }
 
-const WORKSPACE_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
-  { href: "/dashboard/repos", label: "Repositories", icon: IconBranch },
-  { href: "/dashboard/team", label: "Teams", icon: IconUsers },
-  { href: "/dashboard/organization", label: "Organizations", icon: IconBuilding },
-  { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
-];
-
 const ACCOUNT_NAV: NavItem[] = [
   { href: "/dashboard/billing", label: "Billing & Plans", icon: IconShield },
   { href: "/dashboard/settings", label: "Account & Integrations", icon: IconSettings },
@@ -56,6 +48,15 @@ export interface ShellUser {
   role?: string;
 }
 
+export interface PendingInviteCounts {
+  team: number;
+  organization: number;
+}
+
+function badgeText(count: number, label: string): string {
+  return `${count} pending ${label} invite${count === 1 ? "" : "s"}`;
+}
+
 function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   const pathname = usePathname();
   const active = isActive(pathname, item);
@@ -66,6 +67,7 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
+        title={item.badge ? `${item.label}: ${item.badge}` : undefined}
         className={`group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-ink-950 ${
           active
             ? "bg-brand-500/10 text-white font-semibold shadow-sm"
@@ -80,7 +82,11 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
           />
           <span className="truncate">{item.label}</span>
         </div>
-        {active ? (
+        {item.badge ? (
+          <span className="ml-2 shrink-0 rounded-full border border-brand-500/40 bg-brand-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-300">
+            {item.badge}
+          </span>
+        ) : active ? (
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400 ring-2 ring-brand-400/20" />
           </span>
@@ -90,7 +96,33 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
   );
 }
 
-function SidebarNav({ user, onNavigate }: { user: ShellUser; onNavigate?: () => void }) {
+function SidebarNav({
+  user,
+  pendingInvites,
+  onNavigate,
+}: {
+  user: ShellUser;
+  pendingInvites?: PendingInviteCounts;
+  onNavigate?: () => void;
+}) {
+  const workspaceNav: NavItem[] = [
+    { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
+    { href: "/dashboard/repos", label: "Repositories", icon: IconBranch },
+    {
+      href: "/dashboard/team",
+      label: "Teams",
+      icon: IconUsers,
+      badge: pendingInvites?.team ? badgeText(pendingInvites.team, "team") : undefined,
+    },
+    {
+      href: "/dashboard/organization",
+      label: "Organizations",
+      icon: IconBuilding,
+      badge: pendingInvites?.organization ? badgeText(pendingInvites.organization, "organization") : undefined,
+    },
+    { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
+  ];
+
   return (
     <nav className="flex-1 space-y-6 overflow-y-auto px-3.5 py-4" aria-label="Dashboard navigation">
       <div>
@@ -100,7 +132,7 @@ function SidebarNav({ user, onNavigate }: { user: ShellUser; onNavigate?: () => 
           </p>
         </div>
         <ul className="space-y-1">
-          {WORKSPACE_NAV.map((item) => (
+          {workspaceNav.map((item) => (
             <NavLink key={item.href} item={item} onNavigate={onNavigate} />
           ))}
         </ul>
@@ -190,7 +222,15 @@ function AccountFooter({ user, onNavigate }: { user: ShellUser; onNavigate?: () 
   );
 }
 
-function SidebarBody({ user, onNavigate }: { user: ShellUser; onNavigate?: () => void }) {
+function SidebarBody({
+  user,
+  pendingInvites,
+  onNavigate,
+}: {
+  user: ShellUser;
+  pendingInvites?: PendingInviteCounts;
+  onNavigate?: () => void;
+}) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between border-b border-white/[0.07] px-4">
@@ -199,13 +239,21 @@ function SidebarBody({ user, onNavigate }: { user: ShellUser; onNavigate?: () =>
           v0.1
         </span>
       </div>
-      <SidebarNav user={user} onNavigate={onNavigate} />
+      <SidebarNav user={user} pendingInvites={pendingInvites} onNavigate={onNavigate} />
       <AccountFooter user={user} onNavigate={onNavigate} />
     </div>
   );
 }
 
-export function AppShell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+export function AppShell({
+  user,
+  children,
+  pendingInvites,
+}: {
+  user: ShellUser;
+  children: React.ReactNode;
+  pendingInvites?: PendingInviteCounts;
+}) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -224,8 +272,15 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
   }, [open]);
 
   // Derive current section label for breadcrumb
-  const currentItem = [...WORKSPACE_NAV, ...ACCOUNT_NAV].find((i) => isActive(pathname, i));
-  const pageCategory = WORKSPACE_NAV.some((i) => isActive(pathname, i))
+  const workspaceNav: NavItem[] = [
+    { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
+    { href: "/dashboard/repos", label: "Repositories", icon: IconBranch },
+    { href: "/dashboard/team", label: "Teams", icon: IconUsers },
+    { href: "/dashboard/organization", label: "Organizations", icon: IconBuilding },
+    { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
+  ];
+  const currentItem = [...workspaceNav, ...ACCOUNT_NAV].find((i) => isActive(pathname, i));
+  const pageCategory = workspaceNav.some((i) => isActive(pathname, i))
     ? "Workspace"
     : "Account & Billing";
 
@@ -233,7 +288,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
     <div className="min-h-screen bg-ink-950 text-ink-100 antialiased">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/[0.08] bg-ink-950 lg:block">
-        <SidebarBody user={user} />
+        <SidebarBody user={user} pendingInvites={pendingInvites} />
       </aside>
 
       {/* Mobile top bar */}
@@ -299,7 +354,7 @@ export function AppShell({ user, children }: { user: ShellUser; children: React.
                 <IconX className="h-4 w-4" />
               </button>
             </div>
-            <SidebarBody user={user} onNavigate={() => setOpen(false)} />
+            <SidebarBody user={user} pendingInvites={pendingInvites} onNavigate={() => setOpen(false)} />
           </div>
         </div>
       ) : null}

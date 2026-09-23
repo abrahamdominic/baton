@@ -11,9 +11,17 @@ const databaseUrlSchema = z.string().default("");
 function urlOrDefault(fallback: string) {
   return z.preprocess(
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
-    z.string().url().default(fallback),
+    z.string().trim().url().default(fallback),
   );
 }
+
+/**
+ * A single-line env string. Trims surrounding whitespace so pasted values with
+ * stray newlines or padding (a real production hazard for wallet addresses and
+ * keys) never flow into payment rows or on-chain comparisons. Empty strings are
+ * kept as "" (callers treat them as unset).
+ */
+const trimmedString = z.string().trim();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -22,21 +30,21 @@ const envSchema = z.object({
 
   DATABASE_URL: databaseUrlSchema,
 
-  GITHUB_OAUTH_CLIENT_ID: z.string().default(""),
-  GITHUB_OAUTH_CLIENT_SECRET: z.string().default(""),
+  GITHUB_OAUTH_CLIENT_ID: trimmedString.default(""),
+  GITHUB_OAUTH_CLIENT_SECRET: trimmedString.default(""),
 
   GITHUB_APP_ID: z.coerce.number().optional(),
-  GITHUB_APP_SLUG: z.string().default("abrahamdominic"),
+  GITHUB_APP_SLUG: trimmedString.default("abrahamdominic"),
   // GitHub App's own OAuth credentials (App settings → "Client ID" / "Client
   // secrets"). These are the GitHub App's, NOT the standalone OAuth App's
   // (GITHUB_OAUTH_*). Required only if the App has "Request user authorization
   // (OAuth) during installation" enabled.
-  GITHUB_APP_CLIENT_ID: z.string().default(""),
-  GITHUB_APP_CLIENT_SECRET: z.string().default(""),
+  GITHUB_APP_CLIENT_ID: trimmedString.default(""),
+  GITHUB_APP_CLIENT_SECRET: trimmedString.default(""),
   GITHUB_APP_PRIVATE_KEY_BASE64: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY_PATH: z.string().optional(),
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
-  GITHUB_APP_WEBHOOK_SECRET: z.string().default(""),
+  GITHUB_APP_WEBHOOK_SECRET: trimmedString.default(""),
 
   BATON_WORKER_POLL_MS: z.coerce.number().default(5000),
   BATON_CRON_INTERVAL_MIN: z.coerce.number().default(720),
@@ -46,23 +54,23 @@ const envSchema = z.object({
   // Supabase backend (billing, payments, subscriptions, admin store).
   // The service-role key must ONLY ever be used server-side.
   // ---------------------------------------------------------------
-  SUPABASE_URL: z.string().default(""),
-  SUPABASE_PUBLISHABLE_KEY: z.string().default(""),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().default(""),
+  SUPABASE_URL: trimmedString.default(""),
+  SUPABASE_PUBLISHABLE_KEY: trimmedString.default(""),
+  SUPABASE_SERVICE_ROLE_KEY: trimmedString.default(""),
 
   // Comma-separated GitHub logins granted the admin role at sign-in
   // (bootstrap only; real admins are managed server-side afterwards).
-  BATON_ADMIN_LOGINS: z.string().default(""),
+  BATON_ADMIN_LOGINS: trimmedString.default(""),
 
   // ---------------------------------------------------------------
   // USDC payments on Base.
   // ---------------------------------------------------------------
-  USDC_NETWORK: z.string().default("base"),
-  USDC_TOKEN: z.string().default("USDC"),
-  USDC_PAYMENT_WALLET_ADDRESS: z.string().default(""),
+  USDC_NETWORK: trimmedString.default("base"),
+  USDC_TOKEN: trimmedString.default("USDC"),
+  USDC_PAYMENT_WALLET_ADDRESS: trimmedString.default(""),
   USDC_RPC_URL: urlOrDefault("https://mainnet.base.org"),
   // Native Bridged USDC (axlUSDC) contract on Base.
-  USDC_TOKEN_ADDRESS: z.string().default("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"),
+  USDC_TOKEN_ADDRESS: trimmedString.default("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"),
   USDC_MIN_CONFIRMATIONS: z.coerce.number().default(12),
   // Allowed mismatch (minor units) between on-chain transfer and expected
   // amount. 0 means the exact amount must be received.
@@ -71,8 +79,8 @@ const envSchema = z.object({
   // ---------------------------------------------------------------
   // Stripe.
   // ---------------------------------------------------------------
-  STRIPE_SECRET_KEY: z.string().default(""),
-  STRIPE_WEBHOOK_SECRET: z.string().default(""),
+  STRIPE_SECRET_KEY: trimmedString.default(""),
+  STRIPE_WEBHOOK_SECRET: trimmedString.default(""),
   STRIPE_MODE: z.enum(["test", "live"]).default("test"),
 });
 

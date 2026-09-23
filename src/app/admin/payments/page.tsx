@@ -171,10 +171,20 @@ export default async function AdminPaymentsPage({
                   {/* Manual On-Chain Actions (USDC pending verification) */}
                   {p.status === "pending_verification" && p.payment_provider === "usdc" ? (
                     <div className="flex shrink-0 flex-col items-start lg:items-end gap-2 pt-1">
-                      <form action={runVerificationAction.bind(null, p.id)}>
-                        <button type="submit" className="btn btn-primary btn-sm">
-                          Verify On-Chain Now
-                        </button>
+                      <form action={runVerificationAction}>
+                        <input type="hidden" name="paymentId" value={p.id} />
+                        <label className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                          <input
+                            type="checkbox"
+                            name="confirm"
+                            aria-label="Confirm on-chain verification"
+                            className="h-3.5 w-3.5 accent-brand-500 rounded"
+                          />
+                          <span className="font-mono text-[11px]">confirm</span>
+                          <button type="submit" className="btn btn-primary btn-sm h-7 text-xs ml-1">
+                            Verify On-Chain Now
+                          </button>
+                        </label>
                       </form>
 
                       <div className="flex flex-wrap items-center gap-2">

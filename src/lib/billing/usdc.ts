@@ -19,7 +19,7 @@ export function isValidTransactionHash(hash: unknown): hash is string {
 }
 
 export function normalizeAddress(address: string): string {
-  return address.toLowerCase();
+  return address.trim().toLowerCase();
 }
 
 export function isSameAddress(a: string, b: string): boolean {

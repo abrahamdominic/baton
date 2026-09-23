@@ -46,21 +46,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return new NextResponse("ok", { status: 200 });
   }
 
-  const idempotent = await recordWebhookEvent(event.id, event.type);
-  if (idempotent === "duplicate") {
+  // The webhook idempotency ledger records ONLY successfully processed events.
+  // The ledger rows are immutable (history immutability trigger), so an event
+  // whose processing failed earlier must NOT be treated as a duplicate: it
+  // would be permanently dropped. Instead of reserving the row up front, we
+  // check whether processing already succeeded, then record only on success.
+  if (await wasEventProcessed(event.id)) {
     logger.debug("stripe-webhook-duplicate", { eventId: event.id, type: event.type });
     return new NextResponse("ok", { status: 200 });
-  }
-  if (idempotent === "error") {
-    return new NextResponse("internal", { status: 500 });
   }
 
   try {
     await processStripeEvent(event);
   } catch (err) {
-    // Processing failed: delete the idempotency row so Stripe's retry can
-    // reprocess the event fresh rather than being silently dropped.
-    await deleteWebhookEvent(event.id);
     logger.error("stripe-webhook-processing-failed", {
       eventId: event.id,
       type: event.type,
@@ -76,6 +74,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return new NextResponse("internal", { status: 500 });
   }
 
+  // Best-effort ledger insert. A unique conflict means a concurrent delivery
+  // of the same event already succeeded; that is fine (processing converged).
+  await markEventProcessed(event.id, event.type);
+
   logger.info("stripe-webhook-processed", { eventId: event.id, type: event.type });
   return new NextResponse("ok", { status: 200 });
 }
@@ -84,23 +86,20 @@ async function isAllowed(ip: string): Promise<boolean> {
   return rateLimiter.check(`stripe-webhook:${ip}`, 60, 1000);
 }
 
-type WebhookRecordOutcome = "recorded" | "duplicate" | "error";
-
-async function recordWebhookEvent(eventId: string, eventType: string): Promise<WebhookRecordOutcome> {
+async function wasEventProcessed(eventId: string): Promise<boolean> {
   const sb = getAdminClient();
-  const { error } = await sb.from("stripe_webhook_events").insert({
+  const { data } = await sb
+    .from("stripe_webhook_events")
+    .select("event_id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  return Boolean(data);
+}
+
+async function markEventProcessed(eventId: string, eventType: string): Promise<void> {
+  const sb = getAdminClient();
+  await sb.from("stripe_webhook_events").insert({
     event_id: eventId,
     event_type: eventType,
   });
-  if (error) {
-    if (error.code === "23505" || error.message.includes("duplicate")) return "duplicate";
-    logger.error("stripe-webhook-idempotency-failed", { eventId, error: error.message });
-    return "error";
-  }
-  return "recorded";
-}
-
-async function deleteWebhookEvent(eventId: string): Promise<void> {
-  const sb = getAdminClient();
-  await sb.from("stripe_webhook_events").delete().eq("event_id", eventId);
 }

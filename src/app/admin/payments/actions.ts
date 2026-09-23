@@ -26,8 +26,10 @@ function requireConfirm(formData: FormData): void {
 }
 
 /** Run on-chain verification for a pending_verification USDC payment. */
-export async function runVerificationAction(paymentId: string): Promise<void> {
+export async function runVerificationAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
+  requireConfirm(formData);
+  const paymentId = String(formData.get("paymentId") ?? "");
   const payment = await getPaymentById(paymentId);
   if (!payment) throw new Error("Payment not found.");
   if (payment.payment_provider !== "usdc") throw new Error("Not a USDC payment.");

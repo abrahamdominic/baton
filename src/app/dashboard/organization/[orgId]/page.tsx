@@ -293,8 +293,7 @@ export default async function OrganizationDetailPage({
                 <div className="min-w-0">
                   <p className="font-mono text-xs font-semibold text-white">@{inv.githubLogin}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {inv.role} &middot; invited by @{inv.invitedBy.login} &middot; expires{" "}
-                    {new Date(inv.expiresAt).toLocaleDateString()}
+                    {inv.role} &middot; invited by @{inv.invitedBy.login}
                   </p>
                 </div>
                 {isAdmin ? (

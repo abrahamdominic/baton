@@ -12,6 +12,7 @@ import {
   completeCancellation,
   expireSubscription,
 } from "./subscriptions";
+import { validateTransition } from "./subscription-machine";
 import {
   getPaymentByCheckoutSessionId,
   getPaymentById,
@@ -205,12 +206,22 @@ async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
     });
-  } else {
+  } else if (validateTransition(subscription.status, "active") === null) {
     await renewSubscription(subscription.id, {
       source: "stripe",
       paymentId: payment.id,
       currentPeriodStart: periodStart ?? new Date().toISOString(),
       currentPeriodEnd: periodEnd ?? new Date().toISOString(),
+    });
+  } else {
+    // A canceled/expired row cannot be revived by a stray invoice; the payment
+    // is recorded but the subscription lifecycle is not forced.
+    await recordSystemEvent({
+      eventType: "stripe_invoice_ignored",
+      severity: "warn",
+      status: "ignored",
+      message: `Invoice ${invoice.id} paid but local subscription is ${subscription.status}; not transitioning.`,
+      metadata: { invoiceId: invoice.id, subscriptionId: subscription.id, localStatus: subscription.status },
     });
   }
 }
@@ -221,15 +232,17 @@ async function onInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
   const subscription = await getSubscriptionByProviderSubId(subscriptionId);
   if (!subscription) return;
   if (subscription.status === "pending") {
-    // Initial purchase failed before activation: the pending row goes to
-    // payment_failed (pending -> past_due is not a legal transition).
     await markSubscriptionPaymentFailed(subscription.id, {
       source: "stripe",
       reason: `Stripe invoice ${invoice.id} ${invoice.status ?? "unpaid"}`,
     });
     return;
   }
-  await markPastDue(subscription.id, `Stripe invoice ${invoice.id} ${invoice.status ?? "unpaid"}`);
+  // Only a receivable state can move to past_due; a canceled/expired/payment_failed
+  // row has no paid window left, so the invoice merely confirms what is true.
+  if (validateTransition(subscription.status, "past_due") === null) {
+    await markPastDue(subscription.id, `Stripe invoice ${invoice.id} ${invoice.status ?? "unpaid"}`);
+  }
 }
 
 async function onSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
@@ -252,7 +265,7 @@ async function onSubscriptionUpdated(subscription: Stripe.Subscription): Promise
     provider_customer_id: toProviderCustomerId(subscription),
   });
 
-  if (subscription.status === "past_due") {
+  if (subscription.status === "past_due" && validateTransition(local.status, "past_due") === null) {
     await markPastDue(local.id);
   }
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { currentUser } from "@/lib/auth/session";
 import { AppShell } from "@/components/dashboard/app-shell";
+import { pendingTeamInvites, pendingOrgInvites } from "@/lib/workspaces";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const githubUrl = `https://github.com/${encodeURIComponent(user.login)}`;
 
+  const [teamInvites, orgInvites] = await Promise.all([
+    pendingTeamInvites(user.login),
+    pendingOrgInvites(user.login),
+  ]).catch(() => [[], []] as const);
+
   return (
     <AppShell
       user={{
@@ -40,6 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         githubUrl,
         role: user.role,
       }}
+      pendingInvites={{ team: teamInvites.length, organization: orgInvites.length }}
     >
       {children}
     </AppShell>
