@@ -7,6 +7,11 @@ import { currentUser } from "@/lib/auth/session";
 import { revokeAllSessionsForUser } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
 
+export interface AdminActionState {
+  ok: boolean;
+  error?: string;
+}
+
 async function requireAdmin() {
   const user = await currentUser();
   if (!user) throw new Error("Authentication required.");
@@ -35,43 +40,70 @@ async function writeAudit(actor: { id: string; login: string }, action: string, 
   });
 }
 
-/** Sensitive admin actions require an explicit confirm checkbox (nk.md §17). */
-function requireConfirm(formData: FormData): void {
+/**
+ * Sensitive admin actions require an explicit confirmation (nk.md §17). Unlike a
+ * thrown error (which surfaces as a Next.js digest page), a missing confirmation
+ * is a user-fixable validation condition and must be returned to the dialog.
+ */
+function requireConfirm(formData: FormData): { ok: boolean; error?: string } {
   if (formData.get("confirm") !== "on") {
-    throw new Error("Confirmation is required for this action.");
+    return { ok: false, error: "Please confirm this action before it can run." };
+  }
+  return { ok: true };
+}
+
+export async function setUserRoleAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const admin = await requireAdmin();
+    const confirmed = requireConfirm(formData);
+    if (!confirmed.ok) return confirmed;
+    const userId = String(formData.get("userId") ?? "");
+    const role = String(formData.get("role") ?? "") === "admin" ? "admin" : "user";
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target) return { ok: false, error: "That user account no longer exists." };
+    if (userId === admin.id && role !== "admin") {
+      return { ok: false, error: "You cannot demote your own account." };
+    }
+    await prisma.user.update({ where: { id: userId }, data: { role } });
+    await writeAudit(admin, "user.role.set", userId, JSON.stringify({ role, previous: target.role }));
+    logger.info("admin-user-role", { actor: admin.login, userId, role });
+    revalidatePath("/admin/users");
+    return { ok: true };
+  } catch (err) {
+    logger.error("admin-user-role-failed", { error: String(err) });
+    return { ok: false, error: "Could not change that user's role. Try again." };
   }
 }
 
-export async function setUserRoleAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
-  requireConfirm(formData);
-  const userId = String(formData.get("userId") ?? "");
-  const role = String(formData.get("role") ?? "") === "admin" ? "admin" : "user";
-  const target = await prisma.user.findUnique({ where: { id: userId } });
-  if (!target) throw new Error("User not found.");
-  if (userId === admin.id && role !== "admin") throw new Error("You cannot demote your own account.");
-  await prisma.user.update({ where: { id: userId }, data: { role } });
-  await writeAudit(admin, "user.role.set", userId, JSON.stringify({ role, previous: target.role }));
-  logger.info("admin-user-role", { actor: admin.login, userId, role });
-  revalidatePath("/admin/users");
-}
-
-export async function setSuspensionAction(formData: FormData): Promise<void> {
-  const admin = await requireAdmin();
-  requireConfirm(formData);
-  const userId = String(formData.get("userId") ?? "");
-  const suspended = formData.get("suspended") === "true";
-  const target = await prisma.user.findUnique({ where: { id: userId } });
-  if (!target) throw new Error("User not found.");
-  if (target.id === admin.id) throw new Error("You cannot suspend your own account.");
-  await prisma.user.update({
-    where: { id: userId },
-    data: { suspendedAt: suspended ? new Date() : null },
-  });
-  if (suspended) {
-    await revokeAllSessionsForUser(userId);
+export async function setSuspensionAction(
+  _prev: AdminActionState,
+  formData: FormData,
+): Promise<AdminActionState> {
+  try {
+    const admin = await requireAdmin();
+    const confirmed = requireConfirm(formData);
+    if (!confirmed.ok) return confirmed;
+    const userId = String(formData.get("userId") ?? "");
+    const suspended = formData.get("suspended") === "true";
+    const target = await prisma.user.findUnique({ where: { id: userId } });
+    if (!target) return { ok: false, error: "That user account no longer exists." };
+    if (target.id === admin.id) return { ok: false, error: "You cannot suspend your own account." };
+    await prisma.user.update({
+      where: { id: userId },
+      data: { suspendedAt: suspended ? new Date() : null },
+    });
+    if (suspended) {
+      await revokeAllSessionsForUser(userId);
+    }
+    await writeAudit(admin, suspended ? "user.suspended" : "user.unsuspended", userId, JSON.stringify({ previous: target.suspendedAt?.toISOString() ?? null }));
+    logger.info("admin-user-suspension", { actor: admin.login, userId, suspended });
+    revalidatePath("/admin/users");
+    return { ok: true };
+  } catch (err) {
+    logger.error("admin-user-suspension-failed", { error: String(err) });
+    return { ok: false, error: "Could not update that user's suspension. Try again." };
   }
-  await writeAudit(admin, suspended ? "user.suspended" : "user.unsuspended", userId, JSON.stringify({ previous: target.suspendedAt?.toISOString() ?? null }));
-  logger.info("admin-user-suspension", { actor: admin.login, userId, suspended });
-  revalidatePath("/admin/users");
 }

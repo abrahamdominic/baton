@@ -162,6 +162,34 @@ body {
   border-color: rgb(15 23 42 / 0.12);
 }
 
+/* White-alpha utilities become structural light tokens so real contrast,
+   surfaces, dividers, and rings survive in light mode. Everything in the app
+   derives from the --ink-* tokens, so dark text over white cards is correct
+   here. Solid brand surfaces keep white text (legible on indigo). */
+:root[data-theme="light"] .text-white {
+  color: rgb(15 23 42 / 1) !important;
+}
+:root[data-theme="light"] [class*="border-white"] {
+  border-color: rgb(15 23 42 / 0.14) !important;
+}
+:root[data-theme="light"] [class*="bg-white/"] {
+  background-color: rgb(15 23 42 / 0.04) !important;
+}
+:root[data-theme="light"] [class*="divide-white"] > * + * {
+  border-color: rgb(15 23 42 / 0.08) !important;
+}
+:root[data-theme="light"] [class*="ring-white"] {
+  --tw-ring-color: rgb(15 23 42 / 0.14) !important;
+}
+:root[data-theme="light"] ::selection {
+  background-color: var(--brand-500);
+  color: #fff;
+}
+:root[data-theme="light"] .bg-brand-500.text-white,
+:root[data-theme="light"] .bg-brand-600.text-white {
+  color: #fff !important;
+}
+
 .container-page {
   @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
 }

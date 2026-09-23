@@ -13,6 +13,7 @@ import { fetchPrSnapshot } from "../github/queries";
 import { classifyPullRequest } from "./classification";
 import { statusCommentBody } from "./message";
 import { decideNudge, parseNudgeBuckets } from "./nudges";
+import { applyOrgPolicyToSetting } from "./thresholds";
 import type { SnapshotInput } from "./types";
 
 // AI review assistants that set "FAILURE" conclusions on their own checks and
@@ -73,11 +74,33 @@ export async function processPrRefresh(payload: {
     return outcome;
   }
 
-  const setting: RepoSetting = await prisma.repoSetting.upsert({
+  const rawSetting: RepoSetting = await prisma.repoSetting.upsert({
     where: { repoId: repoRow.id },
     create: { repoId: repoRow.id },
     update: {},
   });
+
+  // Organization-wide policies (Organization plan) supply default thresholds
+  // for repos the owner hasn't individually customized. Best-effort: a missing
+  // link just leaves the repo on its own setting.
+  const appInstallation = await prisma.appInstallation
+    .findFirst({
+      where: { installationId: Number(installationId) },
+      select: { id: true },
+    })
+    .catch(() => null);
+  const orgLink = appInstallation
+    ? await prisma.organizationInstallation
+        .findUnique({
+          where: { installationId: appInstallation.id },
+          select: { organization: { select: { policy: true } } },
+        })
+        .catch(() => null)
+    : null;
+  const setting: RepoSetting = applyOrgPolicyToSetting(
+    rawSetting,
+    orgLink?.organization?.policy ?? null,
+  );
 
   const existing = await prisma.pullRequest.findUnique({
     where: { repoId_number: { repoId: repoRow.id, number } },

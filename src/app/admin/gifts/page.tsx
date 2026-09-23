@@ -15,22 +15,38 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminGiftsPage() {
-  const [users, plans, gifts] = await Promise.all([
-    prisma.user.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 500,
-      select: {
-        id: true,
-        login: true,
-        name: true,
-        avatarUrl: true,
-        role: true,
-        suspendedAt: true,
-      },
-    }),
-    listPlans({ includeInactive: false }),
-    listGifts(50),
-  ]);
+  let users: Array<{
+    id: string;
+    login: string;
+    name: string | null;
+    avatarUrl: string | null;
+    role: string;
+    suspendedAt: Date | null;
+  }> = [];
+  let plans: Awaited<ReturnType<typeof listPlans>> = [];
+  let gifts: Awaited<ReturnType<typeof listGifts>> = [];
+  let loadError: string | null = null;
+
+  try {
+    [users, plans, gifts] = await Promise.all([
+      prisma.user.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 500,
+        select: {
+          id: true,
+          login: true,
+          name: true,
+          avatarUrl: true,
+          role: true,
+          suspendedAt: true,
+        },
+      }),
+      listPlans({ includeInactive: false }),
+      listGifts(50),
+    ]);
+  } catch (err) {
+    loadError = err instanceof Error ? err.message : "Unknown error";
+  }
 
   const userOptions: GiftUser[] = users.map((u) => ({
     id: u.id,
@@ -58,6 +74,8 @@ export default async function AdminGiftsPage() {
     return end === null || end >= now;
   }).length;
 
+  const ledgerUnavailable = loadError !== null && /gift_grants|PGRST205|could not find the table/i.test(loadError);
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -73,6 +91,37 @@ export default async function AdminGiftsPage() {
         }
       />
 
+      {loadError ? (
+        <section className="overflow-hidden rounded-xl border border-warn-500/30 bg-ink-900/60 shadow-sm">
+          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
+              Gift grants unavailable
+            </span>
+          </div>
+          <div className="p-5">
+            {ledgerUnavailable ? (
+              <>
+                <p className="text-sm font-semibold text-white">
+                  The gift-grant ledger has not been provisioned on this database.
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-ink-400">
+                  Run migration <span className="font-mono text-ink-200">0009_checkout_cancel_and_gifts</span>{" "}
+                  (creates the <span className="font-mono text-ink-200">gift_grants</span> table and the{" "}
+                  <span className="font-mono text-ink-200">cancelled</span> /{" "}
+                  <span className="font-mono text-ink-200">gift</span> check constraints) before granting
+                  plans. Users and plans below load once the ledger exists.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs leading-relaxed text-ink-400">
+                The gift ledger could not be read right now. This is a temporary data-layer issue —{" "}
+                {loadError} Try again shortly.
+              </p>
+            )}
+          </div>
+        </section>
+      ) : null}
+
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Registered Users" value={users.length} detail="Searchable recipients" icon={IconUser} />
         <StatCard label="Active Gift Grants" value={activeGifts} detail="Currently within their access window" tone="brand" icon={IconGift} />
@@ -80,7 +129,7 @@ export default async function AdminGiftsPage() {
         <StatCard label="Gift Audit" value="On" detail="Every grant lands in audit_logs" tone="default" icon={IconShield} />
       </section>
 
-      <GiftForm users={userOptions} plans={planOptions} />
+      {loadError ? null : <GiftForm users={userOptions} plans={planOptions} />}
 
       {/* Recent gifts */}
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">

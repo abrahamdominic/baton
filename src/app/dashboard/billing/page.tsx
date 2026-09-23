@@ -18,8 +18,9 @@ import {
   IconCreditCard,
   IconGift,
 } from "@/components/icons";
-import { cancelCurrentSubscription, reactivateCurrentSubscription } from "./actions";
 import { PendingCheckoutControls } from "./pending-checkout-controls";
+import { CancelPlanButton, ReactivateButton } from "./billing-buttons";
+import { ResumeCheckoutButton } from "./resume-checkout-button";
 import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -92,13 +93,6 @@ export default async function BillingPage() {
   const availablePlans = await publicPlans();
 
   const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
-
-  const pendingContinueHref =
-    pendingCheckout && pendingPayment?.payment_provider === "usdc"
-      ? `/dashboard/billing/result?payment=${pendingPayment.id}`
-      : pendingCheckout
-        ? `/dashboard/billing/checkout?plan=${pendingCheckout.plan_id}&billing=${pendingInterval}`
-        : "/pricing";
 
   const pendingStatusLabel = pendingCheckout
     ? pendingCheckout.status === "payment_failed"
@@ -232,12 +226,7 @@ export default async function BillingPage() {
             {/* Plan Action Buttons */}
             <div className="flex flex-wrap items-center gap-2 pt-2 lg:flex-col lg:items-end lg:pt-0">
               {status === "active_until_period_end" ? (
-                <form action={reactivateCurrentSubscription.bind(null, subscription!.id)}>
-                  <button type="submit" className="btn btn-primary btn-sm">
-                    <span>Reactivate plan</span>
-                    <IconArrowRight className="h-3 w-3" />
-                  </button>
-                </form>
+                <ReactivateButton subscriptionId={subscription!.id} />
               ) : null}
 
               <Link href="/pricing" className="btn btn-ghost btn-sm">
@@ -259,14 +248,11 @@ export default async function BillingPage() {
               ) : null}
 
               {!isGifted && status === "active" ? (
-                <form action={cancelCurrentSubscription.bind(null, subscription!.id)}>
-                  <button
-                    type="submit"
-                    className="btn btn-ghost btn-sm text-ink-400 hover:border-danger-500/40 hover:text-danger-300"
-                  >
-                    Cancel plan
-                  </button>
-                </form>
+                <CancelPlanButton
+                  subscriptionId={subscription!.id}
+                  planName={plan?.name ?? "this plan"}
+                  periodEnd={periodEnd}
+                />
               ) : null}
             </div>
           </div>
@@ -345,10 +331,10 @@ export default async function BillingPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-end">
-                <Link href={pendingContinueHref} className="btn btn-primary btn-sm">
-                  <span>{pendingCheckout.status === "payment_failed" ? "Retry payment" : "Continue payment"}</span>
-                  <IconArrowRight className="h-3 w-3" />
-                </Link>
+                <ResumeCheckoutButton
+                  subscriptionId={pendingCheckout.id}
+                  isPaymentFailed={pendingCheckout.status === "payment_failed"}
+                />
                 <PendingCheckoutControls
                   subscriptionId={pendingCheckout.id}
                   planName={pendingCheckout.plan?.name ?? "this plan"}

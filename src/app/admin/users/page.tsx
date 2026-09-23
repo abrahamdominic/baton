@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { setUserRoleAction, setSuspensionAction } from "./actions";
+import { AdminUserActions } from "./user-actions";
 import { StatCard, PageHeader } from "@/components/ui";
 import {
   IconUser,
@@ -168,51 +168,12 @@ export default async function AdminUsersPage() {
 
                   {/* Administrative Action Safeguards */}
                   <div className="flex flex-wrap items-center gap-3">
-                    {/* Role Toggle */}
-                    <form action={setUserRoleAction} className="flex items-center gap-2">
-                      <input type="hidden" name="userId" value={u.id} />
-                      <input type="hidden" name="role" value={isAdmin ? "user" : "admin"} />
-                      <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                        <input
-                          type="checkbox"
-                          name="confirm"
-                          aria-label="Confirm role change"
-                          className="h-3.5 w-3.5 accent-brand-500 rounded"
-                        />
-                        <span className="font-mono text-[11px]">confirm</span>
-                        <button
-                          type="submit"
-                          className="btn btn-ghost btn-sm h-7 text-xs ml-1"
-                        >
-                          {isAdmin ? "Demote" : "Make Admin"}
-                        </button>
-                      </label>
-                    </form>
-
-                    {/* Suspension Toggle */}
-                    <form action={setSuspensionAction} className="flex items-center gap-2">
-                      <input type="hidden" name="userId" value={u.id} />
-                      <input type="hidden" name="suspended" value={isSuspended ? "false" : "true"} />
-                      <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                        <input
-                          type="checkbox"
-                          name="confirm"
-                          aria-label="Confirm suspension change"
-                          className="h-3.5 w-3.5 accent-danger-500 rounded"
-                        />
-                        <span className="font-mono text-[11px]">confirm</span>
-                        <button
-                          type="submit"
-                          className={`btn btn-ghost btn-sm h-7 text-xs ml-1 ${
-                            isSuspended
-                              ? "text-signal-300 hover:border-signal-500/40"
-                              : "text-ink-400 hover:border-danger-500/40 hover:text-danger-300"
-                          }`}
-                        >
-                          {isSuspended ? "Unsuspend" : "Suspend"}
-                        </button>
-                      </label>
-                    </form>
+                    <AdminUserActions
+                      userId={u.id}
+                      login={u.login}
+                      isAdmin={isAdmin}
+                      isSuspended={isSuspended}
+                    />
                   </div>
                 </div>
               </li>

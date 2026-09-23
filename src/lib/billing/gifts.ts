@@ -78,71 +78,108 @@ export async function createGiftedAccess(input: GiftPlanInput): Promise<GiftPlan
   if (subError) throw new Error(`gifts.subscription failed: ${subError.message}`);
   const subscription = subscriptionFromRow(subData as Row, plan);
 
-  await recordSubscriptionEvent({
-    subscriptionId: subscription.id,
-    userId: input.userId,
-    eventType: "subscription_gifted",
-    previousStatus: null,
-    newStatus: "active",
-    newPlanId: plan.id,
-    source: "admin",
-    reason: note || null,
-    metadata: {
-      planSlug: plan.slug,
-      grant: "gift",
-      adminUserId: input.adminUserId,
-      userLogin: input.userLogin,
-      durationType: input.durationType,
-      months,
-      accessEndsAt: endIso,
-    },
-  });
-
-  const { data: giftData, error: giftError } = await sb
-    .from("gift_grants")
-    .insert({
-      user_id: input.userId,
-      plan_id: plan.id,
-      admin_user_id: input.adminUserId,
-      duration_type: input.durationType,
-      months,
-      note: note || null,
-      subscription_id: subscription.id,
-      access_started_at: startIso,
-      access_ends_at: endIso,
-    })
-    .select("*")
-    .single();
-  if (giftError) throw new Error(`gifts.grant failed: ${giftError.message}`);
-  const gift = giftFromRow(giftData as Row, plan);
-
-  await recordSystemEvent({
-    eventType: "admin_gifted_plan",
-    severity: "info",
-    status: "granted",
-    message: `Admin ${input.adminUserId} gifted ${plan.slug} (${months} months) to @${input.userLogin}`,
-    userId: input.userId,
-    metadata: { adminUserId: input.adminUserId, planId: plan.id, planSlug: plan.slug, months, accessEndsAt: endIso },
-  });
-
-  await logAdminAudit({
-    adminUserId: input.adminUserId,
-    action: "billing.gift.plan",
-    resourceType: "subscription",
-    resourceId: subscription.id,
-    detail: {
+  try {
+    await recordSubscriptionEvent({
+      subscriptionId: subscription.id,
       userId: input.userId,
-      userLogin: input.userLogin,
-      planId: plan.id,
-      planSlug: plan.slug,
-      durationType: input.durationType,
-      months,
-      accessEndsAt: endIso,
-      note: note || null,
-    },
-  });
+      eventType: "subscription_gifted",
+      previousStatus: null,
+      newStatus: "active",
+      newPlanId: plan.id,
+      source: "admin",
+      reason: note || null,
+      metadata: {
+        planSlug: plan.slug,
+        grant: "gift",
+        adminUserId: input.adminUserId,
+        userLogin: input.userLogin,
+        durationType: input.durationType,
+        months,
+        accessEndsAt: endIso,
+      },
+    });
 
-  return { gift, subscription, accessEndsAt: endIso };
+    const { data: giftData, error: giftError } = await sb
+      .from("gift_grants")
+      .insert({
+        user_id: input.userId,
+        plan_id: plan.id,
+        admin_user_id: input.adminUserId,
+        duration_type: input.durationType,
+        months,
+        note: note || null,
+        subscription_id: subscription.id,
+        access_started_at: startIso,
+        access_ends_at: endIso,
+      })
+      .select("*")
+      .single();
+    if (giftError) throw new Error(`gifts.grant failed: ${giftError.message}`);
+    const gift = giftFromRow(giftData as Row, plan);
+
+    await recordSystemEvent({
+      eventType: "admin_gifted_plan",
+      severity: "info",
+      status: "granted",
+      message: `Admin ${input.adminUserId} gifted ${plan.slug} (${months} months) to @${input.userLogin}`,
+      userId: input.userId,
+      metadata: { adminUserId: input.adminUserId, planId: plan.id, planSlug: plan.slug, months, accessEndsAt: endIso },
+    });
+
+    await logAdminAudit({
+      adminUserId: input.adminUserId,
+      action: "billing.gift.plan",
+      resourceType: "subscription",
+      resourceId: subscription.id,
+      detail: {
+        userId: input.userId,
+        userLogin: input.userLogin,
+        planId: plan.id,
+        planSlug: plan.slug,
+        durationType: input.durationType,
+        months,
+        accessEndsAt: endIso,
+        note: note || null,
+      },
+    });
+
+    return { gift, subscription, accessEndsAt: endIso };
+  } catch (err) {
+    // Never leave the user with a live gifted subscription when the ledger or
+    // audit trail could not be written (partial-state protection).
+    await rollbackGiftGrant(subscription.id, input.userId);
+    throw err;
+  }
+}
+
+/**
+ * Roll back a half-created gift. Prefers a hard delete; if the trailing
+ * subscription_event row references the subscription (FK), fall back to
+ * marking it canceled with a clear rollback trail.
+ */
+async function rollbackGiftGrant(subscriptionId: string, userId: string): Promise<void> {
+  const sb = getAdminClient();
+  const { error: delError } = await sb.from("subscriptions").delete().eq("id", subscriptionId);
+  if (!delError) return;
+
+  try {
+    await sb
+      .from("subscriptions")
+      .update({ status: "canceled" })
+      .eq("id", subscriptionId);
+    await recordSubscriptionEvent({
+      subscriptionId,
+      userId,
+      eventType: "subscription_canceled",
+      previousStatus: "active",
+      newStatus: "canceled",
+      source: "system",
+      reason: "gift creation rolled back: ledger/audit write failed",
+    });
+  } catch {
+    // Last resort: the subscription row is left untouched; the thrown error
+    // above still surfaces to the admin instead of a silent partial grant.
+  }
 }
 
 /** Admin: most recent gift grants (with plan rows), newest first. */

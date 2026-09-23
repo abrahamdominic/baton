@@ -9,7 +9,20 @@ import {
   reactivateSubscription,
   cancelPendingCheckout,
 } from "@/lib/billing/subscriptions";
+import { findOpenPaymentForSubscription } from "@/lib/billing/payments";
+import { getStripe } from "@/lib/billing/stripe";
 import { BillingInputError } from "@/lib/billing/errors";
+
+export interface BillingActionState {
+  ok: boolean;
+  error?: string;
+}
+
+export interface ResumeCheckoutResult {
+  ok: boolean;
+  url?: string;
+  error?: string;
+}
 
 async function ownedSubscriptionOrThrow(subscriptionId: string) {
   const user = await currentUser();
@@ -54,23 +67,116 @@ export async function cancelPendingCheckoutAction(
   }
 }
 
-/** User-initiated cancellation: access continues until current_period_end. */
-export async function cancelCurrentSubscription(subscriptionId: string): Promise<void> {
-  const subscription = await ownedSubscriptionOrThrow(subscriptionId);
-  await cancelSubscription(subscription.id, {
-    reason: "user requested cancellation from billing page",
-  });
-  logger.info("billing-subscription-cancellation-requested", { userId: subscription.user_id });
-  revalidatePath("/dashboard/billing");
+/**
+ * User-initiated cancellation: access continues until current_period_end.
+ * The confirmation happens in a dialog; the server still re-validates
+ * ownership and cancellability and returns useful errors instead of crashing.
+ */
+export async function cancelCurrentSubscriptionAction(
+  _prev: BillingActionState,
+  formData: FormData,
+): Promise<BillingActionState> {
+  try {
+    if (formData.get("confirm") !== "on") {
+      return { ok: false, error: "Please confirm that you want to cancel your plan." };
+    }
+    const subscription = await ownedSubscriptionOrThrow(
+      String(formData.get("subscriptionId") ?? ""),
+    );
+    if (subscription.payment_provider === "gift") {
+      return { ok: false, error: "Gifted access cannot be cancelled — it ends automatically." };
+    }
+    if (subscription.status !== "active") {
+      return {
+        ok: false,
+        error: "Only an active subscription can be cancelled at the end of its period.",
+      };
+    }
+    await cancelSubscription(subscription.id, {
+      reason: "user requested cancellation from billing page",
+    });
+    logger.info("billing-subscription-cancellation-requested", { userId: subscription.user_id });
+    revalidatePath("/dashboard/billing");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof BillingInputError) return { ok: false, error: err.message };
+    return { ok: false, error: "Could not cancel your plan. Try again or contact support." };
+  }
 }
 
 /** Reactivate a subscription canceled at period end. */
-export async function reactivateCurrentSubscription(subscriptionId: string): Promise<void> {
-  const subscription = await ownedSubscriptionOrThrow(subscriptionId);
-  if (subscription.status !== "active_until_period_end") {
-    throw new BillingInputError("Only subscriptions canceled at period end can be reactivated.");
+export async function reactivateCurrentSubscriptionAction(
+  _prev: BillingActionState,
+  formData: FormData,
+): Promise<BillingActionState> {
+  try {
+    const subscription = await ownedSubscriptionOrThrow(
+      String(formData.get("subscriptionId") ?? ""),
+    );
+    if (subscription.status !== "active_until_period_end") {
+      return { ok: false, error: "Only subscriptions canceled at period end can be reactivated." };
+    }
+    await reactivateSubscription(subscription.id);
+    logger.info("billing-subscription-reactivated", { userId: subscription.user_id });
+    revalidatePath("/dashboard/billing");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof BillingInputError) return { ok: false, error: err.message };
+    return { ok: false, error: "Could not reactivate your plan. Try again or contact support." };
   }
-  await reactivateSubscription(subscription.id);
-  logger.info("billing-subscription-reactivated", { userId: subscription.user_id });
-  revalidatePath("/dashboard/billing");
+}
+
+/**
+ * Resume a pending checkout without creating a new one. For Stripe we revive the
+ * ORIGINAL Checkout Session when it is still open (returns its live URL); once it
+ * is complete we point at the result page so the confirmed state is shown. Only
+ * an expired/missing session falls back to the checkout page, which reuses the
+ * same pending subscription row (never a duplicate).
+ */
+export async function resumeCheckoutAction(
+  subscriptionId: string,
+): Promise<ResumeCheckoutResult> {
+  try {
+    const subscription = await ownedSubscriptionOrThrow(subscriptionId);
+    if (subscription.status !== "pending" && subscription.status !== "payment_failed") {
+      return { ok: false, error: "This checkout can no longer be continued." };
+    }
+    const payment = await findOpenPaymentForSubscription(subscription.id);
+    const plan = subscription.plan;
+    if (!plan) return { ok: false, error: "This checkout's plan is no longer available." };
+
+    if (!payment || payment.payment_provider === "usdc") {
+      return {
+        ok: true,
+        url: payment ? `/dashboard/billing/result?payment=${payment.id}` : "/pricing",
+      };
+    }
+
+    if (payment.stripe_checkout_session_id) {
+      try {
+        const session = await getStripe().checkout.sessions.retrieve(
+          payment.stripe_checkout_session_id,
+        );
+        if (session.status === "open" && session.url) {
+          return { ok: true, url: session.url };
+        }
+        if (session.status === "complete") {
+          return { ok: true, url: `/dashboard/billing/result?payment=${payment.id}` };
+        }
+      } catch {
+        // Session missing or Stripe unavailable: fall through to a fresh session
+        // against the SAME pending subscription.
+      }
+    }
+
+    const interval =
+      (payment.metadata as { interval?: string } | null)?.interval === "annual" ? "annual" : "monthly";
+    return {
+      ok: true,
+      url: `/dashboard/billing/checkout?plan=${subscription.plan_id}&billing=${interval}`,
+    };
+  } catch (err) {
+    if (err instanceof BillingInputError) return { ok: false, error: err.message };
+    return { ok: false, error: "Could not resume this checkout. Try again or contact support." };
+  }
 }
