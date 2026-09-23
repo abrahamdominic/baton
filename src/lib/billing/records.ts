@@ -1,4 +1,4 @@
-import type { PlanRecord, SubscriptionRecord, PaymentRecord, SubscriptionEventRecord } from "./types";
+import type { PlanRecord, SubscriptionRecord, PaymentRecord, SubscriptionEventRecord, GiftRecord } from "./types";
 
 export type Row = Record<string, unknown>;
 
@@ -88,6 +88,23 @@ export function eventFromRow(row: Row): SubscriptionEventRecord {
     reason: strOrNull(row.reason),
     metadata: row.metadata ?? {},
     created_at: str(row.created_at),
+  };
+}
+
+export function giftFromRow(row: Row, plan?: PlanRecord | null): GiftRecord {
+  return {
+    id: str(row.id),
+    user_id: str(row.user_id),
+    plan_id: str(row.plan_id),
+    admin_user_id: strOrNull(row.admin_user_id),
+    duration_type: (row.duration_type as GiftRecord["duration_type"]) ?? "monthly",
+    months: num(row.months),
+    note: strOrNull(row.note),
+    subscription_id: strOrNull(row.subscription_id),
+    access_started_at: str(row.access_started_at),
+    access_ends_at: strOrNull(row.access_ends_at),
+    created_at: str(row.created_at),
+    plan: plan ?? undefined,
   };
 }
 

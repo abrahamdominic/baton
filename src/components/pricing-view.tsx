@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { IconCheck, IconArrowRight, IconGitHub } from "@/components/icons";
+import { IconCheck, IconX, IconArrowRight, IconGitHub } from "@/components/icons";
+import type { PlanRecord } from "@/lib/billing/types";
 
 export interface Tier {
   slug: string;
@@ -99,49 +100,143 @@ const TIERS: Tier[] = [
   },
 ];
 
-const MATRIX = [
+/**
+ * Capabilities the compare matrix can talk about. One source of truth: the
+ * plan rows in the `plans` table (limits.features gates + maxRepos/maxMembers),
+ * exactly what the entitlement resolver enforces at runtime. The matrix can
+ * therefore never promise capabilities the backend does not grant.
+ */
+interface Caps {
+  maxRepos: number | null;
+  maxMembers: number | null;
+  features: string[];
+}
+
+const FREE_CAPS: Caps = { maxRepos: 3, maxMembers: 0, features: [] };
+
+function capsOf(plan: PlanRecord | null, isFree: boolean): Caps {
+  if (isFree || !plan) return FREE_CAPS;
+  const limits = (plan.limits ?? {}) as {
+    maxRepos?: number | null;
+    maxMembers?: number | null;
+    features?: unknown;
+  };
+  const features = Array.isArray(limits.features)
+    ? (limits.features as unknown[]).filter((f): f is string => typeof f === "string")
+    : [];
+  return {
+    maxRepos: typeof limits.maxRepos === "number" && limits.maxRepos > 0 ? limits.maxRepos : null,
+    maxMembers:
+      typeof limits.maxMembers === "number" && limits.maxMembers > 0 ? limits.maxMembers : 0,
+    features,
+  };
+}
+
+interface MatrixRow {
+  feature: string;
+  resolve: (c: Caps) => boolean | string;
+}
+
+const hasGate =
+  (key: string): MatrixRow["resolve"] =>
+  (c) =>
+    c.features.includes(key);
+
+const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[] = [
   {
     category: "Core State Engine",
+    intro: "Every repository Baton tracks gets the full deterministic state machine, on every plan.",
     rows: [
-      { feature: "Deterministic PR state machine", free: "Included", team: "Included", org: "Included" },
-      { feature: "Live pinned status comment", free: "Included", team: "Included", org: "Included" },
-      { feature: "Real-time baton:* labels", free: "Included", team: "Included", org: "Included" },
-      { feature: "Whose-turn resolution", free: "Included", team: "Included", org: "Included" },
-      { feature: "Metadata-only access guarantee (no code read)", free: "Included", team: "Included", org: "Included" },
+      { feature: "Deterministic PR state machine", resolve: () => true },
+      { feature: "Live pinned status card in every PR", resolve: () => true },
+      { feature: "Automatic baton:* state labels", resolve: () => true },
+      { feature: "Whose-turn resolution (author vs reviewer)", resolve: () => true },
+      { feature: "Metadata-only operation, never reads your code", resolve: () => true },
     ],
   },
   {
-    category: "Nudges & Thresholds",
+    category: "Scale & Capacity",
     rows: [
-      { feature: "Automated polite reviewer nudges", free: "Not included", team: "Configurable per repo", org: "Configurable + Org policies" },
-      { feature: "Per-state grace periods (hours)", free: "Default (24h/48h)", team: "Full customization", org: "Full customization" },
-      { feature: "Bounded nudges (max 1 per state)", free: "Included", team: "Included", org: "Included" },
-      { feature: "Safety net scheduled sweeps", free: "Standard", team: "High-frequency", org: "Real-time dedicated" },
+      {
+        feature: "Active repositories tracked",
+        resolve: (c) => (c.maxRepos === null ? "Unlimited" : `Up to ${c.maxRepos}`),
+      },
+      {
+        feature: "Members included in your plan",
+        resolve: (c) =>
+          c.maxMembers === 0
+            ? "Not included"
+            : c.maxMembers === null
+              ? "Unlimited"
+              : `${c.maxMembers.toLocaleString("en-US")} seats`,
+      },
+      { feature: "Your Move personal review queue", resolve: () => true },
+      { feature: "Repository board per repo", resolve: () => true },
     ],
   },
   {
-    category: "Management & Security",
+    category: "Automation & Nudges",
     rows: [
-      { feature: "Repositories tracked", free: "Up to 3 repos", team: "Unlimited", org: "Unlimited" },
-      { feature: "Your Move personal dashboard", free: "Included", team: "Included", org: "Included" },
-      { feature: "Repo-level boards", free: "Not included", team: "Included", org: "Included" },
-      { feature: "Team workspaces & member invitations", free: "Not included", team: "Included", org: "Included" },
-      { feature: "Organization workspaces & roles", free: "Not included", team: "Not included", org: "Included" },
-      { feature: "Organization-wide review policies", free: "Not included", team: "Not included", org: "Included" },
-      { feature: "Audit log export (CSV/JSON)", free: "Not included", team: "Not included", org: "Included" },
+      { feature: "Automated polite @-mention reviewer nudges", resolve: () => true },
+      { feature: "Bounded nudges (max 1 per state)", resolve: () => true },
+      {
+        feature: "Per-repo customizable thresholds & grace periods",
+        resolve: hasGate("custom_thresholds"),
+      },
+    ],
+  },
+  {
+    category: "Workspaces, Roles & Compliance",
+    rows: [
+      { feature: "Team workspaces (shared board, invites, member roles)", resolve: hasGate("team_workspace") },
+      { feature: "Organization workspaces (multiple teams & roles)", resolve: hasGate("organization_workspace") },
+      { feature: "Organization-wide review stall policies", resolve: hasGate("organization_policies") },
+      { feature: "Audit log export (CSV/JSON)", resolve: hasGate("audit_export") },
     ],
   },
 ];
 
 export function PricingView({
   overrides = {},
+  plans = [],
 }: {
   /** Server-fetched plan overrides keyed by tier slug (e.g. "team"). */
   overrides?: Record<string, Partial<Tier>>;
+  /** Server-fetched plan rows from the `plans` table (compare matrix source of truth). */
+  plans?: PlanRecord[];
 }) {
   const [annual, setAnnual] = useState(false);
 
   const tiers: Tier[] = TIERS.map((t) => (overrides[t.slug] ? { ...t, ...overrides[t.slug] } : t));
+
+  const columns: { slug: string; label: string; plan: PlanRecord | null; featured: boolean }[] = [
+    {
+      slug: "free",
+      label: overrides.individual?.name ?? TIERS[0].name,
+      plan: null,
+      featured: TIERS[0].featured,
+    },
+    ...plans.map((p, i) => ({
+      slug: p.slug,
+      label: p.name,
+      plan: p,
+      featured: p.slug === "team" || (plans.length === 1 && i === 0),
+    })),
+  ];
+
+  const headPrice = (plan: PlanRecord | null) => {
+    if (!plan || plan.price_custom) return "Custom";
+    const cents = annual ? plan.annual_price_cents : plan.monthly_price_cents;
+    return `$${(cents / 100).toFixed(0)}`;
+  };
+  const headPeriod = (plan: PlanRecord | null) =>
+    !plan ? "free forever" : annual ? "/year" : "/month";
+
+  const cellView = (value: boolean | string) => {
+    if (value === true) return <IconCheck className="h-4 w-4 text-signal-400" />;
+    if (value === false) return <IconX className="h-4 w-4 text-ink-600" />;
+    return <span className="text-ink-300">{value}</span>;
+  };
 
   return (
     <div className="space-y-16">
@@ -309,43 +404,64 @@ export function PricingView({
         <div className="text-center max-w-xl mx-auto mb-10">
           <h2 className="text-2xl font-bold text-white">Compare plans in detail</h2>
           <p className="mt-2 text-xs text-ink-400">
-            Every feature, capability, and limit explained line by line.
+            Every capability below comes from the product&apos;s enforcement layer, so the matrix
+            always reflects exactly what a plan unlocks.
           </p>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <table className="w-full min-w-[640px] text-left text-xs">
+          <table className="w-full min-w-[680px] text-left text-xs">
             <thead>
               <tr className="border-b border-white/[0.08] bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
-                <th className="py-4 pl-6 pr-4 font-semibold">Features</th>
-                <th className="py-4 px-4 font-semibold text-white">Individual ($0)</th>
-                <th className="py-4 px-4 font-semibold text-brand-300">
-                  Team ({annual ? "$96/user/yr" : "$10/user/mo"})
-                </th>
-                <th className="py-4 pr-6 pl-4 font-semibold text-white">
-                  Organization ({annual ? "$480/yr" : "$50/mo"})
-                </th>
+                <th className="py-4 pl-6 pr-4 font-semibold">Capability</th>
+                {columns.map((col) => (
+                  <th
+                    key={col.slug}
+                    className={`py-4 px-4 font-semibold ${
+                      col.featured ? "text-brand-300" : "text-white"
+                    }`}
+                  >
+                    <span className="block">{col.label}</span>
+                    <span className="block text-[10px] font-normal normal-case text-ink-400">
+                      {headPrice(col.plan)} <span className="text-ink-500">{headPeriod(col.plan)}</span>
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06]">
-              {MATRIX.map((sec) => (
+              {MATRIX_SECTIONS.map((sec) => (
                 <React.Fragment key={sec.category}>
                   <tr className="bg-ink-950/90">
-                    <td
-                      colSpan={4}
-                      className="py-2.5 pl-6 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-400"
-                    >
+                    <td colSpan={columns.length + 1} className="py-2.5 pl-6 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-400">
                       {sec.category}
                     </td>
                   </tr>
+                  {sec.intro ? (
+                    <tr className="bg-ink-950/40">
+                      <td colSpan={columns.length + 1} className="py-2 pl-6 pr-6 text-[11px] leading-relaxed text-ink-500">
+                        {sec.intro}
+                      </td>
+                    </tr>
+                  ) : null}
                   {sec.rows.map((r) => (
                     <tr key={r.feature} className="hover:bg-white/[0.02]">
-                      <td className="py-3.5 pl-6 pr-4 font-medium text-ink-200">{r.feature}</td>
-                      <td className="py-3.5 px-4 text-ink-400">{r.free}</td>
-                      <td className="py-3.5 px-4 font-medium text-brand-200 bg-brand-500/[0.02]">
-                        {r.team}
+                      <td className="sticky left-0 bg-ink-900 py-3.5 pl-6 pr-4 font-medium text-ink-200 shadow-[1px_0_0_0_rgba(255,255,255,0.04)]">
+                        {r.feature}
                       </td>
-                      <td className="py-3.5 pr-6 pl-4 text-ink-300">{r.org}</td>
+                      {columns.map((col) => {
+                        const value = r.resolve(capsOf(col.plan, col.slug === "free"));
+                        return (
+                          <td
+                            key={col.slug}
+                            className={`py-3.5 px-4 ${
+                              col.featured ? "bg-brand-500/[0.025]" : ""
+                            }`}
+                          >
+                            <span className="flex items-center justify-center">{cellView(value)}</span>
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </React.Fragment>

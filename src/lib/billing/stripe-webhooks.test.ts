@@ -48,7 +48,7 @@ vi.mock("./payments", () => ({
     metadata: { interval: "monthly" },
   })),
   getPaymentById: vi.fn(),
-  confirmPayment: vi.fn(async () => ({ id: "pay-1", paid_at: new Date().toISOString() })),
+  confirmPayment: vi.fn(async () => ({ id: "pay-1", status: "confirmed", paid_at: new Date().toISOString() })),
   createPayment: vi.fn(async () => ({ id: "pay-renewal", status: "confirmed" })),
   patchPayment: vi.fn(async () => ({})),
   periodForInterval: vi.fn(() => ({ start: "2026-09-23T00:00:00.000Z", end: "2026-10-23T00:00:00.000Z" })),
@@ -120,6 +120,19 @@ describe("stripe-webhooks", () => {
     await processStripeEvent(asEvent("checkout.session.completed", baseSession({ payment_status: "unpaid" })));
     expect(confirmPayment).not.toHaveBeenCalled();
     expect(activateSubscription).not.toHaveBeenCalled();
+  });
+
+  it("never activates a checkout whose payment was cancelled mid-flight", async () => {
+    const { confirmPayment } = await import("./payments");
+    (confirmPayment as ReturnType<typeof vi.fn>).mockResolvedValue({
+      id: "pay-1",
+      status: "cancelled",
+      paid_at: null,
+    });
+    await processStripeEvent(asEvent("checkout.session.completed", baseSession()));
+    expect(confirmPayment).toHaveBeenCalledWith("pay-1");
+    expect(activateSubscription).not.toHaveBeenCalled();
+    expect(patchPayment).not.toHaveBeenCalled();
   });
 
   it("activates a pending subscription on invoice.paid", async () => {

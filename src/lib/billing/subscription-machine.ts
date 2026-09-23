@@ -9,9 +9,14 @@ import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "./types";
  */
 export const SUBSCRIPTION_TRANSITIONS: Record<SubscriptionStatus, SubscriptionStatus[]> = {
   none: ["pending"],
-  pending: ["active", "payment_failed"],
-  payment_failed: ["pending", "active"],
-  active: ["active_until_period_end", "past_due", "active"],
+  // `canceled` covers an abandoned checkout: the user closed the payment, so
+  // the still-`pending` row is terminated rather than left to expire later.
+  pending: ["active", "payment_failed", "canceled"],
+  // A failed checkout can be retried (back to pending) or abandoned (canceled).
+  payment_failed: ["pending", "active", "canceled"],
+  // `expired` from active covers admin-gifted plans reaching their access end
+  // (housekeeping closes the row so the product shows the true state).
+  active: ["active_until_period_end", "past_due", "active", "expired"],
   active_until_period_end: ["active", "canceled"],
   past_due: ["active", "expired"],
   canceled: ["pending"],

@@ -105,6 +105,21 @@ async function onCheckoutSessionCompleted(session: Stripe.Checkout.Session): Pro
   }
 
   const confirmed = await confirmPayment(payment.id);
+  if (confirmed.status !== "confirmed") {
+    // The user cancelled the checkout while the payment was in flight (or the
+    // payment was already terminal). Money may have moved at Stripe, but access
+    // is never granted from a cancelled payment. The webhook event still counts
+    // as processed so Stripe does not retry it forever.
+    await recordSystemEvent({
+      eventType: "stripe_checkout_payment_not_confirmed",
+      severity: "warn",
+      status: "ignored",
+      message: `Checkout session ${session.id} reported paid but the recorded payment is ${confirmed.status}; access not granted.`,
+      metadata: { sessionId: session.id, paymentId: payment.id, paymentStatus: confirmed.status },
+    });
+    return;
+  }
+
   await patchPayment(payment.id, {
     stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
     stripe_invoice_id: typeof session.invoice === "string" ? session.invoice : null,

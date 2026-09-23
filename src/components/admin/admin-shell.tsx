@@ -14,6 +14,7 @@ import {
   IconLogOut,
   IconLayers,
   IconLock,
+  IconGift,
   IconGitHub,
   IconMenu,
   IconX,
@@ -54,6 +55,7 @@ const NAV_GROUPS: AdminNavGroup[] = [
       { href: "/admin/subscriptions", label: "Subscriptions", icon: IconLayers },
       { href: "/admin/plans", label: "Plan Catalog", icon: IconLayers },
       { href: "/admin/payments", label: "Crypto Payments", icon: IconShield },
+      { href: "/admin/gifts", label: "Gift Plans", icon: IconGift },
     ],
   },
   {

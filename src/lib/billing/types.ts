@@ -23,6 +23,15 @@ export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 export const PAYMENT_PROVIDERS = ["stripe", "usdc"] as const;
 export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
 
+/**
+ * Payment providers a SUBSCRIPTION row can be keyed to. `gift` never appears on
+ * the `payments` table (gifts create no money movement); it only labels a
+ * granted subscription row so the product can distinguish admin-gifted access
+ * from paid access and expire it on schedule.
+ */
+export const SUBSCRIPTION_PROVIDERS = [...PAYMENT_PROVIDERS, "gift"] as const;
+export type SubscriptionProvider = (typeof SUBSCRIPTION_PROVIDERS)[number];
+
 export const PAYMENT_TYPES = [
   "initial_subscription",
   "renewal",
@@ -38,8 +47,26 @@ export const PAYMENT_STATUSES = [
   "failed",
   "rejected",
   "refunded",
+  "cancelled",
 ] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+/**
+ * Payment lifecycle (server-authoritative; the client only ever *reports* an
+ * attempt). States are intentionally provider-appropriate:
+ *
+ *   pending                 attempt created/awaiting action  (all providers)
+ *   pending_verification    tx hash submitted, on-chain verifying (usdc only)
+ *   confirmed               money received; access granted       (all providers)
+ *   failed                  attempt failed but may be retried     (all providers)
+ *   rejected                hard-verified failure (no retry)       (usdc only)
+ *   refunded                money returned by support/admin        (all providers)
+ *   cancelled               checkout abandoned before payment      (all providers)
+ *
+ * The open terminal split matters: `failed`/`rejected` close the attempt and
+ * put the subscription into `payment_failed`; `cancelled` closes the CHECKOUT
+ * and lets the user start a brand-new one immediately (see cancelPendingCheckout).
+ */
 
 /** USD minor unit (cents): the "major unit with 2 decimals" of a price. */
 export type Cents = number;
@@ -70,7 +97,7 @@ export interface SubscriptionRecord {
   user_id: string;
   plan_id: string;
   status: SubscriptionStatus;
-  payment_provider: PaymentProvider | null;
+  payment_provider: SubscriptionProvider | null;
   provider_customer_id: string | null;
   provider_subscription_id: string | null;
   current_period_start: string | null;
@@ -189,3 +216,29 @@ export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
   canceled: "Canceled",
   expired: "Expired",
 };
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  pending: "Awaiting payment",
+  pending_verification: "Verifying payment",
+  confirmed: "Confirmed",
+  failed: "Failed",
+  rejected: "Rejected",
+  refunded: "Refunded",
+  cancelled: "Cancelled",
+};
+
+/** Admin-gifted plan grant (record of who gifted what, when, until when). */
+export interface GiftRecord {
+  id: string;
+  user_id: string;
+  plan_id: string;
+  admin_user_id: string | null;
+  duration_type: "monthly" | "annual";
+  months: number;
+  note: string | null;
+  subscription_id: string | null;
+  access_started_at: string;
+  access_ends_at: string | null;
+  created_at: string;
+  plan?: PlanRecord | null;
+}

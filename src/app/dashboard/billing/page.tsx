@@ -3,10 +3,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
 import { getEntitlement } from "@/lib/billing/entitlement";
-import { getCurrentSubscription } from "@/lib/billing/subscriptions";
-import { listPaymentsForUser } from "@/lib/billing/payments";
+import { getCurrentSubscription, listSubscriptionsForUser } from "@/lib/billing/subscriptions";
+import { listPaymentsForUser, findOpenPaymentForSubscription } from "@/lib/billing/payments";
+import { publicPlans } from "@/lib/billing/plans";
 import { listSubscriptionEvents } from "@/lib/billing/events";
-import { SUBSCRIPTION_STATUS_LABELS } from "@/lib/billing/types";
+import { SUBSCRIPTION_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/billing/types";
 import {
   IconCheck,
   IconClock,
@@ -15,8 +16,10 @@ import {
   IconArrowRight,
   IconExternalLink,
   IconCreditCard,
+  IconGift,
 } from "@/components/icons";
 import { cancelCurrentSubscription, reactivateCurrentSubscription } from "./actions";
+import { PendingCheckoutControls } from "./pending-checkout-controls";
 import { PageHeader } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +53,7 @@ function statusTone(status: string): string {
     case "expired":
     case "canceled":
     case "refunded":
+    case "cancelled":
       return "border-white/[0.08] bg-white/[0.04] text-ink-400";
     default:
       return "border-white/[0.08] bg-white/[0.04] text-ink-300";
@@ -69,9 +73,38 @@ export default async function BillingPage() {
   const subscription = entitlement.subscription ?? (await getCurrentSubscription(user.id));
   const plan = subscription?.plan ?? null;
 
+  // A pending checkout is any still-open pre-payment subscription: `pending`
+  // (mid-checkout / orphaned-but-visible) or `payment_failed` (its payment did
+  // not clear). We surface it separately so the user can continue or cancel it;
+  // a cancelled checkout never permanently blocks a new purchase.
+  const allSubs = await listSubscriptionsForUser(user.id);
+  const pendingCheckout =
+    allSubs.find((s) => s.status === "pending" || s.status === "payment_failed") ?? null;
+  const pendingPayment = pendingCheckout ? await findOpenPaymentForSubscription(pendingCheckout.id) : null;
+  const pendingInterval =
+    (pendingPayment?.metadata as { interval?: string } | null)?.interval === "annual" ? "annual" : "monthly";
+
   const periodEnd = subscription?.current_period_end ?? null;
   const cancelRequested = subscription?.cancel_at_period_end ?? false;
   const status = subscription?.status ?? "none";
+  const isGifted = subscription?.payment_provider === "gift";
+
+  const availablePlans = await publicPlans();
+
+  const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+
+  const pendingContinueHref =
+    pendingCheckout && pendingPayment?.payment_provider === "usdc"
+      ? `/dashboard/billing/result?payment=${pendingPayment.id}`
+      : pendingCheckout
+        ? `/dashboard/billing/checkout?plan=${pendingCheckout.plan_id}&billing=${pendingInterval}`
+        : "/pricing";
+
+  const pendingStatusLabel = pendingCheckout
+    ? pendingCheckout.status === "payment_failed"
+      ? "Payment failed"
+      : "Pending checkout"
+    : null;
 
   return (
     <div className="space-y-8">
@@ -117,22 +150,39 @@ export default async function BillingPage() {
                     Cancels at period end
                   </span>
                 ) : null}
+                {isGifted ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border border-brand-500/30 bg-brand-500/10 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300">
+                    <IconGift className="h-3 w-3" />
+                    Admin-gifted
+                  </span>
+                ) : null}
               </div>
 
               <p className="text-xs leading-relaxed text-ink-300 sm:text-sm">
                 {status === "none"
                   ? "You are on the free tier (up to 3 repositories with status cards, labels, and personal queue)."
-                  : plan?.description ?? "Baton Team subscription."}
+                  : isGifted
+                    ? `${plan?.name ?? "This"} plan was granted to you by an administrator — no payment is collected and it never renews automatically.`
+                    : plan?.description ?? "Baton Team subscription."}
               </p>
 
               {periodEnd ? (
                 <p className="flex items-center gap-1.5 pt-1 font-mono text-xs text-ink-400">
                   <IconClock className="h-3.5 w-3.5 text-ink-500" />
-                  <span>Current billing period ends</span>
-                  <span className="font-bold text-white">{formatDate(periodEnd)}</span>
-                  {cancelRequested ? (
-                    <span className="text-warn-300 font-semibold">(access ends on this date)</span>
-                  ) : null}
+                  {isGifted ? (
+                    <>
+                      <span>Gifted access ends</span>
+                      <span className="font-bold text-white">{formatDate(periodEnd)}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Current billing period ends</span>
+                      <span className="font-bold text-white">{formatDate(periodEnd)}</span>
+                      {cancelRequested ? (
+                        <span className="text-warn-300 font-semibold">(access ends on this date)</span>
+                      ) : null}
+                    </>
+                  )}
                 </p>
               ) : null}
 
@@ -195,7 +245,8 @@ export default async function BillingPage() {
                 <IconArrowRight className="h-3 w-3" />
               </Link>
 
-              {plan &&
+              {!isGifted &&
+              plan &&
               subscription?.payment_provider === "usdc" &&
               ["active", "active_until_period_end"].includes(status) ? (
                 <Link
@@ -207,7 +258,7 @@ export default async function BillingPage() {
                 </Link>
               ) : null}
 
-              {status === "active" ? (
+              {!isGifted && status === "active" ? (
                 <form action={cancelCurrentSubscription.bind(null, subscription!.id)}>
                   <button
                     type="submit"
@@ -220,6 +271,138 @@ export default async function BillingPage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Pending Checkout Card */}
+      {pendingCheckout ? (
+        <section className="overflow-hidden rounded-xl border border-warn-500/25 bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
+              {pendingStatusLabel}
+            </span>
+            <span className="font-mono text-[11px] text-ink-500">
+              started {formatDate(pendingCheckout.created_at)}
+            </span>
+          </div>
+
+          <div className="p-5 sm:p-6">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <h3 className="text-lg font-bold text-white">
+                    {pendingCheckout.plan?.name ?? "Plan"}
+                  </h3>
+                  <span
+                    className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
+                      pendingCheckout.status,
+                    )}`}
+                  >
+                    {SUBSCRIPTION_STATUS_LABELS[pendingCheckout.status] ?? pendingCheckout.status}
+                  </span>
+                  {pendingPayment ? (
+                    <span
+                      className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
+                        pendingPayment.status,
+                      )}`}
+                    >
+                      {PAYMENT_STATUS_LABELS[pendingPayment.status] ?? pendingPayment.status}
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="text-xs leading-relaxed text-ink-300">
+                  {pendingCheckout.status === "payment_failed" ? (
+                    <>
+                      Your payment for this checkout did not clear. Retry it now or cancel it and
+                      start fresh — this never blocks you from switching plans.
+                    </>
+                  ) : pendingPayment?.status === "confirmed" ? (
+                    <>This checkout is being activated. If it does not resolve, contact support.</>
+                  ) : (
+                    <>
+                      You started this {pendingInterval} checkout but have not finished paying yet.
+                      Continue it to activate {pendingCheckout.plan?.name ?? "your plan"}, or cancel it
+                      and choose something different.
+                    </>
+                  )}
+                </p>
+
+                {pendingPayment ? (
+                  <p className="font-mono text-sm font-bold tabular-nums text-white">
+                    {formatMoney(pendingPayment.amount)} {pendingPayment.currency}{" "}
+                    <span className="text-[11px] font-normal text-ink-400">
+                      {pendingPayment.payment_provider === "usdc" ? (
+                        <>
+                          via USDC on {pendingPayment.crypto_network ?? "Base"} · saved as{" "}
+                          {pendingInterval}
+                        </>
+                      ) : (
+                        <>via card (Stripe) · saved as {pendingInterval}</>
+                      )}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-end">
+                <Link href={pendingContinueHref} className="btn btn-primary btn-sm">
+                  <span>{pendingCheckout.status === "payment_failed" ? "Retry payment" : "Continue payment"}</span>
+                  <IconArrowRight className="h-3 w-3" />
+                </Link>
+                <PendingCheckoutControls
+                  subscriptionId={pendingCheckout.id}
+                  planName={pendingCheckout.plan?.name ?? "this plan"}
+                  hasSubmittedCryptoTx={Boolean(
+                    pendingPayment?.status === "pending_verification" && pendingPayment?.crypto_transaction_hash,
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Available Plans */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        {availablePlans.map((p) => {
+          const isCurrent = plan?.id === p.id;
+          const monthly = formatMoney(p.monthly_price_cents);
+          const annual = formatMoney(p.annual_price_cents);
+          return (
+            <div
+              key={p.id}
+              className={`flex flex-col rounded-xl border p-5 ${
+                isCurrent ? "border-brand-500/30 bg-brand-500/[0.04]" : "border-white/[0.08] bg-ink-900/60"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-white">{p.name}</h3>
+                {isCurrent ? (
+                  <span className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
+                    current
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-3 flex items-baseline gap-2">
+                <span className="font-mono text-2xl font-bold tabular-nums text-white">{monthly}</span>
+                <span className="text-xs text-ink-400">/month</span>
+                <span className="ml-2 font-mono text-xs text-ink-400">{annual}/year</span>
+              </div>
+              <p className="mt-2 flex-1 text-xs leading-relaxed text-ink-400">
+                {p.description?.trim() ? p.description : null}
+              </p>
+              <div className="mt-4">
+                <Link
+                  href={`/dashboard/billing/checkout?plan=${p.id}&billing=monthly`}
+                  className={`btn btn-sm ${isCurrent ? "btn-ghost" : "btn-primary"}`}
+                >
+                  <span>{isCurrent ? "Your plan" : "Choose this plan"}</span>
+                  <IconArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          );
+        })}
       </section>
 
       {/* Assurance and Support Cards */}
@@ -312,7 +495,7 @@ export default async function BillingPage() {
                       p.status,
                     )}`}
                   >
-                    {p.status.replace("_", " ")}
+                    {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                   </span>
                   <span className="font-mono text-sm font-bold tabular-nums text-white">
                     ${(p.amount / 100).toFixed(2)} {p.currency}

@@ -3,7 +3,7 @@ import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { PricingView, type Tier } from "@/components/pricing-view";
 import { currentUser } from "@/lib/auth/session";
 import { isSupabaseConfigured } from "@/lib/config";
-import { publicPlans } from "@/lib/billing/plans";
+import { listPlans, publicPlans } from "@/lib/billing/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,7 @@ export default async function PricingPage() {
   const user = await currentUser();
   const signedIn = Boolean(user);
 
-  const overrides = await planOverrides();
+  const [overrides, plans] = await Promise.all([planOverrides(), listPlans()]);
 
   const authAware = (path: string) =>
     signedIn ? path : `/auth/login?next=${encodeURIComponent(path)}`;
@@ -100,7 +100,7 @@ export default async function PricingPage() {
           </p>
         </div>
 
-        <PricingView overrides={overrides} />
+        <PricingView overrides={overrides} plans={plans} />
       </main>
       <MarketingFooter />
     </div>

@@ -238,6 +238,8 @@ export default async function TeamDetailPage({
                       workspaceId={team.id}
                       userId={m.userId}
                       login={m.user.login}
+                      name={m.user.name}
+                      avatarUrl={m.user.avatarUrl}
                     />
                   ) : null}
                 </div>

@@ -6,6 +6,8 @@ import { recordSubscriptionEvent } from "./events";
 import { recordSystemEvent } from "./system-events";
 import { subscriptionFromRow, type Row } from "./records";
 import { validateTransition } from "./subscription-machine";
+import { cancelCheckoutPayment, findOpenPaymentForSubscription } from "./payments";
+import { getStripe } from "./stripe";
 import { BillingInputError } from "./errors";
 import type { PaymentProvider, PlanRecord, SubscriptionRecord, SubscriptionStatus } from "./types";
 
@@ -379,7 +381,9 @@ export async function prepareSubscriptionForCheckout(
     if (existing.plan_id === planId) {
       return { subscription: existing, planChanged: false, alreadyOnPlan: false, renewal: false };
     }
-    throw new BillingInputError("You already have a pending checkout. Finish it before switching plans.");
+    throw new BillingInputError(
+      "You already have a pending checkout. Continue it or cancel it from Billing before switching plans.",
+    );
   }
 
   if (existing.plan_id === planId) {
@@ -484,6 +488,84 @@ async function retryFailedSubscription(
 }
 
 // ---------------------------------------------------------------------------
+// Checkout cancellation
+// ---------------------------------------------------------------------------
+
+export interface CancelCheckoutResult {
+  subscription: SubscriptionRecord;
+  /** The payment that was cancelled (null when the checkout had none). */
+  payment: Awaited<ReturnType<typeof findOpenPaymentForSubscription>>;
+}
+
+/**
+ * Cancel a user's pending checkout. Server-authoritative; the client only
+ * passes the subscription id.
+ *
+ * Ordering prevents the paid-vs-cancelled race:
+ * 1. Atomically cancel the OPEN payment (`cancelCheckoutPayment` only matches
+ *    pending/pending_verification). If the Stripe webhook (or USDC auto-verify)
+ *    already won, the payment reads back `confirmed` and cancellation ABORTS —
+ *    a successful payment is never destroyed by a cancel (Case C).
+ * 2. Only when the payment cancel won do we terminate the subscription row
+ *    (`pending|payment_failed → canceled`). A concurrent webhook can no longer
+ *    activate it, because its `confirmPayment` now matches zero rows and the
+ *    activation is skipped.
+ */
+export async function cancelPendingCheckout(
+  userId: string,
+  subscriptionId: string,
+): Promise<CancelCheckoutResult> {
+  const sub = await getSubscriptionById(subscriptionId);
+  if (!sub || sub.user_id !== userId) {
+    throw new BillingInputError("Checkout not found.");
+  }
+  if (sub.status !== "pending" && sub.status !== "payment_failed") {
+    throw new BillingInputError("This checkout can no longer be cancelled.");
+  }
+
+  const payment = await findOpenPaymentForSubscription(sub.id);
+  if (payment) {
+    // Best-effort: ask Stripe to expire the Checkout Session server-side so the
+    // customer can't still hand over a card that will never activate their plan.
+    if (payment.payment_provider === "stripe" && payment.stripe_checkout_session_id) {
+      try {
+        await getStripe().checkout.sessions.expire(payment.stripe_checkout_session_id);
+      } catch {
+        // The session may already be expired/completed — either way our local
+        // cancellation is what matters. Do not surface Stripe noise to the user.
+      }
+    }
+    const result = await cancelCheckoutPayment(payment.id);
+    if (result?.status === "confirmed") {
+      throw new BillingInputError("Your payment already succeeded and could not be cancelled.");
+    }
+    if (result?.status === "rejected" || result?.status === "refunded") {
+      throw new BillingInputError("This payment is already closed and can no longer be cancelled.");
+    }
+  }
+
+  const cancelled = await transitionSubscription(sub.id, {
+    to: "canceled",
+    eventType: "subscription_checkout_cancelled",
+    source: "user",
+    reason: "user cancelled their pending checkout",
+    paymentId: payment?.id ?? null,
+    endedAt: new Date().toISOString(),
+  });
+
+  await recordSystemEvent({
+    eventType: "checkout_cancelled",
+    severity: "info",
+    status: "cancelled",
+    message: `Checkout for ${sub.plan?.slug ?? sub.plan_id} cancelled by user.`,
+    userId,
+    metadata: { subscriptionId: sub.id, planId: sub.plan_id, paymentId: payment?.id ?? null },
+  });
+
+  return { subscription: cancelled, payment };
+}
+
+// ---------------------------------------------------------------------------
 // Admin / housekeeping operations
 // ---------------------------------------------------------------------------
 
@@ -541,6 +623,8 @@ export interface HousekeepingResult {
   expiredPastDue: number;
   completedCancellations: number;
   failedOrphans: number;
+  /** Admin-gifted `active` plans that reached their access end and were closed. */
+  expiredGifts: number;
 }
 
 /**
@@ -549,9 +633,16 @@ export interface HousekeepingResult {
  *  - `active_until_period_end` past its period end -> `canceled` (done).
  *  - `pending` older than the stale horizon -> `payment_failed` (orphaned
  *    checkout; a user can still re-trigger a fresh one from payment_failed).
+ *  - admin-gifted `active` plans past their access end -> `expired` so the
+ *    product shows the true, reverted entitlement state (never auto-renews).
  */
 export async function runBillingHousekeeping(now = new Date()): Promise<HousekeepingResult> {
-  const result: HousekeepingResult = { expiredPastDue: 0, completedCancellations: 0, failedOrphans: 0 };
+  const result: HousekeepingResult = {
+    expiredPastDue: 0,
+    completedCancellations: 0,
+    failedOrphans: 0,
+    expiredGifts: 0,
+  };
   if (!isSupabaseConfigured()) return result;
 
   const sb = getAdminClient();
@@ -560,7 +651,9 @@ export async function runBillingHousekeeping(now = new Date()): Promise<Housekee
   const { data, error } = await sb
     .from("subscriptions")
     .select("*")
-    .in("status", ["past_due", "active_until_period_end", "pending"])
+    .or(
+      "status.in.(past_due,active_until_period_end,pending),and(status.eq.active,payment_provider.eq.gift)",
+    )
     .limit(500);
   if (error) throw new Error(`subscriptions.housekeeping.list failed: ${error.message}`);
 
@@ -568,7 +661,18 @@ export async function runBillingHousekeeping(now = new Date()): Promise<Housekee
 
   for (const sub of subs) {
     try {
-      if (sub.status === "past_due" && sub.current_period_end && new Date(sub.current_period_end) <= now) {
+      if (sub.status === "active" && sub.payment_provider === "gift" && sub.current_period_end) {
+        if (new Date(sub.current_period_end) <= now) {
+          await transitionSubscription(sub.id, {
+            to: "expired",
+            eventType: "subscription_expired",
+            source: "system",
+            reason: "admin-gifted plan period ended",
+            endedAt: new Date().toISOString(),
+          });
+          result.expiredGifts += 1;
+        }
+      } else if (sub.status === "past_due" && sub.current_period_end && new Date(sub.current_period_end) <= now) {
         await expireSubscription(sub.id);
         result.expiredPastDue += 1;
       } else if (

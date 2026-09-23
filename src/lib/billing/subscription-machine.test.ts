@@ -20,7 +20,7 @@ describe("subscription-machine transitions", () => {
 
   it("rejects illegal transitions with a descriptive result", () => {
     expect(validateTransition("none", "active")).toEqual({ from: "none", to: "active" });
-    expect(validateTransition("active", "expired")).toEqual({ from: "active", to: "expired" });
+    expect(validateTransition("none", "canceled")).toEqual({ from: "none", to: "canceled" });
     expect(validateTransition("canceled", "active")).toEqual({ from: "canceled", to: "active" });
   });
 
@@ -40,12 +40,23 @@ describe("subscription-machine transitions", () => {
 
   it("mirrors nk.md §23: no shortcuts around a verified activation", () => {
     expect(canTransition("none", "active")).toBe(false);
-    expect(canTransition("pending", "canceled")).toBe(false);
-    expect(canTransition("payment_failed", "canceled")).toBe(false);
+    expect(canTransition("none", "canceled")).toBe(false);
     expect(canTransition("active", "payment_failed")).toBe(false);
-    expect(canTransition("active", "expired")).toBe(false);
     expect(canTransition("canceled", "active")).toBe(false);
     expect(canTransition("expired", "active")).toBe(false);
+  });
+
+  it("allows abandoning a checkout (pending/payment_failed → canceled)", () => {
+    // A user can cancel their own checkout before payment succeeds. The
+    // terminal `canceled` row is reopened as `pending` for a fresh attempt.
+    expect(canTransition("pending", "canceled")).toBe(true);
+    expect(canTransition("payment_failed", "canceled")).toBe(true);
+    expect(validateTransition("pending", "canceled")).toBeNull();
+  });
+
+  it("allows expiring an admin-gifted active plan at its access end", () => {
+    expect(canTransition("active", "expired")).toBe(true);
+    expect(validateTransition("active", "expired")).toBeNull();
   });
 
   it("restores cancelled/expired rows by reopening as pending", () => {
@@ -57,12 +68,12 @@ describe("subscription-machine transitions", () => {
 describe("adminTargets", () => {
   it("only surfaces legal admin moves per the state machine", () => {
     expect(adminTargets("none")).toEqual(["none", "pending"]);
-    expect(adminTargets("active")).toEqual(["active", "active_until_period_end", "past_due"]);
+    expect(adminTargets("active")).toEqual(["active", "active_until_period_end", "past_due", "expired"]);
     expect(adminTargets("active_until_period_end")).toEqual(["active", "active_until_period_end", "canceled"]);
     expect(adminTargets("canceled")).toEqual(["pending", "canceled"]);
     expect(adminTargets("expired")).toEqual(["pending", "expired"]);
     expect(adminTargets("pending")).toContain("active");
-    expect(adminTargets("pending")).not.toContain("canceled");
+    expect(adminTargets("pending")).toContain("canceled");
   });
 });
 
@@ -149,7 +160,7 @@ describe("nk.md §25 lifecycle journeys", () => {
 
   it("status can never jump without a verified activation or defined op", () => {
     expect(validateTransition("none", "active")).not.toBeNull();
-    expect(validateTransition("pending", "canceled")).not.toBeNull();
+    expect(validateTransition("none", "canceled")).not.toBeNull();
     expect(validateTransition("expired", "active")).not.toBeNull();
     expect(validateTransition("canceled", "active")).not.toBeNull();
   });

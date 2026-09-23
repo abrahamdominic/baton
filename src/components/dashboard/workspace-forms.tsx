@@ -29,7 +29,7 @@ import {
   deleteOrganization,
   upsertOrgPolicy,
 } from "@/app/dashboard/organization/actions";
-import { IconUsers, IconBuilding, IconSend, IconTrash } from "@/components/icons";
+import { IconUsers, IconBuilding, IconSend, IconTrash, IconShield, IconAlertCircle } from "@/components/icons";
 
 type Kind = "team" | "organization";
 
@@ -536,23 +536,152 @@ export const TransferOwnerButton = ({
   workspaceId,
   userId,
   login,
+  name,
+  avatarUrl,
 }: {
   kind: Kind;
   workspaceId: string;
   userId: string;
   login: string;
-}) => (
-  <AsyncActionButton
-    run={
-      kind === "team"
-        ? () => transferTeamOwnership(workspaceId, userId)
-        : () => transferOrgOwnership(workspaceId, userId)
-    }
-    label="Transfer"
-    confirm={`Transfer ${kind} ownership to @${login}? You will become an admin.`}
-    ariaLabel={`Transfer ownership to @${login}`}
-  />
-);
+  name?: string | null;
+  avatarUrl?: string | null;
+}) => {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const run = kind === "team" ? transferTeamOwnership : transferOrgOwnership;
+
+  const confirmTransfer = () => {
+    setError(null);
+    setPending(true);
+    run(workspaceId, userId)
+      .then(() => {
+        setOpen(false);
+        setArmed(false);
+        router.refresh();
+      })
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Something went wrong. Please try again."),
+      )
+      .finally(() => setPending(false));
+  };
+
+  const displayName = name?.trim() ? name : `@${login}`;
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Transfer ownership to @${login}`}
+        onClick={() => setOpen(true)}
+        className="btn btn-ghost btn-sm border-brand-500/25 text-brand-300 hover:border-brand-500/40 hover:bg-brand-500/10"
+      >
+        <IconShield className="h-3.5 w-3.5" />
+        <span>Transfer</span>
+      </button>
+
+      {open ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+            aria-hidden="true"
+            onClick={() => {
+              if (!pending) setOpen(false);
+            }}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Transfer ${kind} ownership to @${login}`}
+            tabIndex={-1}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && !pending) setOpen(false);
+            }}
+            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-2xl"
+          >
+            <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
+                Transfer {kind} ownership
+              </span>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="flex items-center gap-3">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={login}
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 shrink-0 rounded-full ring-1 ring-white/15"
+                  />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-sm font-bold text-ink-100">
+                    {login.slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-white">{displayName}</p>
+                  <p className="truncate font-mono text-[11px] text-ink-400">@{login}</p>
+                </div>
+                <span className="ml-auto rounded-full border border-brand-500/30 bg-brand-500/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-300">
+                  New owner
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2.5 rounded-lg border border-warn-500/20 bg-warn-500/[0.05] px-3.5 py-3 text-[11px] leading-relaxed text-ink-300">
+                <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-300" />
+                <span>
+                  After this transfer you become an <span className="font-semibold text-white">admin</span>,
+                  @{login} becomes the permanent owner, and paid workspace benefits follow the owner&apos;s
+                  subscription — member access may change if @{login}&apos;s plan differs from yours.
+                </span>
+              </div>
+
+              <label className="flex cursor-pointer items-start gap-2.5 text-xs text-ink-300">
+                <input
+                  type="checkbox"
+                  checked={armed}
+                  onChange={(e) => setArmed(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-brand-500"
+                />
+                <span>
+                  I understand that <span className="font-semibold text-white">@{login}</span> becomes the
+                  owner and I lose the ability to transfer or delete this {kind}.
+                </span>
+              </label>
+
+              <ErrorLine error={error} />
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setOpen(false)}
+                  className="btn btn-ghost btn-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={pending || !armed}
+                  onClick={confirmTransfer}
+                  className="btn btn-primary btn-sm"
+                >
+                  <IconShield className="h-3.5 w-3.5" />
+                  <span>{pending ? "Transferring…" : `Transfer to @${login}`}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+};
 
 export const LeaveWorkspaceButton = ({ kind, workspaceId }: { kind: Kind; workspaceId: string }) => (
   <AsyncActionButton

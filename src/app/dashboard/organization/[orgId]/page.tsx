@@ -263,6 +263,8 @@ export default async function OrganizationDetailPage({
                       workspaceId={org.id}
                       userId={m.userId}
                       login={m.user.login}
+                      name={m.user.name}
+                      avatarUrl={m.user.avatarUrl}
                     />
                   ) : null}
                 </div>

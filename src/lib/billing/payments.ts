@@ -123,7 +123,7 @@ export async function createStripePayment(opts: {
  * The open (pending / pending_verification) payment for a subscription, if any.
  * `payments_one_open_per_subscription` guarantees at most one row matches.
  */
-async function getOpenPaymentForSubscription(
+export async function findOpenPaymentForSubscription(
   subscriptionId: string | null,
 ): Promise<PaymentRecord | null> {
   if (!subscriptionId) return null;
@@ -152,7 +152,7 @@ async function getOpenPaymentForSubscription(
 async function createOrReuseOpenPayment(
   input: CreatePaymentInput,
 ): Promise<PaymentRecord> {
-  const existing = await getOpenPaymentForSubscription(input.subscriptionId);
+  const existing = await findOpenPaymentForSubscription(input.subscriptionId);
   if (existing) {
     const sb = getAdminClient();
     const { data, error } = await sb
@@ -272,6 +272,16 @@ async function setPaymentStatus(
   return paymentFromRow(data as Row);
 }
 
+/**
+ * Atomically mark a payment confirmed. The conditional update only matches
+ * `pending` / `pending_verification`, so a concurrent cancellation can never
+ * double-confirm and a double-delivered webhook can never double-confirm.
+ *
+ * When zero rows match, the payment was already moved out of the open states
+ * by somebody else (e.g. the user cancelled the checkout while the webhook was
+ * in flight). We re-read and return the CURRENT row: callers MUST only act on
+ * the payment when `status === "confirmed"`.
+ */
 export async function confirmPayment(paymentId: string): Promise<PaymentRecord> {
   const sb = getAdminClient();
   const { data, error } = await sb
@@ -280,9 +290,41 @@ export async function confirmPayment(paymentId: string): Promise<PaymentRecord> 
     .eq("id", paymentId)
     .in("status", ["pending", "pending_verification"])
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) throw new Error(`payments.confirm failed: ${error.message}`);
-  return paymentFromRow(data as Row);
+  if (data) return paymentFromRow(data as Row);
+  // Someone moved the payment first. Return its current state so callers can
+  // decide (idempotent re-delivery → re-read confirmed; user cancellation →
+  // re-read cancelled; a failed/rejected attempt never confirms).
+  const current = await getPaymentById(paymentId);
+  if (!current) throw new Error("payments.confirm missing row");
+  return current;
+}
+
+/**
+ * Atomically cancel a checkout payment (only from the open states). Returns the
+ * cancelled row when the cancel won the race, otherwise the current row:
+ *  - confirmed  → the customer paid; the checkout can NOT be cancelled.
+ *  - already cancelled → no-op (returns the cancelled row after no matching).
+ *  - failed/rejected/refunded → already closed, cancel is a no-op (returns row).
+ */
+export async function cancelCheckoutPayment(paymentId: string): Promise<PaymentRecord | null> {
+  const sb = getAdminClient();
+  const { data, error } = await sb
+    .from("payments")
+    .update({
+      status: "cancelled",
+      failure_reason: "checkout cancelled by user",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", paymentId)
+    .in("status", ["pending", "pending_verification"])
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`payments.cancel failed: ${error.message}`);
+  if (data) return paymentFromRow(data as Row);
+  const current = await getPaymentById(paymentId);
+  return current;
 }
 
 export async function failPayment(paymentId: string, reason: string): Promise<PaymentRecord> {
@@ -460,6 +502,25 @@ export async function verifyUsdcPaymentNow(paymentId: string): Promise<UsdcVerif
     // so a concurrent verification can never double-confirm (and therefore
     // never double-extend) a subscription.
     const confirmed = await confirmPayment(payment.id);
+    if (confirmed.status !== "confirmed") {
+      // The user cancelled the checkout while verification was in flight. The
+      // funds may exist on-chain, but access is never granted from a cancelled
+      // payment; the user reaches out to support for the settlement.
+      await recordSystemEvent({
+        eventType: "usdc_payment_cancelled",
+        severity: "warn",
+        status: "cancelled",
+        message: `USDC payment ${payment.id} was cancelled before verification completed.`,
+        userId: payment.user_id,
+        metadata: { paymentId: payment.id, paymentStatus: confirmed.status },
+      });
+      return {
+        ok: false,
+        code: "cancelled",
+        detail: "This payment was cancelled before it could be verified.",
+        payment: confirmed,
+      };
+    }
     await applyUsdcPaymentToSubscription(payment);
     await recordSystemEvent({
       eventType: "usdc_payment_verified",
@@ -530,6 +591,10 @@ export async function adminVerifyPayment(opts: {
 
   if (opts.decision === "confirmed") {
     const confirmed = await confirmPayment(payment.id);
+    if (confirmed.status !== "confirmed") {
+      // A concurrent user cancellation (or terminal state) won the race.
+      throw new BillingInputError("This payment can no longer be confirmed.");
+    }
     await applyUsdcPaymentToSubscription(payment);
     return confirmed;
   }
