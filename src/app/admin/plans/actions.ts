@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/auth/session";
-import { upsertPlan } from "@/lib/billing/plans";
+import { upsertPlan, getPlanById } from "@/lib/billing/plans";
 import { logAdminAudit } from "@/lib/billing/audit";
 import { BillingInputError } from "@/lib/billing/errors";
+import { provisionPlanStripePricing } from "@/lib/billing/stripe-provisioning";
+import { isStripeConfigured } from "@/lib/config";
 
 export interface PlanActionResult {
   ok: boolean;
@@ -118,6 +120,50 @@ export async function savePlanAction(prev: PlanActionResult, formData: FormData)
     return {
       ok: false,
       error: err instanceof BillingInputError ? err.message : "Could not save the plan. Try again.",
+    };
+  }
+}
+/**
+ * Sync Stripe catalog pricing to match the plan's configured amounts. Stripe
+ * Prices are immutable, so drift (or the absence of prices) is fixed by
+ * archiving stale prices and creating fresh ones at the exact DB amounts, then
+ * persisting the resulting product/price IDs on the plan row.
+ */
+export async function syncStripePricingAction(
+  _prev: PlanActionResult,
+  formData: FormData,
+): Promise<PlanActionResult> {
+  const planId = ((formData.get("id") as string) ?? "").trim();
+  if (!planId) return { ok: false, error: "Missing plan id." };
+  try {
+    const admin = await requireAdmin();
+    if (!isStripeConfigured()) {
+      return { ok: false, error: "Stripe is not configured. Add STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET first." };
+    }
+    const plan = await getPlanById(planId);
+    if (!plan) return { ok: false, error: "Plan not found." };
+
+    const pricing = await provisionPlanStripePricing(plan);
+    await logAdminAudit({
+      adminUserId: admin.id,
+      action: "plan.stripe_prices_synced",
+      resourceType: "plan",
+      resourceId: plan.id,
+      detail: {
+        slug: plan.slug,
+        productId: pricing.productId,
+        monthlyPriceId: pricing.monthlyPriceId,
+        annualPriceId: pricing.annualPriceId,
+      },
+      ip: await auditIp(),
+    });
+    revalidatePath("/admin/plans");
+    revalidatePath("/pricing");
+    return { ok: true, error: undefined };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof BillingInputError ? err.message : "Could not sync Stripe prices. Try again.",
     };
   }
 }

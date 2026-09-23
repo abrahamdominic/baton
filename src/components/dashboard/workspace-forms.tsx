@@ -33,19 +33,29 @@ import { IconUsers, IconBuilding, IconSend, IconTrash } from "@/components/icons
 
 type Kind = "team" | "organization";
 
-function useAction(run: (formData: FormData) => Promise<void>) {
+function useAction(
+  run: (formData: FormData) => Promise<void>,
+  getSuccessMessage?: (formData: FormData) => string | null,
+) {
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const router = useRouter();
   const submit = (formData: FormData) => {
     setError(null);
+    setSuccess(null);
     setPending(true);
     run(formData)
-      .then(() => router.refresh())
-      .catch((e) => setError(e instanceof Error ? e.message : "Something went wrong. Please try again."))
+      .then(() => {
+        setSuccess(getSuccessMessage ? getSuccessMessage(formData) : "Done.");
+        router.refresh();
+      })
+      .catch((e) =>
+        setError(e instanceof Error ? e.message : "Something went wrong. Please try again."),
+      )
       .finally(() => setPending(false));
   };
-  return { submit, error, pending, clearError: () => setError(null) };
+  return { submit, error, success, pending, clearError: () => setError(null) };
 }
 
 function ErrorLine({ error }: { error: string | null }) {
@@ -53,6 +63,15 @@ function ErrorLine({ error }: { error: string | null }) {
   return (
     <p role="alert" className="mt-2 text-[11px] font-medium leading-relaxed text-danger-300">
       {error}
+    </p>
+  );
+}
+
+function SuccessLine({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="status" className="mt-2 text-[11px] font-medium leading-relaxed text-brand-300">
+      {message}
     </p>
   );
 }
@@ -118,18 +137,21 @@ export function AsyncActionButton({
 
 export function InviteForm({ kind, workspaceId }: { kind: Kind; workspaceId: string }) {
   const [login, setLogin] = useState("");
-  const run = useAction(async (formData: FormData) => {
-    const githubLogin = String(formData.get("githubLogin") ?? "");
-    const role = (String(formData.get("role") ?? "member") === "admin" ? "admin" : "member") as
-      | "admin"
-      | "member";
-    if (kind === "team") {
-      await inviteTeamMember({ teamId: workspaceId, githubLogin, role });
-    } else {
-      await inviteOrgMember({ organizationId: workspaceId, githubLogin, role });
-    }
-    setLogin("");
-  });
+  const run = useAction(
+    async (formData: FormData) => {
+      const githubLogin = String(formData.get("githubLogin") ?? "");
+      const role = (String(formData.get("role") ?? "member") === "admin" ? "admin" : "member") as
+        | "admin"
+        | "member";
+      if (kind === "team") {
+        await inviteTeamMember({ teamId: workspaceId, githubLogin, role });
+      } else {
+        await inviteOrgMember({ organizationId: workspaceId, githubLogin, role });
+      }
+      setLogin("");
+    },
+    (formData) => `Invite sent to @${String(formData.get("githubLogin") ?? "")}.`,
+  );
   const Icon = kind === "team" ? IconUsers : IconBuilding;
 
   return (
@@ -175,6 +197,7 @@ export function InviteForm({ kind, workspaceId }: { kind: Kind; workspaceId: str
         </button>
       </div>
       <ErrorLine error={run.error} />
+      <SuccessLine message={run.success} />
     </form>
   );
 }

@@ -81,7 +81,7 @@ export async function createUsdcPayment(opts: {
       "USDC payments are not configured. Set USDC_PAYMENT_WALLET_ADDRESS before offering crypto checkout.",
     );
   }
-  return createPayment({
+  return createOrReuseOpenPayment({
     userId: opts.userId,
     subscriptionId: opts.subscriptionId,
     planId: opts.planId,
@@ -105,7 +105,7 @@ export async function createStripePayment(opts: {
   interval: "monthly" | "annual";
   checkoutSessionId?: string;
 }): Promise<PaymentRecord> {
-  return createPayment({
+  return createOrReuseOpenPayment({
     userId: opts.userId,
     subscriptionId: opts.subscriptionId,
     planId: opts.planId,
@@ -117,6 +117,71 @@ export async function createStripePayment(opts: {
     metadata: { interval: opts.interval },
     stripeCheckoutSessionId: opts.checkoutSessionId ?? null,
   });
+}
+
+/**
+ * The open (pending / pending_verification) payment for a subscription, if any.
+ * `payments_one_open_per_subscription` guarantees at most one row matches.
+ */
+async function getOpenPaymentForSubscription(
+  subscriptionId: string | null,
+): Promise<PaymentRecord | null> {
+  if (!subscriptionId) return null;
+  const sb = getAdminClient();
+  const { data, error } = await sb
+    .from("payments")
+    .select("*")
+    .eq("subscription_id", subscriptionId)
+    .in("status", ["pending", "pending_verification"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`payments.find-open failed: ${error.message}`);
+  if (!data) return null;
+  return paymentFromRow(data as Row);
+}
+
+/**
+ * Create (or reuse) the open checkout payment for a subscription. Retries and
+ * manual USDC renewals reuse the SAME subscription row, and the unique partial
+ * index `payments_one_open_per_subscription` only allows one open payment per
+ * subscription — so a second insert would fail. This looks for an existing open
+ * payment on the subscription first and patches it to the new amount/interval
+ * instead of inserting a duplicate.
+ */
+async function createOrReuseOpenPayment(
+  input: CreatePaymentInput,
+): Promise<PaymentRecord> {
+  const existing = await getOpenPaymentForSubscription(input.subscriptionId);
+  if (existing) {
+    const sb = getAdminClient();
+    const { data, error } = await sb
+      .from("payments")
+      .update({
+        plan_id: input.planId,
+        payment_provider: input.provider,
+        payment_type: input.paymentType,
+        amount: input.amount,
+        currency: input.currency,
+        metadata: input.metadata ?? existing.metadata,
+        crypto_network: input.cryptoNetwork ?? null,
+        crypto_token: input.cryptoToken ?? null,
+        crypto_wallet_address: input.cryptoWalletAddress ?? null,
+        crypto_transaction_hash: null,
+        stripe_checkout_session_id: input.stripeCheckoutSessionId ?? null,
+        stripe_payment_intent_id: input.stripePaymentIntentId ?? null,
+        stripe_invoice_id: input.stripeInvoiceId ?? null,
+        failure_reason: null,
+        paid_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error) throw new Error(`payments.reuse-failed: ${error.message}`);
+    return paymentFromRow(data as Row);
+  }
+  return createPayment(input);
 }
 
 export async function getPaymentById(id: string): Promise<PaymentRecord | null> {

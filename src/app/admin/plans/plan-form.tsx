@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import type { PlanRecord } from "@/lib/billing/types";
-import { savePlanAction } from "./actions";
+import { savePlanAction, syncStripePricingAction } from "./actions";
 
 function field(label: string, name: string, defaultValue: string, hint?: string) {
   return (
@@ -22,6 +22,10 @@ function field(label: string, name: string, defaultValue: string, hint?: string)
 
 export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
   const [state, action] = useActionState(savePlanAction, { ok: false } as {
+    ok: boolean;
+    error?: string;
+  });
+  const [stripeState, stripeAction, stripePending] = useActionState(syncStripePricingAction, { ok: false } as {
     ok: boolean;
     error?: string;
   });
@@ -141,6 +145,32 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
             "price_...",
           )}
         </div>
+
+        {plan ? (
+          <form
+            action={stripeAction}
+            className="flex flex-wrap items-center gap-3 rounded-lg border border-white/[0.07] bg-ink-950/40 px-4 py-3"
+          >
+            <input type="hidden" name="id" value={plan.id} />
+            <div className="min-w-0 flex-1 text-xs text-ink-300">
+              <p className="font-semibold text-ink-200">Stripe price sync</p>
+              <p className="mt-0.5 text-[10px] text-ink-500">
+                Creates (or updates) the Stripe product and monthly/annual prices to match the
+                amounts above, then stores the returned IDs on this plan. Stripe uses the saved
+                plan amount as the source of truth; re-run after changing prices.
+              </p>
+            </div>
+            <button type="submit" className="btn btn-ghost btn-sm">
+              {stripePending ? "Syncing…" : "Sync Stripe Prices"}
+            </button>
+            {stripeState?.error ? (
+              <p className="w-full text-xs font-medium text-danger-300">{stripeState.error}</p>
+            ) : null}
+            {stripeState?.ok ? (
+              <p className="w-full text-xs font-medium text-signal-300">Stripe prices synced successfully.</p>
+            ) : null}
+          </form>
+        ) : null}
       </div>
 
       {/* Features & Limits */}

@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
+import { annualFromMonthly, annualAmountDescription } from "./pricing";
 import { BillingInputError } from "./errors";
 import { planFromRow, type Row } from "./records";
 import type { PlanRecord } from "./types";
@@ -164,10 +165,10 @@ export function validatePlanInput(input: PlanInput): void {
     input.monthly_price_cents > 0 &&
     input.annual_price_cents > 0
   ) {
-    const expectedAnnual = Math.round((input.monthly_price_cents * 12 * 4) / 5);
+    const expectedAnnual = annualFromMonthly(input.monthly_price_cents);
     if (input.annual_price_cents !== expectedAnnual) {
       throw new BillingInputError(
-        `Annual price must be exactly 20% off the monthly rate: expected ${expectedAnnual} cents ($${(expectedAnnual / 100).toFixed(2)}/year) for a $${(input.monthly_price_cents / 100).toFixed(2)}/month plan.`,
+        `Annual price must be exactly 20% off the monthly rate: expected ${expectedAnnual} cents (${annualAmountDescription(input.monthly_price_cents)}) for a $${(input.monthly_price_cents / 100).toFixed(2)}/month plan.`,
       );
     }
   }
