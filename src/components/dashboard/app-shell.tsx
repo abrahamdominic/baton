@@ -20,6 +20,7 @@ import {
   IconGitHub,
   IconUsers,
   IconBuilding,
+  IconBell,
 } from "@/components/icons";
 
 interface NavItem {
@@ -100,10 +101,12 @@ function SidebarNav({
   user,
   pendingInvites,
   onNavigate,
+  unreadNotifications = 0,
 }: {
   user: ShellUser;
   pendingInvites?: PendingInviteCounts;
   onNavigate?: () => void;
+  unreadNotifications?: number;
 }) {
   const workspaceNav: NavItem[] = [
     { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
@@ -121,6 +124,13 @@ function SidebarNav({
       badge: pendingInvites?.organization ? badgeText(pendingInvites.organization, "organization") : undefined,
     },
     { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
+    {
+      href: "/dashboard/notifications",
+      label: "Notifications",
+      icon: IconBell,
+      badge: unreadNotifications > 0 ? `${unreadNotifications} unread` : undefined,
+      exact: true,
+    },
   ];
 
   return (
@@ -226,10 +236,12 @@ function SidebarBody({
   user,
   pendingInvites,
   onNavigate,
+  unreadNotifications = 0,
 }: {
   user: ShellUser;
   pendingInvites?: PendingInviteCounts;
   onNavigate?: () => void;
+  unreadNotifications?: number;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -239,7 +251,12 @@ function SidebarBody({
           v0.1
         </span>
       </div>
-      <SidebarNav user={user} pendingInvites={pendingInvites} onNavigate={onNavigate} />
+      <SidebarNav
+        user={user}
+        pendingInvites={pendingInvites}
+        onNavigate={onNavigate}
+        unreadNotifications={unreadNotifications}
+      />
       <AccountFooter user={user} onNavigate={onNavigate} />
     </div>
   );
@@ -249,10 +266,12 @@ export function AppShell({
   user,
   children,
   pendingInvites,
+  unreadNotifications = 0,
 }: {
   user: ShellUser;
   children: React.ReactNode;
   pendingInvites?: PendingInviteCounts;
+  unreadNotifications?: number;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -288,7 +307,7 @@ export function AppShell({
     <div className="min-h-screen bg-ink-950 text-ink-100 antialiased">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/[0.08] bg-ink-950 lg:block">
-        <SidebarBody user={user} pendingInvites={pendingInvites} />
+        <SidebarBody user={user} pendingInvites={pendingInvites} unreadNotifications={unreadNotifications} />
       </aside>
 
       {/* Mobile top bar */}
@@ -306,6 +325,23 @@ export function AppShell({
         </div>
 
         <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/notifications"
+            aria-label={
+              unreadNotifications > 0
+                ? `Notifications: ${unreadNotifications} unread`
+                : "Notifications"
+            }
+            title="Notifications"
+            className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-ink-900/60 text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
+          >
+            <IconBell className="h-3.5 w-3.5" />
+            {unreadNotifications > 0 ? (
+              <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-brand-500 px-0.5 font-mono text-[8px] font-bold text-white ring-2 ring-ink-950">
+                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+              </span>
+            ) : null}
+          </Link>
           <ThemeToggle className="h-8 w-8" />
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -354,7 +390,12 @@ export function AppShell({
                 <IconX className="h-4 w-4" />
               </button>
             </div>
-            <SidebarBody user={user} pendingInvites={pendingInvites} onNavigate={() => setOpen(false)} />
+            <SidebarBody
+              user={user}
+              pendingInvites={pendingInvites}
+              onNavigate={() => setOpen(false)}
+              unreadNotifications={unreadNotifications}
+            />
           </div>
         </div>
       ) : null}
@@ -372,6 +413,23 @@ export function AppShell({
           </div>
 
 <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard/notifications"
+            aria-label={
+              unreadNotifications > 0
+                ? `Notifications: ${unreadNotifications} unread`
+                : "Notifications"
+            }
+            title="Notifications"
+            className="relative inline-flex items-center justify-center rounded-md border border-white/[0.08] bg-ink-900/60 p-2 text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
+          >
+            <IconBell className="h-3.5 w-3.5" />
+            {unreadNotifications > 0 ? (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-500 px-1 font-mono text-[9px] font-bold text-white ring-2 ring-ink-950">
+                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+              </span>
+            ) : null}
+          </Link>
           <ThemeToggle />
           <Link
             href="/dashboard/repos"

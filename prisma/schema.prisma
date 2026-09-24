@@ -448,6 +448,10 @@ model ConversationKeyWrap {
   member          ConversationMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
   publicKeyId     String
   publicKey       DevicePublicKey       @relation(fields: [publicKeyId], references: [id], onDelete: Cascade)
+  // The device public key of the *issuer* (the member who wrapped the thread
+  // key under ECDH). Recipients need it to unwrap: ECDH(recipientPrivate,
+  // issuerPublic) reconstructs the wrap key. Self-describing per wrap.
+  issuerPublicKeyB64 String
   wrappedKeyB64   String
   createdAt       DateTime              @default(now())
 

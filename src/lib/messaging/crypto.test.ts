@@ -8,6 +8,7 @@ import {
   encryptMessage,
   decryptMessage,
   fingerprintPublicKey,
+  isValidDevicePublicKey,
 } from "@/lib/messaging/crypto";
 
 describe("messaging crypto (E2E round-trips)", () => {
@@ -76,5 +77,14 @@ describe("messaging crypto (E2E round-trips)", () => {
     // ct = base64(iv(12) | ciphertext) — iv must be first 12 bytes.
     const raw = Buffer.from(msg.ct, "base64");
     expect(raw.slice(0, AES_GCM_BYTES).length).toBe(12);
+  });
+
+  it("validates device public keys (accepts real keys, rejects garbage)", async () => {
+    const real = await generateDeviceKeys();
+    expect(await isValidDevicePublicKey(real.publicKeyB64)).toBe(true);
+
+    expect(await isValidDevicePublicKey("")).toBe(false);
+    expect(await isValidDevicePublicKey("not-base64!!")).toBe(false);
+    expect(await isValidDevicePublicKey("aGVsbG8=")).toBe(false); // valid base64, not a key
   });
 });

@@ -215,6 +215,31 @@ export async function fingerprintPublicKey(
   return bufToB64(new Uint8Array(digest));
 }
 
+/**
+ * Validate that a base64 blob is a real, importable ECDH P-256 SPKI public key.
+ * The server uses this before persisting a registered device key so garbage or
+ * non-ECDH material never reaches the wraps table.
+ */
+export async function isValidDevicePublicKey(
+  publicKeyB64: string,
+): Promise<boolean> {
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(publicKeyB64) || publicKeyB64.length < 32) {
+    return false;
+  }
+  try {
+    await subtle.importKey(
+      "spki",
+      b64ToBuf(publicKeyB64),
+      { name: "ECDH", namedCurve: "P-256" },
+      false,
+      [],
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function importThreadKey(threadKeyB64: string): Promise<CryptoKey> {
   return subtle.importKey(
     "raw",

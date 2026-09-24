@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { currentUser } from "@/lib/auth/session";
+import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { pendingTeamInvites, pendingOrgInvites } from "@/lib/workspaces";
 
@@ -32,10 +33,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const githubUrl = `https://github.com/${encodeURIComponent(user.login)}`;
 
-  const [teamInvites, orgInvites] = await Promise.all([
+  const [teamInvites, orgInvites, unreadNotifications] = await Promise.all([
     pendingTeamInvites(user.login),
     pendingOrgInvites(user.login),
-  ]).catch(() => [[], []] as const);
+    prisma.notification.count({ where: { userId: user.id, readAt: null } }),
+  ]).catch((e) => {
+    if (e instanceof Error && e.message.includes("not implemented")) {
+      return [[], []] as const;
+    }
+    return [[], [], 0] as const;
+  });
 
   return (
     <AppShell
@@ -47,6 +54,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         role: user.role,
       }}
       pendingInvites={{ team: teamInvites.length, organization: orgInvites.length }}
+      unreadNotifications={unreadNotifications}
     >
       {children}
     </AppShell>
