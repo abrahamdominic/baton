@@ -74,6 +74,7 @@ export default async function ConversationThreadPage({
           senderName: m.sender.name,
           senderAvatarUrl: m.sender.avatarUrl,
           ciphertext: m.ciphertext,
+          protocolVersion: m.protocolVersion,
           clientMessageId: m.clientMessageId,
           createdAt: m.createdAt,
         }))}

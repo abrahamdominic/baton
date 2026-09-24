@@ -84,6 +84,22 @@ export function NotificationInbox({
     setPendingAll(false);
   };
 
+  // Opening via the deep link also clears the "unread" state for that item, so
+  // the inbox and the shell badge are consistent once the target page renders.
+  const openNotification = async (n: NotificationItem) => {
+    if (n.readAt) return;
+    setPendingId(n.id);
+    try {
+      await markNotificationReadAction({ id: n.id });
+      setItems((prev) => prev.map((i) => (i.id === n.id ? { ...i, readAt: new Date() } : i)));
+      setUnread((u) => Math.max(0, u - 1));
+    } catch {
+      // navigation should proceed even if the read-mark fails
+    } finally {
+      setPendingId(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {unread > 0 ? (
@@ -145,6 +161,7 @@ export function NotificationInbox({
                   </p>
                   <Link
                     href={conversationNotificationHref(JSON.stringify(n.context))}
+                    onClick={() => void openNotification(n)}
                     className={`mt-0.5 inline-flex items-center gap-1 truncate font-mono text-[10px] transition-colors ${
                       n.readAt ? "text-ink-500" : "text-brand-300 hover:text-brand-200"
                     }`}

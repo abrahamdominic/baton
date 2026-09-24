@@ -288,6 +288,7 @@ export async function sendMessageAction(
           senderId: me.id,
           threadKeyId: activeKey.id,
           ciphertext,
+          protocolVersion: "v1",
           clientMessageId,
         },
         select: { id: true },
@@ -402,6 +403,7 @@ export type MessageSummary = {
   senderName: string | null;
   senderAvatarUrl: string | null;
   ciphertext: string;
+  protocolVersion: string;
   clientMessageId: string;
   createdAt: Date;
 };
@@ -440,6 +442,7 @@ export async function listMessagesAction(
       senderName: m.sender.name,
       senderAvatarUrl: m.sender.avatarUrl,
       ciphertext: m.ciphertext,
+      protocolVersion: m.protocolVersion,
       clientMessageId: m.clientMessageId,
       createdAt: m.createdAt,
     })),

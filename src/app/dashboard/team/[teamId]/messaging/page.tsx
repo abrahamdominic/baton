@@ -41,7 +41,7 @@ export default async function TeamMessagingPage({
           </span>
         }
         title="Messaging"
-        description="End-to-end encrypted conversations with your team. The server stores ciphertext only — keys live on your devices."
+        description="Messages are encrypted on your device before they reach Baton. The server stores only ciphertext and per-member key wraps — it never sees message contents or private keys."
       />
 
       <ConversationList

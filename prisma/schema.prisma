@@ -467,8 +467,12 @@ model Message {
   sender         User                   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   threadKeyId    String
   threadKey      ConversationThreadKey  @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
-  // AES-GCM payload: base64(iv | tag | ciphertext). Never plaintext.
+  // AES-256-GCM payload: base64(iv(12) | ciphertext+tag(16)). Never plaintext.
   ciphertext     String
+  // Protocol version tag for the client-side encryption scheme that produced
+  // this payload (e.g. "v1" = ECDH P-256 + HKDF-SHA-256 + AES-256-GCM). Lets
+  // the client reject unknown schemes and migrate to a ratified protocol later.
+  protocolVersion String                @default("v1")
   nonce          String                 @default("")
   clientMessageId String
   editedAt       DateTime?

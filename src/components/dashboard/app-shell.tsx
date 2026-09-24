@@ -21,6 +21,7 @@ import {
   IconUsers,
   IconBuilding,
   IconBell,
+  IconMessageCircle,
 } from "@/components/icons";
 
 interface NavItem {
@@ -102,11 +103,13 @@ function SidebarNav({
   pendingInvites,
   onNavigate,
   unreadNotifications = 0,
+  unreadMessages = 0,
 }: {
   user: ShellUser;
   pendingInvites?: PendingInviteCounts;
   onNavigate?: () => void;
   unreadNotifications?: number;
+  unreadMessages?: number;
 }) {
   const workspaceNav: NavItem[] = [
     { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
@@ -124,6 +127,13 @@ function SidebarNav({
       badge: pendingInvites?.organization ? badgeText(pendingInvites.organization, "organization") : undefined,
     },
     { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
+    {
+      href: "/dashboard/messages",
+      label: "Messages",
+      icon: IconMessageCircle,
+      badge: unreadMessages > 0 ? `${unreadMessages} unread` : undefined,
+      exact: true,
+    },
     {
       href: "/dashboard/notifications",
       label: "Notifications",
@@ -237,11 +247,13 @@ function SidebarBody({
   pendingInvites,
   onNavigate,
   unreadNotifications = 0,
+  unreadMessages = 0,
 }: {
   user: ShellUser;
   pendingInvites?: PendingInviteCounts;
   onNavigate?: () => void;
   unreadNotifications?: number;
+  unreadMessages?: number;
 }) {
   return (
     <div className="flex h-full flex-col">
@@ -256,6 +268,7 @@ function SidebarBody({
         pendingInvites={pendingInvites}
         onNavigate={onNavigate}
         unreadNotifications={unreadNotifications}
+        unreadMessages={unreadMessages}
       />
       <AccountFooter user={user} onNavigate={onNavigate} />
     </div>
@@ -267,11 +280,13 @@ export function AppShell({
   children,
   pendingInvites,
   unreadNotifications = 0,
+  unreadMessages = 0,
 }: {
   user: ShellUser;
   children: React.ReactNode;
   pendingInvites?: PendingInviteCounts;
   unreadNotifications?: number;
+  unreadMessages?: number;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -297,6 +312,8 @@ export function AppShell({
     { href: "/dashboard/team", label: "Teams", icon: IconUsers },
     { href: "/dashboard/organization", label: "Organizations", icon: IconBuilding },
     { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
+    { href: "/dashboard/messages", label: "Messages", icon: IconMessageCircle, exact: true },
+    { href: "/dashboard/notifications", label: "Notifications", icon: IconBell, exact: true },
   ];
   const currentItem = [...workspaceNav, ...ACCOUNT_NAV].find((i) => isActive(pathname, i));
   const pageCategory = workspaceNav.some((i) => isActive(pathname, i))
@@ -307,7 +324,7 @@ export function AppShell({
     <div className="min-h-screen bg-ink-950 text-ink-100 antialiased">
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/[0.08] bg-ink-950 lg:block">
-        <SidebarBody user={user} pendingInvites={pendingInvites} unreadNotifications={unreadNotifications} />
+        <SidebarBody user={user} pendingInvites={pendingInvites} unreadNotifications={unreadNotifications} unreadMessages={unreadMessages} />
       </aside>
 
       {/* Mobile top bar */}
@@ -395,6 +412,7 @@ export function AppShell({
               pendingInvites={pendingInvites}
               onNavigate={() => setOpen(false)}
               unreadNotifications={unreadNotifications}
+              unreadMessages={unreadMessages}
             />
           </div>
         </div>

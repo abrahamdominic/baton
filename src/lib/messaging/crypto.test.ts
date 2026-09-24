@@ -88,3 +88,65 @@ describe("messaging crypto (E2E round-trips)", () => {
     expect(await isValidDevicePublicKey("aGVsbG8=")).toBe(false); // valid base64, not a key
   });
 });
+
+describe("messaging crypto (security boundary)", () => {
+  it("rejects tampered ciphertext (GCM authentication fails)", async () => {
+    const threadKeyB64 = await generateThreadKey();
+    const msg = await encryptMessage("integrity must hold", threadKeyB64);
+
+    const raw = Buffer.from(msg.ct, "base64");
+    // Flip bits inside the ciphertext body (not the leading IV).
+    raw[raw.length - 5] ^= 0xff;
+    const tampered = raw.toString("base64");
+
+    await expect(decryptMessage(tampered, threadKeyB64)).rejects.toThrow();
+  });
+
+  it("rejects decryption under the wrong thread key", async () => {
+    const senderKey = await generateThreadKey();
+    const wrongKey = await generateThreadKey();
+    const msg = await encryptMessage("secret", senderKey);
+
+    await expect(decryptMessage(msg.ct, wrongKey)).rejects.toThrow();
+    expect(await decryptMessage(msg.ct, senderKey)).toBe("secret");
+  });
+
+  it("does not let an unauthorized member unwrap another member's wrap", async () => {
+    const alice = await generateDeviceKeys();
+    const bob = await generateDeviceKeys();
+    const mallory = await generateDeviceKeys();
+    const threadKeyB64 = await generateThreadKey();
+
+    // Alice wraps the thread key for Bob only.
+    const wrapped = await wrapThreadKeyForMember({
+      threadKeyB64,
+      theirPublicKeyB64: bob.publicKeyB64,
+      ourPrivateKeyB64: alice.privateKeyB64,
+    });
+
+    // Bob (the intended recipient) can unwrap…
+    const bobKey = await unwrapThreadKeyForMember(
+      wrapped.wrappedKeyB64,
+      bob.privateKeyB64,
+      alice.publicKeyB64,
+    );
+    expect(bobKey).toBe(threadKeyB64);
+
+    // …but Mallory, who lacks Bob's private key, cannot.
+    await expect(
+      unwrapThreadKeyForMember(wrapped.wrappedKeyB64, mallory.privateKeyB64, alice.publicKeyB64),
+    ).rejects.toThrow();
+  });
+
+  it("never embeds plaintext or key material in the persisted ciphertext", async () => {
+    const threadKeyB64 = await generateThreadKey();
+    const secret = "PLAINTEXT-SENTINEL-TOKPONLYLOCAL";
+    const msg = await encryptMessage(secret, threadKeyB64);
+
+    const raw = Buffer.from(msg.ct, "base64");
+    expect(raw.includes(Buffer.from(secret))).toBe(false);
+    expect(raw.includes(Buffer.from(threadKeyB64, "base64"))).toBe(false);
+    // Persisted form is base64 only.
+    expect(msg.ct).toMatch(/^[A-Za-z0-9+/=]+$/);
+  });
+});

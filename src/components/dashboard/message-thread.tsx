@@ -60,6 +60,10 @@ export function MessageThread({
       if (!key) return [];
       const out: DecryptedMessage[] = [];
       for (const m of rows) {
+        if (m.protocolVersion !== "v1") {
+          out.push({ ...m, plaintext: "⚠ unsupported message scheme" });
+          continue;
+        }
         try {
           out.push({ ...m, plaintext: await decryptMessage(m.ciphertext, key) });
         } catch {
@@ -184,6 +188,7 @@ export function MessageThread({
         senderName: null,
         senderAvatarUrl: null,
         ciphertext: wrapped.ct,
+        protocolVersion: "v1",
         clientMessageId,
         createdAt: new Date(),
         plaintext: text,
@@ -239,7 +244,7 @@ export function MessageThread({
           </div>
         ) : messages.length === 0 ? (
           <p className="py-12 text-center text-xs text-ink-500">
-            No messages yet. Say hello — it&apos;s encrypted end to end.
+            No messages yet. Say hello — every message is encrypted on your device.
           </p>
         ) : (
           messages.map((m) => {

@@ -33,16 +33,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const githubUrl = `https://github.com/${encodeURIComponent(user.login)}`;
 
-  const [teamInvites, orgInvites, unreadNotifications] = await Promise.all([
+  const [teamInvites, orgInvites, unreadNotifications, unreadMessages] = await Promise.all([
     pendingTeamInvites(user.login),
     pendingOrgInvites(user.login),
     prisma.notification.count({ where: { userId: user.id, readAt: null } }),
-  ]).catch((e) => {
-    if (e instanceof Error && e.message.includes("not implemented")) {
-      return [[], []] as const;
-    }
-    return [[], [], 0] as const;
-  });
+    countUnreadConversations(user.id),
+  ]).catch(() => [[], [], 0, 0] as const);
 
   return (
     <AppShell
@@ -54,9 +50,28 @@ export default async function DashboardLayout({ children }: { children: React.Re
         role: user.role,
       }}
       pendingInvites={{ team: teamInvites.length, organization: orgInvites.length }}
-      unreadNotifications={unreadNotifications}
+      unreadNotifications={unreadNotifications ?? 0}
+      unreadMessages={unreadMessages ?? 0}
     >
       {children}
     </AppShell>
   );
+}
+
+/** Number of the user's conversations with at least one unseen message. */
+async function countUnreadConversations(userId: string): Promise<number> {
+  const conversations = await prisma.conversation.findMany({
+    where: { members: { some: { userId } } },
+    select: {
+      lastMessageAt: true,
+      members: { where: { userId }, select: { lastReadAt: true } },
+    },
+  });
+  return conversations.filter(
+    (c) =>
+      c.lastMessageAt !== null &&
+      (c.members[0]?.lastReadAt === null ||
+        c.members[0]?.lastReadAt === undefined ||
+        c.members[0].lastReadAt < c.lastMessageAt),
+  ).length;
 }
