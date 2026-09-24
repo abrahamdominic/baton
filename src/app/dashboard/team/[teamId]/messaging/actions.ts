@@ -144,7 +144,10 @@ export async function createConversationAction(
   const { teamId, memberIds, wrap } = parsed.data;
 
   const me = await requireActiveUser();
-  await requireTeamMember(teamId, me.id, "admin");
+  // Any current team member may start a conversation with fellow members.
+  // Participant membership is verified again below; the client never chooses
+  // a sender or bypasses the team boundary.
+  await requireTeamMember(teamId, me.id);
 
   if (!(await isValidDevicePublicKey(wrap.issuerPublicKeyB64))) {
     return { ok: false, error: "Issuer device key is not a valid ECDH public key." };

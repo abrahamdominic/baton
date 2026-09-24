@@ -77,13 +77,13 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
             "Monthly Price (Cents)",
             "monthlyPriceCents",
             String(plan?.monthly_price_cents ?? 0),
-            "1000 = $10.00 / month",
+            "1500 = $15.00 / month",
           )}
           {field(
             "Annual Price (Cents)",
             "annualPriceCents",
             String(plan?.annual_price_cents ?? 0),
-            "9600 = $96.00 / year ($8/mo)",
+            "15000 = $150.00 / year (two months free)",
           )}
           {field("Sort Order", "sortOrder", String(plan?.sort_order ?? 0), "Lower appears first")}
         </div>

@@ -16,8 +16,8 @@ export const DEFAULT_PLANS: PlanRecord[] = [
     slug: "team",
     name: "Team",
     description: "For engineering teams that want to ship fast and stop PR stalls.",
-    monthly_price_cents: 1000,
-    annual_price_cents: 9600,
+    monthly_price_cents: 1500,
+    annual_price_cents: 15000,
     price_custom: false,
     currency: "USD",
     features: [
@@ -47,8 +47,8 @@ export const DEFAULT_PLANS: PlanRecord[] = [
     slug: "organization",
     name: "Organization",
     description: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
-    monthly_price_cents: 5000,
-    annual_price_cents: 48000,
+    monthly_price_cents: 4900,
+    annual_price_cents: 49000,
     price_custom: false,
     currency: "USD",
     features: [
@@ -168,7 +168,7 @@ export function validatePlanInput(input: PlanInput): void {
     const expectedAnnual = annualFromMonthly(input.monthly_price_cents);
     if (input.annual_price_cents !== expectedAnnual) {
       throw new BillingInputError(
-        `Annual price must be exactly 20% off the monthly rate: expected ${expectedAnnual} cents (${annualAmountDescription(input.monthly_price_cents)}) for a $${(input.monthly_price_cents / 100).toFixed(2)}/month plan.`,
+        `Annual price must equal ten monthly periods (two months free): expected ${expectedAnnual} cents (${annualAmountDescription(input.monthly_price_cents)}) for a $${(input.monthly_price_cents / 100).toFixed(2)}/month plan.`,
       );
     }
   }

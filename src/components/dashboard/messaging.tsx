@@ -62,14 +62,14 @@ export function ConversationList({
   conversations,
   teamId,
   currentUserId,
-  isAdmin,
+  initialMemberId,
 }: {
   conversations: ConversationSummary[];
   teamId: string;
   currentUserId: string;
-  isAdmin: boolean;
+  initialMemberId?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(Boolean(initialMemberId));
 
   return (
     <div className="space-y-4">
@@ -78,12 +78,10 @@ export function ConversationList({
           Client-encrypted team conversations. Messages are encrypted before they ever leave
           your device; the server stores only ciphertext and per-member key wraps.
         </p>
-        {isAdmin ? (
-          <button type="button" onClick={() => setOpen(true)} className="btn btn-primary btn-sm">
-            <IconPlus className="h-3.5 w-3.5" />
-            <span>New conversation</span>
-          </button>
-        ) : null}
+        <button type="button" onClick={() => setOpen(true)} className="btn btn-primary btn-sm">
+          <IconPlus className="h-3.5 w-3.5" />
+          <span>New conversation</span>
+        </button>
       </div>
 
       {conversations.length === 0 ? (
@@ -92,15 +90,9 @@ export function ConversationList({
             <IconUsers className="h-6 w-6" />
           </div>
           <p className="text-sm font-semibold text-white">No conversations yet</p>
-          {isAdmin ? (
-            <p className="max-w-md text-xs leading-relaxed text-ink-400">
-              Start one to share encrypted messages with your team.
-            </p>
-          ) : (
-            <p className="max-w-md text-xs leading-relaxed text-ink-400">
-              A team admin needs to start a conversation before you can read messages here.
-            </p>
-          )}
+          <p className="max-w-md text-xs leading-relaxed text-ink-400">
+            Start one to share encrypted messages with fellow team members.
+          </p>
         </div>
       ) : (
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
@@ -133,6 +125,7 @@ export function ConversationList({
         <NewConversationDialog
           teamId={teamId}
           currentUserId={currentUserId}
+          initialMemberId={initialMemberId}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -143,17 +136,21 @@ export function ConversationList({
 function NewConversationDialog({
   teamId,
   currentUserId,
+  initialMemberId,
   onClose,
 }: {
   teamId: string;
   currentUserId: string;
+  initialMemberId?: string;
   onClose: () => void;
 }) {
   const router = useRouter();
   const [members, setMembers] = useState<
     Array<{ userId: string; login: string; name: string | null; avatarUrl: string | null; devices: Array<{ id: string; publicKeyB64: string }> }> | null
   >(null);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(
+    () => new Set(initialMemberId && initialMemberId !== currentUserId ? [initialMemberId] : []),
+  );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

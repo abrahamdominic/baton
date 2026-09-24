@@ -2,6 +2,7 @@ import "server-only";
 import Stripe from "stripe";
 import { getConfig, isStripeConfigured } from "@/lib/config";
 import { BackendNotConfiguredError, BillingInputError } from "./errors";
+import { planPriceCents } from "./pricing";
 import type { PlanRecord } from "./types";
 
 /**
@@ -45,6 +46,23 @@ export async function createStripeCheckoutSession(
   }
 
   const stripe = getStripe();
+  // Stripe Prices are immutable but their IDs can be changed outside Baton.
+  // Validate the configured ID before sending a customer to checkout so a
+  // stale/mislinked price cannot undercharge and still grant an entitlement.
+  const stripePrice = await stripe.prices.retrieve(priceId);
+  const expectedAmount = planPriceCents(input.plan, input.interval);
+  const expectedInterval = input.interval === "annual" ? "year" : "month";
+  if (
+    !stripePrice.active ||
+    stripePrice.currency !== "usd" ||
+    stripePrice.unit_amount !== expectedAmount ||
+    stripePrice.recurring?.interval !== expectedInterval ||
+    (input.plan.stripe_product_id !== null && stripePrice.product !== input.plan.stripe_product_id)
+  ) {
+    throw new BillingInputError(
+      `Plan "${input.plan.slug}" has a Stripe ${input.interval} price that does not match its configured amount. Ask an administrator to sync Stripe prices.`,
+    );
+  }
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],

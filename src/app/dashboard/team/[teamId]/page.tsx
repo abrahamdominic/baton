@@ -14,6 +14,7 @@ import {
   IconGitPullRequest,
   IconBranch,
   IconSettings,
+  IconSend,
 } from "@/components/icons";
 import { updateTeam } from "../actions";
 import {
@@ -81,6 +82,7 @@ export default async function TeamDetailPage({
   const tabs = [
     { href: `/dashboard/team/${team.id}`, label: "Overview", active: true },
     { href: `/dashboard/team/${team.id}/board`, label: "Team Board" },
+    { href: `/dashboard/team/${team.id}/messaging`, label: "Messages" },
   ];
 
   return (
@@ -207,6 +209,16 @@ export default async function TeamDetailPage({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {!isMe ? (
+                    <Link
+                      href={`/dashboard/team/${team.id}/messaging?member=${encodeURIComponent(m.userId)}`}
+                      className="btn btn-ghost btn-sm"
+                      aria-label={`Message @${m.user.login}`}
+                    >
+                      <IconSend className="h-3.5 w-3.5" />
+                      <span>Message</span>
+                    </Link>
+                  ) : null}
                   {isOwner ? (
                     <span className="rounded-full border border-brand-500/25 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
                       Owner

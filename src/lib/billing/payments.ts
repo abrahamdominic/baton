@@ -240,6 +240,27 @@ export async function listPaymentsForUser(userId: string, limit = 50) {
   );
 }
 
+/** Recent payments for one subscription. Admin views use this rather than all
+ * of a customer's payments, so each lifecycle record reports only its own
+ * amount, provider, and billing interval. */
+export async function listPaymentsForSubscription(subscriptionId: string, limit = 50) {
+  const sb = getAdminClient();
+  const { data, error } = await sb
+    .from("payments")
+    .select("*")
+    .eq("subscription_id", subscriptionId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`payments.list-by-subscription failed: ${error.message}`);
+  return Promise.all(
+    (data ?? []).map(async (r) => {
+      const payment = paymentFromRow(r as Row);
+      payment.plan = await getPlanById(payment.plan_id);
+      return payment;
+    }),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Status mutations (server-only, never exposed to the client)
 // ---------------------------------------------------------------------------

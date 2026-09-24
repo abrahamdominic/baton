@@ -10,8 +10,8 @@ const FIXTURE_PLANS: PlanRecord[] = [
     slug: "team",
     name: "Team",
     description: null,
-    monthly_price_cents: 1000,
-    annual_price_cents: 9600,
+    monthly_price_cents: 1500,
+    annual_price_cents: 15000,
     price_custom: false,
     currency: "USD",
     features: [],
@@ -30,8 +30,8 @@ const FIXTURE_PLANS: PlanRecord[] = [
     slug: "organization",
     name: "Organization",
     description: null,
-    monthly_price_cents: 5000,
-    annual_price_cents: 48000,
+    monthly_price_cents: 4900,
+    annual_price_cents: 49000,
     price_custom: false,
     currency: "USD",
     features: [],
@@ -59,7 +59,7 @@ describe("PricingView component", () => {
     expect(html).toContain("Individual");
     expect(html).toContain("Team");
     expect(html).toContain("Organization");
-    expect(html).toContain("$10");
+    expect(html).toContain("$15");
     expect(html).toContain("Start 14-Day Free Trial (Monthly)");
     expect(html).toContain("<table");
     expect(html).toContain("<thead");

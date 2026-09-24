@@ -10,10 +10,13 @@ export const dynamic = "force-dynamic";
 
 export default async function TeamMessagingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ teamId: string }>;
+  searchParams: Promise<{ member?: string }>;
 }) {
   const { teamId } = await params;
+  const { member } = await searchParams;
   const user = await currentUser();
   if (!user) return null;
 
@@ -28,8 +31,6 @@ export default async function TeamMessagingPage({
     },
     orderBy: { lastMessageAt: "desc" },
   });
-
-  const isAdmin = role === "owner" || role === "admin";
 
   return (
     <div className="space-y-6">
@@ -62,7 +63,7 @@ export default async function TeamMessagingPage({
         }))}
         teamId={teamId}
         currentUserId={user.id}
-        isAdmin={isAdmin}
+        initialMemberId={member}
       />
     </div>
   );

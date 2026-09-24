@@ -52,12 +52,12 @@ const TIERS: Tier[] = [
   {
     slug: "team",
     name: "Team",
-    monthlyPrice: "$10",
-    annualPrice: "$96",
-    monthlyPeriod: "per user / month",
-    annualPeriod: "per user / year",
-    monthlyNote: "Billed monthly at $10/user/month",
-    annualNote: "Billed annually at $96/user/year (save 20%)",
+    monthlyPrice: "$15",
+    annualPrice: "$150",
+    monthlyPeriod: "per month",
+    annualPeriod: "per year, billed annually",
+    monthlyNote: "Billed monthly at $15/month",
+    annualNote: "Billed annually at $150/year (save $30/year)",
     blurb: "For engineering teams that want to ship fast and stop PR stalls.",
     features: [
       "Unlimited repositories",
@@ -78,12 +78,12 @@ const TIERS: Tier[] = [
   {
     slug: "organization",
     name: "Organization",
-    monthlyPrice: "$50",
-    annualPrice: "$480",
+    monthlyPrice: "$49",
+    annualPrice: "$490",
     monthlyPeriod: "per month",
     annualPeriod: "per year, billed annually",
-    monthlyNote: "Billed monthly at $50/month",
-    annualNote: "Billed annually at $480/year (save 20%)",
+    monthlyNote: "Billed monthly at $49/month",
+    annualNote: "Billed annually at $490/year (save $98/year)",
     blurb: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
     features: [
       "Everything in Team",
@@ -273,7 +273,7 @@ export function PricingView({
           >
             <span>Annual billing</span>
             <span className="rounded-full bg-signal-500/20 px-2 py-0.5 text-[10px] font-bold text-signal-400">
-              Save 20%
+              Save with annual
             </span>
           </button>
         </div>

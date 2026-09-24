@@ -30,6 +30,7 @@ import {
   upsertOrgPolicy,
 } from "@/app/dashboard/organization/actions";
 import { IconUsers, IconBuilding, IconSend, IconTrash, IconShield, IconAlertCircle } from "@/components/icons";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type Kind = "team" | "organization";
 
@@ -84,7 +85,7 @@ export function AsyncActionButton({
   run,
   label,
   icon: Icon,
-  confirm,
+  confirmation,
   destructive = false,
   className = "btn btn-ghost btn-sm",
   disabled,
@@ -93,20 +94,34 @@ export function AsyncActionButton({
   run: () => Promise<void>;
   label: React.ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
-  confirm?: string;
+  confirmation?: {
+    title: string;
+    description: React.ReactNode;
+    confirmLabel: string;
+    successMessage: string;
+  };
   destructive?: boolean;
   className?: string;
   disabled?: boolean;
   ariaLabel?: string;
 }) {
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [open, setOpen] = useState(false);
   const router = useRouter();
   const invoke = () => {
     setError(null);
     setPending(true);
     run()
-      .then(() => router.refresh())
+      .then(() => {
+        if (confirmation) {
+          setSuccess(confirmation.successMessage);
+          window.setTimeout(() => router.refresh(), 800);
+        } else {
+          router.refresh();
+        }
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "Something went wrong. Please try again."))
       .finally(() => setPending(false));
   };
@@ -117,16 +132,55 @@ export function AsyncActionButton({
         type="button"
         aria-label={ariaLabel ?? (typeof label === "string" ? label : undefined)}
         disabled={pending || disabled}
-        onClick={() => {
-          if (confirm && !window.confirm(confirm)) return;
-          if (!pending) invoke();
-        }}
+        onClick={() => (confirmation ? setOpen(true) : !pending && invoke())}
         className={`${className} ${destructive ? "border-danger-500/25 text-danger-300 hover:bg-danger-500/10" : ""} ${pending ? "pointer-events-none opacity-60" : ""}`}
       >
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
         <span>{pending ? "Working…" : label}</span>
       </button>
       <ErrorLine error={error} />
+      {confirmation ? (
+        <ConfirmDialog
+          open={open}
+          onClose={() => {
+            if (!pending) {
+              setOpen(false);
+              setError(null);
+              setSuccess(null);
+            }
+          }}
+          labelledBy={`confirmation-title-${ariaLabel ?? (typeof label === "string" ? label : "action")}`}
+        >
+          <div className="space-y-4">
+            <div>
+              <h2
+                id={`confirmation-title-${ariaLabel ?? (typeof label === "string" ? label : "action")}`}
+                className="text-base font-bold text-white"
+              >
+                {confirmation.title}
+              </h2>
+              <div className="mt-2 text-xs leading-relaxed text-ink-300">{confirmation.description}</div>
+            </div>
+            {error ? <ErrorLine error={error} /> : null}
+            {success ? <SuccessLine message={success} /> : null}
+            <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+              <button type="button" disabled={pending} onClick={() => setOpen(false)} className="btn btn-ghost btn-sm">
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-autofocus
+                disabled={pending || Boolean(success)}
+                onClick={invoke}
+                className="btn btn-sm border border-danger-500/35 bg-danger-500/15 text-danger-100 hover:bg-danger-500/25"
+              >
+                <IconTrash className="h-3.5 w-3.5" />
+                <span>{pending ? "Working…" : confirmation.confirmLabel}</span>
+              </button>
+            </div>
+          </div>
+        </ConfirmDialog>
+      ) : null}
     </div>
   );
 }
@@ -475,7 +529,12 @@ export const RevokeInviteButton = ({
         : () => revokeOrgInvite(workspaceId, githubLogin)
     }
     label="Revoke"
-    confirm={`Revoke the pending invite for @${githubLogin}?`}
+    confirmation={{
+      title: "Revoke invitation?",
+      description: <><span>You&apos;re about to revoke the pending invitation sent to </span><span className="font-semibold text-white">@{githubLogin}</span><span>. They will no longer be able to use it to join this {kind}.</span></>,
+      confirmLabel: "Revoke invitation",
+      successMessage: "Invitation revoked successfully.",
+    }}
     destructive
     icon={IconTrash}
   />
@@ -499,7 +558,12 @@ export const RemoveMemberButton = ({
         : () => removeOrgMember(workspaceId, userId)
     }
     label="Remove"
-    confirm={`Remove @${login} from this ${kind}?`}
+    confirmation={{
+      title: `Remove @${login}?`,
+      description: `They will lose access to this ${kind} and its shared workspace resources.`,
+      confirmLabel: "Remove member",
+      successMessage: `@${login} was removed.`,
+    }}
     destructive
     icon={IconTrash}
     ariaLabel={`Remove @${login}`}
@@ -524,7 +588,12 @@ export const UnshareInstallButton = ({
         : () => removeInstallationFromOrg(workspaceId, installationId)
     }
     label="Unshare"
-    confirm={`Stop sharing @${account}'s board with this ${kind}?`}
+    confirmation={{
+      title: "Stop sharing this board?",
+      description: `Members will no longer see repositories from @${account} on this ${kind} board.`,
+      confirmLabel: "Stop sharing",
+      successMessage: "Board sharing was removed.",
+    }}
     destructive
     icon={IconTrash}
     ariaLabel={`Unshare @${account}`}
@@ -691,7 +760,12 @@ export const LeaveWorkspaceButton = ({ kind, workspaceId }: { kind: Kind; worksp
         : () => leaveOrganization(workspaceId)
     }
     label="Leave workspace"
-    confirm={`Leave this ${kind}?`}
+    confirmation={{
+      title: `Leave this ${kind}?`,
+      description: "You will lose access to its shared workspace resources. You can rejoin only if an administrator invites you again.",
+      confirmLabel: "Leave workspace",
+      successMessage: `You left the ${kind}.`,
+    }}
     destructive
     className="btn btn-ghost btn-sm border-danger-500/25 text-danger-300 hover:bg-danger-500/10"
   />
@@ -713,7 +787,12 @@ export const DeleteWorkspaceButton = ({
         : () => deleteOrganization(workspaceId)
     }
     label="Delete"
-    confirm={`Permanently delete the ${kind} "${name}" and remove everyone from it? This cannot be undone.`}
+    confirmation={{
+      title: `Delete ${kind}?`,
+      description: <>This permanently deletes <span className="font-semibold text-white">{name}</span>, removes every member, and cannot be undone.</>,
+      confirmLabel: `Delete ${kind}`,
+      successMessage: `${kind === "team" ? "Team" : "Organization"} deleted.`,
+    }}
     destructive
     icon={IconTrash}
     className="btn btn-ghost btn-sm border-danger-500/25 text-danger-300 hover:bg-danger-500/10"

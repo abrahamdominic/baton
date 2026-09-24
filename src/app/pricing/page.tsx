@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/pricing" },
   title: "Pricing: Transparent, Per-Seat Plans for Engineering Teams",
   description:
-    "Simple pricing for Baton: free for individuals and open-source public repos, Team at $10/user/mo ($96/user/yr billed annually), and Organization at $50/mo ($480/yr billed annually).",
+    "Simple pricing for Baton: free for individuals and open-source public repos, Team at $15/month ($150/year billed annually), and Organization at $49/month ($490/year billed annually).",
 };
 
 const CHECKOUT_PREFIX = "/dashboard/billing/checkout?plan=";
@@ -42,12 +42,21 @@ async function planOverrides(): Promise<Record<string, Partial<Tier>>> {
         ? (plan.features as unknown[]).filter((f): f is string => typeof f === "string")
         : [];
       const choose = (interval: string) => `Choose ${plan.name} (${interval})`;
+      const monthly = plan.monthly_price_cents / 100;
+      const annual = plan.annual_price_cents / 100;
+      const annualSavings = monthly * 12 - annual;
       overrides[plan.slug] = {
         name: plan.name,
         blurb: plan.description ?? "",
         features: features.length > 0 ? features : ["Everything in the free tier"],
         monthlyPrice: plan.price_custom ? "Custom" : `$${(plan.monthly_price_cents / 100).toFixed(0)}`,
         annualPrice: plan.price_custom ? "Custom" : `$${(plan.annual_price_cents / 100).toFixed(0)}`,
+        monthlyNote: plan.price_custom ? undefined : `Billed monthly at $${monthly.toFixed(0)}/month`,
+        annualNote: plan.price_custom
+          ? undefined
+          : annualSavings > 0
+            ? `Billed annually at $${annual.toFixed(0)}/year (save $${annualSavings.toFixed(0)}/year)`
+            : `Billed annually at $${annual.toFixed(0)}/year`,
         ctaMonthly: plan.price_custom ? "Contact Enterprise Sales" : choose("Monthly"),
         ctaAnnual: plan.price_custom ? "Contact Enterprise Sales" : choose("Annual"),
         checkoutUrlMonthly: `${CHECKOUT_PREFIX}${plan.id}&billing=monthly`,

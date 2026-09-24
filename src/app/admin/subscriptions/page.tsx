@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listAllSubscriptions } from "@/lib/billing/subscriptions";
 import { listPlans } from "@/lib/billing/plans";
-import { listPaymentsForUser } from "@/lib/billing/payments";
+import { listPaymentsForSubscription } from "@/lib/billing/payments";
+import { prisma } from "@/lib/db";
 import { adminTargets } from "@/lib/billing/subscription-machine";
 import type { SubscriptionRecord } from "@/lib/billing/types";
 import { SubscriptionActions } from "./subscription-actions";
@@ -48,6 +49,11 @@ export default async function AdminSubscriptionsPage({
   let subscriptions = await listAllSubscriptions(100).catch(() => []);
   if (filterStatus) subscriptions = subscriptions.filter((s) => s.status === filterStatus);
   if (filterUser) subscriptions = subscriptions.filter((s) => s.user_id.includes(filterUser));
+  const users = await prisma.user.findMany({
+    where: { id: { in: subscriptions.map((subscription) => subscription.user_id) } },
+    select: { id: true, login: true, name: true, email: true, avatarUrl: true },
+  }).catch(() => []);
+  const usersById = new Map(users.map((user) => [user.id, user]));
 
   return (
     <div className="space-y-8">
@@ -124,7 +130,7 @@ export default async function AdminSubscriptionsPage({
         ) : (
           <ul className="divide-y divide-white/[0.05]">
             {subscriptions.map((s) => (
-              <SubscriptionRow key={s.id} subscription={s} plans={plans} />
+              <SubscriptionRow key={s.id} subscription={s} plans={plans} user={usersById.get(s.user_id) ?? null} />
             ))}
           </ul>
         )}
@@ -136,10 +142,11 @@ export default async function AdminSubscriptionsPage({
 interface RowProps {
   subscription: SubscriptionRecord;
   plans: { id: string; slug: string; name: string }[];
+  user: { id: string; login: string; name: string | null; email: string | null; avatarUrl: string | null } | null;
 }
 
-async function SubscriptionRow({ subscription: sub, plans }: RowProps) {
-  const payments = await listPaymentsForUser(sub.user_id, 3).catch(() => []);
+async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
+  const payments = await listPaymentsForSubscription(sub.id, 3).catch(() => []);
   const targets = adminTargets(sub.status);
   const canPlanChange = targets.includes("active");
   const canCancel = targets.includes("canceled");
@@ -165,10 +172,21 @@ async function SubscriptionRow({ subscription: sub, plans }: RowProps) {
             </span>
           </div>
 
-          <p className="mt-1 font-mono text-[11px] text-ink-400">
-            Subscription ID: <span className="text-ink-200">{sub.id}</span> &middot; User ID:{" "}
-            <span className="text-ink-200">{sub.user_id}</span> &middot; Created:{" "}
-            {new Date(sub.created_at).toISOString().slice(0, 10)}
+          <div className="mt-2 flex min-w-0 items-center gap-2.5 text-xs text-ink-300">
+            {user?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatarUrl} alt="" width={24} height={24} className="h-6 w-6 rounded-full ring-1 ring-white/10" />
+            ) : null}
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-ink-100">{user?.name ?? user?.login ?? "Unknown user"}</p>
+              <p className="truncate font-mono text-[11px] text-ink-400">
+                {user ? `@${user.login}${user.email ? ` · ${user.email}` : ""}` : `User ID: ${sub.user_id}`}
+              </p>
+            </div>
+          </div>
+          <p className="mt-1 font-mono text-[11px] text-ink-500">
+            Started: {sub.started_at?.slice(0, 10) ?? new Date(sub.created_at).toISOString().slice(0, 10)}
+            {" · "}Subscription ID: <span className="text-ink-400">{sub.id}</span>
           </p>
 
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-ink-400">
@@ -196,6 +214,7 @@ async function SubscriptionRow({ subscription: sub, plans }: RowProps) {
                 >
                   <span className="uppercase text-ink-500">{p.payment_provider}</span>
                   <span>${(p.amount / 100).toFixed(2)}</span>
+                  <span className="capitalize text-ink-500">{(p.metadata as { interval?: string } | null)?.interval ?? "—"}</span>
                   <span className="text-ink-500">({p.status.replace("_", " ")})</span>
                   {p.crypto_transaction_hash ? (
                     <a

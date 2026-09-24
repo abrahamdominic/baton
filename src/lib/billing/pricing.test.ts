@@ -5,27 +5,27 @@ import {
   annualAmountDescription,
 } from "./pricing";
 
-describe("annual pricing: exactly 20% off the monthly rate", () => {
-  it("Team: $10/user/month → $96/user/year (1200 → 9600)", () => {
-    expect(annualFromMonthly(1000)).toBe(9600);
-    expect(isAnnualDiscount(1000, 9600)).toBe(true);
+describe("annual pricing: exactly two months free (monthly × 10)", () => {
+  it("Team: $15/month → $150/year (1500 → 15000)", () => {
+    expect(annualFromMonthly(1500)).toBe(15000);
+    expect(isAnnualDiscount(1500, 15000)).toBe(true);
   });
 
-  it("Organization: $50/user/month → $480/user/year (6000 → 48000)", () => {
-    expect(annualFromMonthly(5000)).toBe(48000);
-    expect(isAnnualDiscount(5000, 48000)).toBe(true);
+  it("Organization: $49/month → $490/year (4900 → 49000)", () => {
+    expect(annualFromMonthly(4900)).toBe(49000);
+    expect(isAnnualDiscount(4900, 49000)).toBe(true);
   });
 
-  it("multiplies 12 periods and applies exactly 80%", () => {
+  it("charges ten monthly periods", () => {
     expect(annualFromMonthly(1)).toBe(10); // 12 * 0.8 = 9.6 → 10
-    expect(annualFromMonthly(250)).toBe(2400); // 12 * 250 * 0.8 = 2400
-    expect(annualFromMonthly(799)).toBe(7670); // 12*799*0.8 = 7670.4 → 7670
+    expect(annualFromMonthly(250)).toBe(2500);
+    expect(annualFromMonthly(799)).toBe(7990);
   });
 
   it("rejects off-by-one discounts that are not exactly 20%", () => {
-    expect(isAnnualDiscount(1000, 9599)).toBe(false);
-    expect(isAnnualDiscount(1000, 9601)).toBe(false);
-    expect(isAnnualDiscount(5000, 47999)).toBe(false);
+    expect(isAnnualDiscount(1500, 14999)).toBe(false);
+    expect(isAnnualDiscount(1500, 15001)).toBe(false);
+    expect(isAnnualDiscount(4900, 48999)).toBe(false);
   });
 
   it("rejects zero / negative / non-safe monthly inputs", () => {
@@ -36,6 +36,6 @@ describe("annual pricing: exactly 20% off the monthly rate", () => {
   });
 
   it("describes the expected annual amount", () => {
-    expect(annualAmountDescription(1000)).toBe("$96.00/year for a $10.00/month plan");
+    expect(annualAmountDescription(1500)).toBe("$150.00/year for a $15.00/month plan");
   });
 });

@@ -219,9 +219,6 @@ export async function MarketingFooter() {
 
         <div className="mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.06] pt-8 text-xs text-ink-500">
           <p>Engineered for high-performing engineering teams shipping daily.</p>
-          <div className="flex items-center gap-4 text-ink-400 font-mono text-[11px]">
-            <span>Status: Operational</span>
-          </div>
         </div>
       </div>
     </footer>
