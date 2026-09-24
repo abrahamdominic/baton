@@ -39,6 +39,12 @@ model User {
   organizationMembers OrganizationMember[]
   organizationInvites OrganizationInvite[] @relation("OrgInviter")
   organizationSharesAdded OrganizationInstallation[] @relation("OrgInstaller")
+  conversationsCreated Conversation[]         @relation("ConversationCreator")
+  conversationMembers  ConversationMember[]
+  messagesSent         Message[]              @relation("MessageSender")
+  devicePublicKeys     DevicePublicKey[]      @relation("DeviceOwner")
+  notificationsReceived Notification[]        @relation("NotificationRecipient")
+  notificationsAuthored Notification[]        @relation("NotificationActor")
 
   @@index([login])
   @@index([role])
@@ -243,6 +249,8 @@ model Team {
   members      TeamMember[]
   invites      TeamInvite[]
   installations TeamInstallation[]
+  conversations Conversation[] @relation("TeamConversation")
+
 
   @@index([ownerId])
 }
@@ -302,6 +310,7 @@ model Organization {
   invites       OrganizationInvite[]
   installations OrganizationInstallation[]
   policy        OrganizationPolicy?
+  conversations Conversation[]           @relation("OrgConversation")
 
   @@index([ownerId])
 }
@@ -362,4 +371,145 @@ model OrganizationPolicy {
   maxNudgesPerState    Int          @default(1)
   createdAt            DateTime     @default(now())
   updatedAt            DateTime     @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Messaging (E2E-encrypted) + centralized notifications
+//
+// Encrypted messages and conversation keys live here. No plaintext ever
+// touches the database or Supabase: only ciphertext blobs and per-member
+// wrapped thread-key payloads are stored. Membership/read-state/authorization
+// is enforced server-side and via RLS on every query.
+// ---------------------------------------------------------------------------
+
+model Conversation {
+  id            String                  @id @default(cuid())
+  kind          String                  @default("direct") // direct | team | org
+  orgId         String?
+  org           Organization?           @relation("OrgConversation", fields: [orgId], references: [id], onDelete: Cascade)
+  teamId        String?
+  team          Team?                   @relation("TeamConversation", fields: [teamId], references: [id], onDelete: Cascade)
+  createdById   String
+  createdBy     User                    @relation("ConversationCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  lastMessageAt DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  members       ConversationMember[]
+  messages      Message[]
+  threadKeys    ConversationThreadKey[]
+
+  @@index([orgId, lastMessageAt])
+  @@index([teamId, lastMessageAt])
+  @@index([createdById])
+  @@index([lastMessageAt])
+}
+
+model ConversationMember {
+  id             String               @id @default(cuid())
+  conversationId String
+  conversation   Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String               @default("member") // owner | admin | member
+  joinedAt       DateTime             @default(now())
+  lastReadAt     DateTime?
+  lastReadMsgId  String?
+  keyWraps       ConversationKeyWrap[]
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+// A thread-key "epoch". Each epoch carries a fresh AES-256 key; the key is
+// never stored in plaintext — only as per-member wraps (see ConversationKeyWrap).
+// The epoch is bumped when membership changes so removed members lose access and
+// newly added members receive an independent wrap for the same or next key.
+model ConversationThreadKey {
+  id             String                  @id @default(cuid())
+  conversationId String
+  conversation   Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  epoch          Int
+  active         Boolean                 @default(true)
+  createdAt      DateTime                @default(now())
+  wraps          ConversationKeyWrap[]
+  messages       Message[]
+
+  @@unique([conversationId, epoch])
+  @@index([conversationId, active])
+}
+
+// One wrap of a thread key for one member, encrypted under that member's
+// device public key (ECDH P-256 => AES-256-GCM). Holds no plaintext.
+model ConversationKeyWrap {
+  id              String               @id @default(cuid())
+  threadKeyId     String
+  threadKey       ConversationThreadKey @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          ConversationMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  publicKeyId     String
+  publicKey       DevicePublicKey       @relation(fields: [publicKeyId], references: [id], onDelete: Cascade)
+  wrappedKeyB64   String
+  createdAt       DateTime              @default(now())
+
+  @@unique([threadKeyId, memberId, publicKeyId])
+  @@index([memberId])
+}
+
+model Message {
+  id             String                 @id @default(cuid())
+  conversationId String
+  conversation   Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User                   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  threadKeyId    String
+  threadKey      ConversationThreadKey  @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
+  // AES-GCM payload: base64(iv | tag | ciphertext). Never plaintext.
+  ciphertext     String
+  nonce          String                 @default("")
+  clientMessageId String
+  editedAt       DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime               @default(now())
+
+  @@unique([senderId, clientMessageId])
+  @@index([conversationId, createdAt])
+  @@index([conversationId, createdAt, senderId])
+}
+
+// Device-scoped ECDH public keys. The private key is generated client-side and
+// never leaves the user's device/app. publicKeyB64 is the imported SPKI blob.
+model DevicePublicKey {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("DeviceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  label        String   @default("Baton device")
+  publicKeyB64 String
+  fingerprint  String
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+  wraps        ConversationKeyWrap[]
+
+  @@unique([userId, fingerprint])
+  @@index([userId])
+}
+
+// Centralized notification inbox. One row per recipient per event; read state
+// is per-row so each user's unread badge is derived exactly from the inbox.
+// Payload carries only type + resource identifiers (never message plaintext).
+model Notification {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  type         String // "message" | "mention" | "review" | "invite" | "system"
+  resourceType String // "message" | "conversation" | "pr" | "team_invite" | "org_invite" | "billing"
+  resourceId   String
+  actorId      String?
+  actor        User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  contextJson  String   @default("{}") // ids/keys only, no plaintext content
+  readAt       DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, type, resourceId])
+  @@index([resourceType, resourceId])
 }
