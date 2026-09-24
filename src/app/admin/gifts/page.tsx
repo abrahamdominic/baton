@@ -114,7 +114,7 @@ export default async function AdminGiftsPage() {
               </>
             ) : (
               <p className="text-xs leading-relaxed text-ink-400">
-                The gift ledger could not be read right now. This is a temporary data-layer issue —{" "}
+                The gift ledger could not be read right now. This is a temporary data-layer issue.{" "}
                 {loadError} Try again shortly.
               </p>
             )}
@@ -190,7 +190,7 @@ export default async function AdminGiftsPage() {
                         </div>
                         <p className="mt-1 font-mono text-[11px] text-ink-400">
                           {g.plan?.name ?? g.plan_id} · {g.months} month{g.months === 1 ? "" : "s"} · by admin{" "}
-                          {g.admin_user_id ? String(g.admin_user_id).slice(0, 8) : "—"} ·{" "}
+                          {g.admin_user_id ? String(g.admin_user_id).slice(0, 8) : "-"} ·{" "}
                           {new Date(g.created_at).toISOString().slice(0, 10)}
                         </p>
                         {g.note ? <p className="mt-1 text-xs text-ink-400">“{g.note}”</p> : null}

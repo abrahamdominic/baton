@@ -244,7 +244,7 @@ export function MessageThread({
           </div>
         ) : messages.length === 0 ? (
           <p className="py-12 text-center text-xs text-ink-500">
-            No messages yet. Say hello — every message is encrypted on your device.
+            No messages yet. Say hello. Every message is encrypted on your device.
           </p>
         ) : (
           messages.map((m) => {

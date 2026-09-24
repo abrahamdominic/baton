@@ -235,7 +235,7 @@ export function GiftForm({
                   >
                     {plans.map((p) => (
                       <option key={p.id} value={p.id} className="bg-ink-900">
-                        {p.name} — ${(p.monthly_price_cents / 100).toFixed(2)}/mo
+                        {p.name} · ${(p.monthly_price_cents / 100).toFixed(2)}/mo
                       </option>
                     ))}
                   </select>
@@ -426,7 +426,7 @@ export function GiftForm({
                 <ul className="list-disc space-y-1 pl-5 text-ink-300">
                   <li>No payment or Stripe/USDC charge is created against the user.</li>
                   <li>The user&apos;s plan features and limits unlock immediately.</li>
-                  <li>Access ends automatically on {accessEndsAt} — it never renews or charges.</li>
+                  <li>Access ends automatically on {accessEndsAt}. It never renews or charges.</li>
                   <li>The action is recorded in the immutable audit log and subscription history.</li>
                 </ul>
               </div>

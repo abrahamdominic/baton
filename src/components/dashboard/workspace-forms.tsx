@@ -637,7 +637,7 @@ export const TransferOwnerButton = ({
                 <span>
                   After this transfer you become an <span className="font-semibold text-white">admin</span>,
                   @{login} becomes the permanent owner, and paid workspace benefits follow the owner&apos;s
-                  subscription — member access may change if @{login}&apos;s plan differs from yours.
+                  subscription, so member access may change if @{login}&apos;s plan differs from yours.
                 </span>
               </div>
 

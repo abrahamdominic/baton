@@ -80,7 +80,7 @@ export default async function MessagesPage() {
         <EmptyState
           icon={IconMessageCircle}
           title="No conversations yet"
-          hint="Join a team and start a conversation — messages are encrypted on your device."
+          hint="Join a team and start a conversation. Messages are encrypted on your device."
         />
       ) : (
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">

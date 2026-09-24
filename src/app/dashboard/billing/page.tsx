@@ -156,7 +156,7 @@ export default async function BillingPage() {
                 {status === "none"
                   ? "You are on the free tier (up to 3 repositories with status cards, labels, and personal queue)."
                   : isGifted
-                    ? `${plan?.name ?? "This"} plan was granted to you by an administrator — no payment is collected and it never renews automatically.`
+                    ? `${plan?.name ?? "This"} plan was granted to you by an administrator. No payment is collected and it never renews automatically.`
                     : plan?.description ?? "Baton Team subscription."}
               </p>
 
@@ -302,7 +302,7 @@ export default async function BillingPage() {
                   {pendingCheckout.status === "payment_failed" ? (
                     <>
                       Your payment for this checkout did not clear. Retry it now or cancel it and
-                      start fresh — this never blocks you from switching plans.
+                      start fresh. This never blocks you from switching plans.
                     </>
                   ) : pendingPayment?.status === "confirmed" ? (
                     <>This checkout's payment is confirmed and being activated. If it does not
@@ -344,7 +344,7 @@ export default async function BillingPage() {
                   </div>
                 ) : (
                   <p className="font-mono text-[11px] text-ink-500">
-                    No payment created yet — checkout will collect it when you continue.
+                    No payment created yet. Checkout will collect it when you continue.
                   </p>
                 )}
               </div>

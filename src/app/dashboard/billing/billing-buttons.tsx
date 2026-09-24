@@ -61,7 +61,7 @@ export function CancelPlanButton({
                 <p className="mt-1 text-xs leading-relaxed text-ink-400">
                   Your Team access continues in full until{" "}
                   <span className="font-semibold text-ink-200">{formatDate(periodEnd)}</span>. After
-                  that date your account returns to the Individual Free tier — you can cancel the
+                  that date your account returns to the Individual Free tier, and you can cancel the
                   cancellation anytime before then.
                 </p>
               </div>

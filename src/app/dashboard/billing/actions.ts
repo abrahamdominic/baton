@@ -85,7 +85,7 @@ export async function cancelCurrentSubscriptionAction(
       String(formData.get("subscriptionId") ?? ""),
     );
     if (subscription.payment_provider === "gift") {
-      return { ok: false, error: "Gifted access cannot be cancelled — it ends automatically." };
+      return { ok: false, error: "Gifted access cannot be cancelled. It ends automatically." };
     }
     if (subscription.status !== "active") {
       return {
