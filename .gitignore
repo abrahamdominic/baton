@@ -10,8 +10,14 @@
 
 # local env files
 .env
-.env*.local
+.env.local
+.env.*.local
 .env.production
+.env.development
+.env.test
+.env.example.local
+.env.pull
+*.env.pull
 
 # vercel
 .vercel
@@ -20,6 +26,10 @@
 prisma/*.db
 prisma/*.db-journal
 prisma/schema.sqlite.prisma
+/dev.db
+*.sqlite
+*.sqlite3
+*.queries
 
 # logs
 logs
@@ -29,13 +39,23 @@ npm-debug.log*
 # misc
 .DS_Store
 *.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
 next-env.d.ts
 coverage/
 /tsconfig.tsbuildinfo
 
-# vim swap/backup files (may contain secrets from .env)
+# IDE / editor
+.vscode/
+.idea/
 *.swp
 *.swo
 *.swx
 *.orig
 *~
+# generated/local verification scripts
+/verify-*.mjs

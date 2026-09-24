@@ -190,8 +190,22 @@ export function isSupabasePublishableConfigured(env: Env = getConfig()): boolean
   return Boolean(env.SUPABASE_URL && env.SUPABASE_PUBLISHABLE_KEY);
 }
 
+/**
+ * Return a human-readable explanation of why the Stripe webhook signing secret
+ * is unusable, or null when it is unset or a valid `whsec_…` secret.
+ */
+export function stripeWebhookSecretIssue(env: Env = getConfig()): string | null {
+  const secret = env.STRIPE_WEBHOOK_SECRET.trim();
+  if (!secret) return null;
+  if (!secret.startsWith("whsec_")) {
+    return "STRIPE_WEBHOOK_SECRET is not a Stripe signing secret (expected a value starting with 'whsec_'). Every webhook event will fail signature validation, so orders can never be finalized.";
+  }
+  return null;
+}
+
 export function isStripeConfigured(env: Env = getConfig()): boolean {
-  return Boolean(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET);
+  const secret = env.STRIPE_WEBHOOK_SECRET.trim();
+  return Boolean(env.STRIPE_SECRET_KEY && secret.startsWith("whsec_"));
 }
 
 export function isUsdcConfigured(env: Env = getConfig()): boolean {

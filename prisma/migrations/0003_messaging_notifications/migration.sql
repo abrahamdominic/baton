@@ -1,5 +1,3 @@
-npm notice run baton@0.1.0 npx
-npm notice run 'prisma' migrate diff --from-schema-datamodel /tmp/opencode/old-schema.prisma --to-schema-datamodel prisma/schema.prisma --script
 -- CreateTable
 CREATE TABLE "Conversation" (
     "id" TEXT NOT NULL,
