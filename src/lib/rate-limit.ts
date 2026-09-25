@@ -1,6 +1,5 @@
 /**
- * Minimal in-memory fixed-window rate limiter. Suitable for a single-instance
- * MVP; swap for Redis once deployments scale past one instance.
+ * In-memory fixed-window rate limiter for sensitive endpoints.
  */
 class InMemoryRateLimiter {
   private buckets = new Map<string, { count: number; resetAt: number }>();

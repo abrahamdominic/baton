@@ -22,6 +22,7 @@ import {
   IconDownload,
   IconShield,
   IconLock,
+  IconSend,
 } from "@/components/icons";
 import { updateOrganization } from "../actions";
 import {
@@ -121,6 +122,10 @@ export default async function OrganizationDetailPage({
             <Link href={`/dashboard/organization/${org.id}/board`} className="btn btn-ghost btn-sm">
               <span>Org Board</span>
               <IconChevronRight className="h-3 w-3" />
+            </Link>
+            <Link href={`/dashboard/organization/${org.id}/messaging`} className="btn btn-ghost btn-sm">
+              <IconSend className="h-3.5 w-3.5" />
+              <span>Messages</span>
             </Link>
             {canExportAudit ? (
               <Link
@@ -232,6 +237,16 @@ export default async function OrganizationDetailPage({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  {!isMe ? (
+                    <Link
+                      href={`/dashboard/organization/${org.id}/messaging?member=${encodeURIComponent(m.userId)}`}
+                      className="btn btn-ghost btn-sm"
+                      aria-label={`Message @${m.user.login}`}
+                    >
+                      <IconSend className="h-3.5 w-3.5" />
+                      <span>Message</span>
+                    </Link>
+                  ) : null}
                   {isOwner ? (
                     <span className="rounded-full border border-brand-500/25 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
                       Owner
@@ -303,6 +318,7 @@ export default async function OrganizationDetailPage({
                     kind="organization"
                     workspaceId={org.id}
                     githubLogin={inv.githubLogin}
+                    email={inv.email}
                   />
                 ) : null}
               </li>

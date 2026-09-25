@@ -43,6 +43,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <AppShell
       user={{
+        id: user.id,
         login: user.login,
         name: user.name,
         avatarUrl: user.avatarUrl,

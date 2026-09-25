@@ -14,7 +14,9 @@ import { IconSend, IconLock, IconAlertCircle } from "@/components/icons";
 
 interface ThreadProps {
   conversationId: string;
-  teamId: string;
+  teamId?: string;
+  orgId?: string;
+  backHref?: string;
   currentUserId: string;
   currentUserLogin: string;
   initialMembers: Array<{ userId: string; login: string; name: string | null; avatarUrl: string | null }>;
@@ -29,6 +31,8 @@ interface DecryptedMessage extends MessageSummary {
 export function MessageThread({
   conversationId,
   teamId,
+  orgId,
+  backHref,
   currentUserId,
   currentUserLogin,
   initialMembers,
@@ -312,18 +316,19 @@ export function MessageThread({
             <span className="hidden sm:inline">{sending ? "Sending…" : "Send"}</span>
           </button>
         </form>
-        <LinkBack teamId={teamId} />
+        <LinkBack teamId={teamId} orgId={orgId} backHref={backHref} />
       </div>
     </div>
   );
 }
 
-function LinkBack({ teamId }: { teamId: string }) {
+function LinkBack({ teamId, orgId, backHref }: { teamId?: string; orgId?: string; backHref?: string }) {
   const router = useRouter();
+  const dest = backHref ?? (teamId ? `/dashboard/team/${teamId}/messaging` : orgId ? `/dashboard/organization/${orgId}/messaging` : "/dashboard/messages");
   return (
     <button
       type="button"
-      onClick={() => router.push(`/dashboard/team/${teamId}/messaging`)}
+      onClick={() => router.push(dest)}
       className="mt-2 text-[10px] font-medium text-ink-500 transition-colors hover:text-brand-300"
     >
       ← Back to conversations

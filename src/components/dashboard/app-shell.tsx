@@ -43,6 +43,7 @@ function isActive(pathname: string, item: NavItem): boolean {
 }
 
 export interface ShellUser {
+  id?: string;
   login: string;
   name: string | null;
   avatarUrl: string | null;
@@ -304,6 +305,15 @@ export function AppShell({
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  // E2E messaging: register client device key in the background on dashboard entry.
+  useEffect(() => {
+    if (user.id) {
+      import("@/lib/messaging/client")
+        .then(({ ensureDevice }) => ensureDevice(user.id!))
+        .catch(() => {});
+    }
+  }, [user.id]);
 
   // Derive current section label for breadcrumb
   const workspaceNav: NavItem[] = [

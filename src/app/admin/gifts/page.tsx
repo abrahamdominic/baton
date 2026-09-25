@@ -114,8 +114,8 @@ export default async function AdminGiftsPage() {
               </>
             ) : (
               <p className="text-xs leading-relaxed text-ink-400">
-                The gift ledger could not be read right now. This is a temporary data-layer issue.{" "}
-                {loadError} Try again shortly.
+                The gift ledger could not be read right now.{" "}
+                {loadError} Please try again shortly.
               </p>
             )}
           </div>

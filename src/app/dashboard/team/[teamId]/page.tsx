@@ -290,6 +290,7 @@ export default async function TeamDetailPage({
                     kind="team"
                     workspaceId={team.id}
                     githubLogin={inv.githubLogin}
+                    email={inv.email}
                   />
                 ) : null}
               </li>

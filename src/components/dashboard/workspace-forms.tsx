@@ -98,7 +98,9 @@ export function AsyncActionButton({
     title: string;
     description: React.ReactNode;
     confirmLabel: string;
+    loadingLabel?: string;
     successMessage: string;
+    errorMessage?: string;
   };
   destructive?: boolean;
   className?: string;
@@ -122,7 +124,13 @@ export function AsyncActionButton({
           router.refresh();
         }
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Something went wrong. Please try again."))
+      .catch((e) =>
+        setError(
+          e instanceof Error
+            ? e.message
+            : confirmation?.errorMessage ?? "Something went wrong. Please try again.",
+        ),
+      )
       .finally(() => setPending(false));
   };
 
@@ -136,7 +144,7 @@ export function AsyncActionButton({
         className={`${className} ${destructive ? "border-danger-500/25 text-danger-300 hover:bg-danger-500/10" : ""} ${pending ? "pointer-events-none opacity-60" : ""}`}
       >
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
-        <span>{pending ? "Working…" : label}</span>
+        <span>{pending ? confirmation?.loadingLabel ?? "Working…" : label}</span>
       </button>
       <ErrorLine error={error} />
       {confirmation ? (
@@ -175,7 +183,7 @@ export function AsyncActionButton({
                 className="btn btn-sm border border-danger-500/35 bg-danger-500/15 text-danger-100 hover:bg-danger-500/25"
               >
                 <IconTrash className="h-3.5 w-3.5" />
-                <span>{pending ? "Working…" : confirmation.confirmLabel}</span>
+                <span>{pending ? confirmation.loadingLabel ?? "Working…" : confirmation.confirmLabel}</span>
               </button>
             </div>
           </div>
@@ -517,10 +525,12 @@ export const RevokeInviteButton = ({
   kind,
   workspaceId,
   githubLogin,
+  email,
 }: {
   kind: Kind;
   workspaceId: string;
   githubLogin: string;
+  email?: string | null;
 }) => (
   <AsyncActionButton
     run={
@@ -531,9 +541,22 @@ export const RevokeInviteButton = ({
     label="Revoke"
     confirmation={{
       title: "Revoke invitation?",
-      description: <><span>You&apos;re about to revoke the pending invitation sent to </span><span className="font-semibold text-white">@{githubLogin}</span><span>. They will no longer be able to use it to join this {kind}.</span></>,
+      description: (
+        <div className="space-y-2">
+          <p>
+            You&apos;re about to revoke the pending invitation sent to{" "}
+            <span className="font-semibold text-white">@{githubLogin}</span>
+            {email ? <span className="text-ink-400"> ({email})</span> : null}.
+          </p>
+          <p className="text-ink-400">
+            They will no longer be able to use this invitation to join the {kind === "team" ? "team" : "organization"}.
+          </p>
+        </div>
+      ),
       confirmLabel: "Revoke invitation",
+      loadingLabel: "Revoking…",
       successMessage: "Invitation revoked successfully.",
+      errorMessage: "We couldn't revoke this invitation. Please try again.",
     }}
     destructive
     icon={IconTrash}

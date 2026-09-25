@@ -27,6 +27,7 @@ export default async function MessagesPage() {
     where: { members: { some: { userId: user.id } } },
     include: {
       team: { select: { id: true, name: true, slug: true } },
+      org: { select: { id: true, name: true, slug: true } },
       members: {
         include: { user: { select: { id: true, login: true, name: true } } },
       },
@@ -36,7 +37,7 @@ export default async function MessagesPage() {
   });
 
   const rows = conversations
-    .filter((c) => c.teamId !== null)
+    .filter((c) => c.teamId !== null || c.orgId !== null)
     .map((c) => {
       const myMembership = c.members.find((m) => m.userId === user.id);
       const lastReadAt = myMembership?.lastReadAt ?? null;
@@ -44,10 +45,18 @@ export default async function MessagesPage() {
         c._count.messages > 0 &&
         (!lastReadAt || !c.lastMessageAt || lastReadAt < c.lastMessageAt);
       const others = c.members.filter((m) => m.userId !== user.id);
+      const isTeam = Boolean(c.teamId);
+      const workspaceName = isTeam
+        ? (c.team?.name ?? c.team?.slug ?? "Team")
+        : (c.org?.name ?? c.org?.slug ?? "Organization");
+      const href = isTeam
+        ? `/dashboard/team/${encodeURIComponent(c.teamId!)}/messaging/${encodeURIComponent(c.id)}`
+        : `/dashboard/organization/${encodeURIComponent(c.orgId!)}/messaging/${encodeURIComponent(c.id)}`;
+
       return {
         id: c.id,
-        teamId: c.teamId as string,
-        teamName: c.team?.name ?? c.team?.slug ?? "Team",
+        href,
+        workspaceName,
         title:
           others.map((m) => (m.user.name ?? m.user.login).trim()).join(", ") ||
           "You",
@@ -72,7 +81,7 @@ export default async function MessagesPage() {
         description={
           unreadTotal > 0
             ? `You have ${unreadTotal} conversation${unreadTotal === 1 ? "" : "s"} with unread messages.`
-            : "Encrypted conversations across your teams."
+            : "Encrypted conversations across your teams and organizations."
         }
       />
 
@@ -80,14 +89,14 @@ export default async function MessagesPage() {
         <EmptyState
           icon={IconMessageCircle}
           title="No conversations yet"
-          hint="Join a team and start a conversation. Messages are encrypted on your device."
+          hint="Join a team or organization and start a conversation. Messages are encrypted on your device."
         />
       ) : (
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           {rows.map((r) => (
             <li key={r.id}>
               <Link
-                href={`/dashboard/team/${encodeURIComponent(r.teamId)}/messaging/${encodeURIComponent(r.id)}`}
+                href={r.href}
                 className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-ink-850/60"
               >
                 <div className="flex min-w-0 items-center gap-3">
@@ -109,7 +118,7 @@ export default async function MessagesPage() {
                       {r.title}
                     </p>
                     <p className="mt-0.5 truncate font-mono text-[10px] text-ink-500">
-                      {r.teamName} · {r.messageCount} message{r.messageCount === 1 ? "" : "s"}
+                      {r.workspaceName} · {r.messageCount} message{r.messageCount === 1 ? "" : "s"}
                     </p>
                   </div>
                 </div>

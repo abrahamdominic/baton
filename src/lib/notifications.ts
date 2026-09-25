@@ -94,6 +94,7 @@ export async function notifyConversationMessage(
   input: {
     conversationId: string;
     teamId: string | null;
+    orgId?: string | null;
     conversationKind: string;
     senderId: string;
     recipientIds: string[];
@@ -103,6 +104,7 @@ export async function notifyConversationMessage(
     conversationId: input.conversationId,
   };
   if (input.teamId) hrefContext.teamId = input.teamId;
+  if (input.orgId) hrefContext.orgId = input.orgId;
 
   for (const userId of input.recipientIds) {
     if (userId === input.senderId) continue;
@@ -126,8 +128,14 @@ export function conversationNotificationHref(
     const ctx = JSON.parse(contextJson) as Record<string, unknown>;
     const conversationId = ctx.conversationId;
     const teamId = ctx.teamId;
-    if (typeof conversationId === "string" && typeof teamId === "string") {
-      return `/dashboard/team/${encodeURIComponent(teamId)}/messaging/${encodeURIComponent(conversationId)}`;
+    const orgId = ctx.orgId;
+    if (typeof conversationId === "string") {
+      if (typeof teamId === "string") {
+        return `/dashboard/team/${encodeURIComponent(teamId)}/messaging/${encodeURIComponent(conversationId)}`;
+      }
+      if (typeof orgId === "string") {
+        return `/dashboard/organization/${encodeURIComponent(orgId)}/messaging/${encodeURIComponent(conversationId)}`;
+      }
     }
   } catch {
     // malformed context — fall through to the inbox

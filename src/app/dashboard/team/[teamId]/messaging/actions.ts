@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireActiveUser, requireTeamMember } from "@/lib/workspaces";
+import { requireActiveUser, requireTeamMember, requireOrganizationMember } from "@/lib/workspaces";
 import { fingerprintPublicKey, isValidDevicePublicKey } from "@/lib/messaging/crypto";
 import { notifyConversationMessage } from "@/lib/notifications";
 
@@ -15,7 +15,7 @@ import { notifyConversationMessage } from "@/lib/notifications";
 // plaintext or private key material — the server is deliberate about not being
 // able to read your conversations.
 //
-// Access control lives in this layer (requireActiveUser / requireTeamMember),
+// Access control lives in this layer (requireActiveUser / requireTeamMember / requireOrganizationMember),
 // the same posture the house migrations carve out at the data layer.
 
 export type MessagingActionResult =
@@ -58,31 +58,67 @@ export async function registerDeviceKeyAction(
   }
 }
 
-const listMemberDevicesInputSchema = z.object({ teamId: z.string().min(1) });
+const listWorkspaceDevicesInputSchema = z
+  .object({
+    teamId: z.string().min(1).optional(),
+    orgId: z.string().min(1).optional(),
+  })
+  .refine((data) => Boolean(data.teamId || data.orgId), {
+    message: "Either teamId or orgId must be provided.",
+  });
 
-/** Team members who have registered a device, plus their device details. Used
- * by the client to wrap a freshly generated thread key for each recipient. */
-export async function listTeamDeviceKeysAction(
-  input: z.infer<typeof listMemberDevicesInputSchema>,
+/** Team or Organization members who have registered a device, plus their device details.
+ * Used by the client to wrap a freshly generated thread key for each recipient. */
+export async function listWorkspaceDeviceKeysAction(
+  input: z.infer<typeof listWorkspaceDevicesInputSchema>,
 ): Promise<
-  | { ok: true; members: Array<{ userId: string; login: string; name: string | null; avatarUrl: string | null; devices: Array<{ id: string; publicKeyB64: string }> }> }
+  | {
+      ok: true;
+      members: Array<{
+        userId: string;
+        login: string;
+        name: string | null;
+        avatarUrl: string | null;
+        devices: Array<{ id: string; publicKeyB64: string }>;
+      }>;
+    }
   | { ok: false; error: string }
 > {
-  const parsed = listMemberDevicesInputSchema.safeParse(input);
+  const parsed = listWorkspaceDevicesInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const { teamId } = parsed.data;
+  const { teamId, orgId } = parsed.data;
 
   const me = await requireActiveUser();
-  await requireTeamMember(teamId, me.id);
+  let userIds: string[] = [];
+  let memberDetails: Array<{
+    userId: string;
+    user: { id: string; login: string; name: string | null; avatarUrl: string | null };
+  }> = [];
 
-  const members = await prisma.teamMember.findMany({
-    where: { teamId },
-    include: {
-      user: { select: { id: true, login: true, name: true, avatarUrl: true } },
-    },
-  });
+  if (teamId) {
+    await requireTeamMember(teamId, me.id);
+    const members = await prisma.teamMember.findMany({
+      where: { teamId },
+      include: {
+        user: { select: { id: true, login: true, name: true, avatarUrl: true } },
+      },
+    });
+    memberDetails = members;
+    userIds = members.map((m) => m.userId);
+  } else if (orgId) {
+    await requireOrganizationMember(orgId, me.id);
+    const members = await prisma.organizationMember.findMany({
+      where: { organizationId: orgId },
+      include: {
+        user: { select: { id: true, login: true, name: true, avatarUrl: true } },
+      },
+    });
+    memberDetails = members;
+    userIds = members.map((m) => m.userId);
+  }
+
   const deviceRows = await prisma.devicePublicKey.findMany({
-    where: { userId: { in: members.map((m) => m.userId) }, revokedAt: null },
+    where: { userId: { in: userIds }, revokedAt: null },
     select: { id: true, userId: true, publicKeyB64: true },
     orderBy: { createdAt: "asc" },
   });
@@ -96,7 +132,7 @@ export async function listTeamDeviceKeysAction(
 
   return {
     ok: true,
-    members: members.map((m) => ({
+    members: memberDetails.map((m) => ({
       userId: m.userId,
       login: m.user.login,
       name: m.user.name,
@@ -106,33 +142,42 @@ export async function listTeamDeviceKeysAction(
   };
 }
 
-const createConversationInputSchema = z.object({
-  teamId: z.string().min(1),
-  // userIds to include (besides the creator, who is always a member/owner).
-  memberIds: z.array(z.string().min(1)).default([]),
-  // Client-produced wraps: one per participant (including the creator).
-  // The server can hold wraps but never the thread key.
-  wrap: z.object({
-    issuerPublicKeyB64: z.string().min(1),
-    // memberUserId -> wrappedKey (already under that member's public key)
-    entries: z
-      .array(
-        z.object({
-          userId: z.string().min(1),
-          publicKeyId: z.string().min(1),
-          wrappedKeyB64: z.string().min(1),
-        }),
-      )
-      .min(1),
-  }),
-});
+export async function listTeamDeviceKeysAction(input: { teamId: string }) {
+  return listWorkspaceDeviceKeysAction({ teamId: input.teamId });
+}
+
+export async function listOrgDeviceKeysAction(input: { orgId: string }) {
+  return listWorkspaceDeviceKeysAction({ orgId: input.orgId });
+}
+
+const createConversationInputSchema = z
+  .object({
+    teamId: z.string().min(1).optional(),
+    orgId: z.string().min(1).optional(),
+    memberIds: z.array(z.string().min(1)).default([]),
+    wrap: z.object({
+      issuerPublicKeyB64: z.string().min(1),
+      entries: z
+        .array(
+          z.object({
+            userId: z.string().min(1),
+            publicKeyId: z.string().min(1),
+            wrappedKeyB64: z.string().min(1),
+          }),
+        )
+        .min(1),
+    }),
+  })
+  .refine((data) => Boolean(data.teamId || data.orgId), {
+    message: "Either teamId or orgId must be provided.",
+  });
 
 export type CreateConversationResult =
   | { ok: true; conversationId: string }
   | { ok: false; error: string };
 
 /**
- * Create a team conversation. The thread key is generated on the client; this
+ * Create a team or organization conversation. The thread key is generated on the client; this
  * action persists only the per-member wraps and the issuer's public key, so
  * every participant can unwrap their own copy but the server cannot.
  */
@@ -141,13 +186,14 @@ export async function createConversationAction(
 ): Promise<CreateConversationResult> {
   const parsed = createConversationInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid conversation input." };
-  const { teamId, memberIds, wrap } = parsed.data;
+  const { teamId, orgId, memberIds, wrap } = parsed.data;
 
   const me = await requireActiveUser();
-  // Any current team member may start a conversation with fellow members.
-  // Participant membership is verified again below; the client never chooses
-  // a sender or bypasses the team boundary.
-  await requireTeamMember(teamId, me.id);
+  if (teamId) {
+    await requireTeamMember(teamId, me.id);
+  } else if (orgId) {
+    await requireOrganizationMember(orgId, me.id);
+  }
 
   if (!(await isValidDevicePublicKey(wrap.issuerPublicKeyB64))) {
     return { ok: false, error: "Issuer device key is not a valid ECDH public key." };
@@ -161,13 +207,23 @@ export async function createConversationAction(
     return { ok: false, error: "A wrap entry references a non-member." };
   }
 
-  // Every participant must actually be on the team.
-  const teamMembers = await prisma.teamMember.findMany({
-    where: { teamId, userId: { in: [...allIds] } },
-    select: { userId: true },
-  });
-  if (teamMembers.length !== allIds.size) {
-    return { ok: false, error: "Every conversation member must be on this team." };
+  // Every participant must actually be on the team / organization.
+  if (teamId) {
+    const teamMembers = await prisma.teamMember.findMany({
+      where: { teamId, userId: { in: [...allIds] } },
+      select: { userId: true },
+    });
+    if (teamMembers.length !== allIds.size) {
+      return { ok: false, error: "Every conversation member must be on this team." };
+    }
+  } else if (orgId) {
+    const orgMembers = await prisma.organizationMember.findMany({
+      where: { organizationId: orgId, userId: { in: [...allIds] } },
+      select: { userId: true },
+    });
+    if (orgMembers.length !== allIds.size) {
+      return { ok: false, error: "Every conversation member must be in this organization." };
+    }
   }
 
   // Every publicKeyId must be a real registered device of the claimed user, and
@@ -198,7 +254,9 @@ export async function createConversationAction(
     const conversation = await prisma.$transaction(async (tx) => {
       const conv = await tx.conversation.create({
         data: {
-          teamId,
+          teamId: teamId ?? null,
+          orgId: orgId ?? null,
+          kind: orgId ? "org" : "team",
           createdById: me.id,
           members: {
             create: [
@@ -239,7 +297,9 @@ export async function createConversationAction(
       return conv;
     });
 
-    revalidatePath(`/dashboard/team/${teamId}/messaging`);
+    if (teamId) revalidatePath(`/dashboard/team/${teamId}/messaging`);
+    if (orgId) revalidatePath(`/dashboard/organization/${orgId}/messaging`);
+    revalidatePath("/dashboard/messages");
     return { ok: true, conversationId: conversation.id };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Something went wrong." };
@@ -300,7 +360,7 @@ export async function sendMessageAction(
       const [conv, siblings] = await Promise.all([
         tx.conversation.findUnique({
           where: { id: conversationId },
-          select: { teamId: true, kind: true, members: { select: { userId: true } } },
+          select: { teamId: true, orgId: true, kind: true, members: { select: { userId: true } } },
         }),
         tx.conversationMember.findMany({
           where: { conversationId },
@@ -316,6 +376,7 @@ export async function sendMessageAction(
         await notifyConversationMessage(tx, {
           conversationId,
           teamId: conv.teamId,
+          orgId: conv.orgId,
           conversationKind: conv.kind,
           senderId: me.id,
           recipientIds: siblings.map((s) => s.userId),
@@ -326,16 +387,25 @@ export async function sendMessageAction(
 
     const convMeta = await prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { teamId: true },
+      select: { teamId: true, orgId: true },
     });
     if (convMeta?.teamId) revalidatePath(`/dashboard/team/${convMeta.teamId}/messaging`);
+    if (convMeta?.orgId) revalidatePath(`/dashboard/organization/${convMeta.orgId}/messaging`);
+    revalidatePath("/dashboard/messages");
     return { ok: true, messageId: result.messageId };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Something went wrong." };
   }
 }
 
-const listConversationsInputSchema = z.object({ teamId: z.string().min(1) });
+const listConversationsInputSchema = z
+  .object({
+    teamId: z.string().min(1).optional(),
+    orgId: z.string().min(1).optional(),
+  })
+  .refine((data) => Boolean(data.teamId || data.orgId), {
+    message: "Either teamId or orgId must be provided.",
+  });
 
 export type ConversationSummary = {
   id: string;
@@ -347,19 +417,27 @@ export type ConversationSummary = {
   lastReadAt: Date | null;
 };
 
-/** Conversations in a team the current user belongs to (list view). */
+/** Conversations in a team or organization the current user belongs to (list view). */
 export async function listConversationsAction(
   input: z.infer<typeof listConversationsInputSchema>,
 ): Promise<{ ok: true; conversations: ConversationSummary[] } | { ok: false; error: string }> {
   const parsed = listConversationsInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  const { teamId } = parsed.data;
+  const { teamId, orgId } = parsed.data;
 
   const me = await requireActiveUser();
-  await requireTeamMember(teamId, me.id);
+  if (teamId) {
+    await requireTeamMember(teamId, me.id);
+  } else if (orgId) {
+    await requireOrganizationMember(orgId, me.id);
+  }
 
   const conversations = await prisma.conversation.findMany({
-    where: { teamId, members: { some: { userId: me.id } } },
+    where: {
+      ...(teamId ? { teamId } : {}),
+      ...(orgId ? { orgId } : {}),
+      members: { some: { userId: me.id } },
+    },
     include: {
       members: {
         include: { user: { select: { id: true, login: true, name: true, avatarUrl: true } } },

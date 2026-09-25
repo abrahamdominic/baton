@@ -149,4 +149,72 @@ describe("messaging crypto (security boundary)", () => {
     // Persisted form is base64 only.
     expect(msg.ct).toMatch(/^[A-Za-z0-9+/=]+$/);
   });
+
+  it("supports multi-member thread key distribution (Alice, Bob, Charlie) while excluding Mallory", async () => {
+    const alice = await generateDeviceKeys();
+    const bob = await generateDeviceKeys();
+    const charlie = await generateDeviceKeys();
+    const mallory = await generateDeviceKeys();
+
+    const threadKey = await generateThreadKey();
+
+    // Alice wraps for Bob and Charlie (and herself)
+    const wrapForAlice = await wrapThreadKeyForMember({
+      threadKeyB64: threadKey,
+      theirPublicKeyB64: alice.publicKeyB64,
+      ourPrivateKeyB64: alice.privateKeyB64,
+    });
+    const wrapForBob = await wrapThreadKeyForMember({
+      threadKeyB64: threadKey,
+      theirPublicKeyB64: bob.publicKeyB64,
+      ourPrivateKeyB64: alice.privateKeyB64,
+    });
+    const wrapForCharlie = await wrapThreadKeyForMember({
+      threadKeyB64: threadKey,
+      theirPublicKeyB64: charlie.publicKeyB64,
+      ourPrivateKeyB64: alice.privateKeyB64,
+    });
+
+    // Alice encrypts a sensitive organization message
+    const plaintext = "Confidential sprint retrospective details";
+    const encrypted = await encryptMessage(plaintext, threadKey);
+
+    // Alice unwraps and decrypts (sender can read back their own thread)
+    const aliceThreadKey = await unwrapThreadKeyForMember(
+      wrapForAlice.wrappedKeyB64,
+      alice.privateKeyB64,
+      alice.publicKeyB64,
+    );
+    expect(aliceThreadKey).toBe(threadKey);
+    const alicePlaintext = await decryptMessage(encrypted.ct, aliceThreadKey);
+    expect(alicePlaintext).toBe(plaintext);
+
+    // Bob unwraps and decrypts
+    const bobThreadKey = await unwrapThreadKeyForMember(
+      wrapForBob.wrappedKeyB64,
+      bob.privateKeyB64,
+      alice.publicKeyB64,
+    );
+    expect(bobThreadKey).toBe(threadKey);
+    const bobPlaintext = await decryptMessage(encrypted.ct, bobThreadKey);
+    expect(bobPlaintext).toBe(plaintext);
+
+    // Charlie unwraps and decrypts
+    const charlieThreadKey = await unwrapThreadKeyForMember(
+      wrapForCharlie.wrappedKeyB64,
+      charlie.privateKeyB64,
+      alice.publicKeyB64,
+    );
+    expect(charlieThreadKey).toBe(threadKey);
+    const charliePlaintext = await decryptMessage(encrypted.ct, charlieThreadKey);
+    expect(charliePlaintext).toBe(plaintext);
+
+    // Mallory tries to unwrap Bob's wrap or Charlie's wrap using Mallory's private key -> fails
+    await expect(
+      unwrapThreadKeyForMember(wrapForBob.wrappedKeyB64, mallory.privateKeyB64, alice.publicKeyB64),
+    ).rejects.toThrow();
+    await expect(
+      unwrapThreadKeyForMember(wrapForCharlie.wrappedKeyB64, mallory.privateKeyB64, alice.publicKeyB64),
+    ).rejects.toThrow();
+  });
 });

@@ -10,6 +10,7 @@ import type {
 import {
   createConversationAction,
   listTeamDeviceKeysAction,
+  listOrgDeviceKeysAction,
 } from "@/app/dashboard/team/[teamId]/messaging/actions";
 import { ensureDevice, buildConversationWraps } from "@/lib/messaging/client";
 import {
@@ -61,11 +62,13 @@ function MembersRow({
 export function ConversationList({
   conversations,
   teamId,
+  orgId,
   currentUserId,
   initialMemberId,
 }: {
   conversations: ConversationSummary[];
-  teamId: string;
+  teamId?: string;
+  orgId?: string;
   currentUserId: string;
   initialMemberId?: string;
 }) {
@@ -75,7 +78,7 @@ export function ConversationList({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs leading-relaxed text-ink-400">
-          Client-encrypted team conversations. Messages are encrypted before they ever leave
+          Client-encrypted conversations. Messages are encrypted before they ever leave
           your device; the server stores only ciphertext and per-member key wraps.
         </p>
         <button type="button" onClick={() => setOpen(true)} className="btn btn-primary btn-sm">
@@ -91,17 +94,20 @@ export function ConversationList({
           </div>
           <p className="text-sm font-semibold text-white">No conversations yet</p>
           <p className="max-w-md text-xs leading-relaxed text-ink-400">
-            Start one to share encrypted messages with fellow team members.
+            Start one to share encrypted messages with fellow workspace members.
           </p>
         </div>
       ) : (
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           {conversations.map((c) => {
             const unread = c.messageCount > 0 && (!c.lastReadAt || c.lastReadAt < (c.lastMessageAt ?? c.createdAt));
+            const href = teamId
+              ? `/dashboard/team/${teamId}/messaging/${c.id}`
+              : `/dashboard/organization/${orgId}/messaging/${c.id}`;
             return (
               <li key={c.id}>
                 <Link
-                  href={`/dashboard/team/${teamId}/messaging/${c.id}`}
+                  href={href}
                   className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-ink-850/60"
                 >
                   <MembersRow members={c.members} currentUserId={currentUserId} />
@@ -124,6 +130,7 @@ export function ConversationList({
       {open ? (
         <NewConversationDialog
           teamId={teamId}
+          orgId={orgId}
           currentUserId={currentUserId}
           initialMemberId={initialMemberId}
           onClose={() => setOpen(false)}
@@ -135,11 +142,13 @@ export function ConversationList({
 
 function NewConversationDialog({
   teamId,
+  orgId,
   currentUserId,
   initialMemberId,
   onClose,
 }: {
-  teamId: string;
+  teamId?: string;
+  orgId?: string;
   currentUserId: string;
   initialMemberId?: string;
   onClose: () => void;
@@ -156,17 +165,23 @@ function NewConversationDialog({
 
   useEffect(() => {
     let cancelled = false;
-    listTeamDeviceKeysAction({ teamId })
+    const fetcher = teamId
+      ? listTeamDeviceKeysAction({ teamId })
+      : orgId
+      ? listOrgDeviceKeysAction({ orgId })
+      : Promise.resolve({ ok: false as const, error: "No workspace specified." });
+
+    fetcher
       .then((res) => {
         if (cancelled) return;
         if (res.ok) setMembers(res.members);
         else setError(res.error);
       })
-      .catch(() => !cancelled && setError("Could not load team members."));
+      .catch(() => !cancelled && setError("Could not load workspace members."));
     return () => {
       cancelled = true;
     };
-  }, [teamId]);
+  }, [teamId, orgId]);
 
   const toggle = (userId: string) => {
     setSelected((prev) => {
@@ -190,7 +205,7 @@ function NewConversationDialog({
       const memberSet = new Set<string>([currentUserId, ...selected]);
       const chosen = (members ?? []).filter((m) => memberSet.has(m.userId));
       if (chosen.some((m) => m.devices.length === 0)) {
-        setError("Every selected member needs a registered device key. Ask them to open messaging once first.");
+        setError("Every selected member needs a registered device key. Ask them to sign in to Baton once on their device.");
         return;
       }
       const wraps = await buildConversationWraps({ device, members: chosen });
@@ -200,6 +215,7 @@ function NewConversationDialog({
       }
       const result: CreateConversationResult = await createConversationAction({
         teamId,
+        orgId,
         memberIds: [...selected],
         wrap: {
           issuerPublicKeyB64: device.publicKeyB64,
@@ -210,7 +226,10 @@ function NewConversationDialog({
         setError(result.error);
         return;
       }
-      router.push(`/dashboard/team/${teamId}/messaging/${result.conversationId}`);
+      const targetUrl = teamId
+        ? `/dashboard/team/${teamId}/messaging/${result.conversationId}`
+        : `/dashboard/organization/${orgId}/messaging/${result.conversationId}`;
+      router.push(targetUrl);
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
