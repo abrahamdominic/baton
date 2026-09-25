@@ -22,7 +22,7 @@ describe("annual pricing: exactly two months free (monthly × 10)", () => {
     expect(annualFromMonthly(799)).toBe(7990);
   });
 
-  it("rejects off-by-one discounts that are not exactly 20%", () => {
+  it("rejects off-by-one discounts that are not exactly two months free", () => {
     expect(isAnnualDiscount(1500, 14999)).toBe(false);
     expect(isAnnualDiscount(1500, 15001)).toBe(false);
     expect(isAnnualDiscount(4900, 48999)).toBe(false);

@@ -7,7 +7,7 @@
 -- ---------------------------------------------------------------------------
 
 update public.plans
-set annual_price_cents = 9600
+set annual_price_cents = 15000
 where slug = 'team';
 
 -- Guard: the seeded seed row in 0001 stored 800 cents (8 monthly equivalents).
