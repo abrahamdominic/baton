@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconGitHub, IconArrowRight } from "@/components/icons";
+import { GITHUB_DISCUSSIONS_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -150,7 +151,7 @@ export default function FaqPage() {
           </div>
           <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
             <a
-              href="https://github.com/baton-pr/baton/discussions"
+              href={GITHUB_DISCUSSIONS_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-ghost btn-sm"

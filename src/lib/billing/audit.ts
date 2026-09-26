@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
+import { userIdentitiesById, type UserIdentity } from "@/lib/user-identity";
 
 export interface AdminAuditInput {
   adminUserId: string;
@@ -40,6 +41,14 @@ function sanitize(detail: Record<string, unknown> | undefined): Record<string, u
 export interface AdminAuditRow {
   id: string;
   adminUserId: string | null;
+  /**
+   * The administrator's GitHub handle (e.g. `@abrahamdominic`), resolved from
+   * `adminUserId` in one batched query. `null` for system/bootstrap entries and
+   * for users whose row has since been removed.
+   */
+  adminHandle: string | null;
+  adminName: string | null;
+  admin: UserIdentity | null;
   action: string;
   resourceType: string | null;
   resourceId: string | null;
@@ -59,7 +68,8 @@ export async function listAdminAudit(opts: { limit?: number; offset?: number; ac
   if (opts.action) q = q.eq("action", opts.action);
   const { data, error } = await q;
   if (error) throw new Error(`audit.list failed: ${error.message}`);
-  return (data ?? []).map((r): AdminAuditRow => ({
+
+  const rows = (data ?? []).map((r) => ({
     id: String(r.id),
     adminUserId: r.admin_user_id ? String(r.admin_user_id) : null,
     action: String(r.action),
@@ -69,4 +79,17 @@ export async function listAdminAudit(opts: { limit?: number; offset?: number; ac
     ip: r.ip ? String(r.ip) : null,
     createdAt: String(r.created_at),
   }));
+
+  // One extra query for the whole page of rows: no N+1 per audit entry.
+  const identities = await userIdentitiesById(rows.map((r) => r.adminUserId));
+
+  return rows.map((r): AdminAuditRow => {
+    const identity = r.adminUserId ? identities.get(r.adminUserId) ?? null : null;
+    return {
+      ...r,
+      adminHandle: identity?.handle ?? null,
+      adminName: identity?.name ?? null,
+      admin: identity,
+    };
+  });
 }

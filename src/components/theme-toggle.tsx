@@ -2,70 +2,119 @@
 
 import { useEffect, useState } from "react";
 import { IconMonitor, IconMoon, IconSun } from "@/components/icons";
-
-export type ThemePref = "light" | "dark" | "system";
-
-const THEME_KEY = "baton-theme";
-
-const ORDER: ThemePref[] = ["light", "dark", "system"];
+import {
+  DEFAULT_THEME_PREF,
+  normalizeStoredTheme,
+  resolveTheme,
+  THEME_COLORS,
+  THEME_KEY,
+  type ResolvedTheme,
+  type ThemePref,
+} from "@/lib/theme";
 
 function readStored(): ThemePref {
   try {
-    const raw = localStorage.getItem(THEME_KEY);
-    return raw === "light" || raw === "dark" || raw === "system" ? raw : "system";
+    return normalizeStoredTheme(localStorage.getItem(THEME_KEY));
   } catch {
-    return "system";
+    // Storage can be unavailable (private mode, blocked cookies). The theme still
+    // applies for the session, so fall back to Baton's dark default.
+    return DEFAULT_THEME_PREF;
   }
 }
 
 function applyTheme(pref: ThemePref) {
-  const resolved =
-    pref === "system"
-      ? window.matchMedia("(prefers-color-scheme: light)").matches
-        ? "light"
-        : "dark"
-      : pref;
+  const resolved = resolveTheme(
+    pref,
+    window.matchMedia("(prefers-color-scheme: light)").matches,
+  );
   document.documentElement.setAttribute("data-theme", resolved);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", THEME_COLORS[resolved]);
   try {
     localStorage.setItem(THEME_KEY, pref);
   } catch {
-    /* storage unavailable (private mode) — theme still applies for the session */
+    /* storage unavailable — theme still applies for the session */
   }
+  return resolved;
 }
 
+const OPTIONS: Array<{ value: ThemePref; label: string; Icon: typeof IconMoon }> = [
+  { value: "dark", label: "Dark", Icon: IconMoon },
+  { value: "light", label: "Light", Icon: IconSun },
+  { value: "system", label: "System", Icon: IconMonitor },
+];
+
+/**
+ * Explicit Dark / Light / System control.
+ *
+ * The preference is a real choice rather than an implicit cycle: each option is
+ * labelled, and the currently applied theme is always the highlighted one, so
+ * "what does Baton look like right now?" is answerable at a glance.
+ */
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const [pref, setPref] = useState<ThemePref | null>(null);
+  const [resolved, setResolved] = useState<ResolvedTheme>("dark");
 
   useEffect(() => {
-    setPref(readStored());
-    applyTheme(readStored());
+    const stored = readStored();
+    setPref(stored);
+    setResolved(applyTheme(stored));
+
     const mq = window.matchMedia("(prefers-color-scheme: light)");
     const onSystemChange = () => {
-      if (readStored() === "system") applyTheme("system");
+      if (readStored() === "system") setResolved(applyTheme("system"));
     };
     mq.addEventListener("change", onSystemChange);
     return () => mq.removeEventListener("change", onSystemChange);
   }, []);
 
-  const cycle = () => {
-    const next = ORDER[(ORDER.indexOf(pref ?? "system") + 1) % ORDER.length];
+  const choose = (next: ThemePref) => {
     setPref(next);
-    applyTheme(next);
+    setResolved(applyTheme(next));
   };
 
-  const label =
-    pref === "light" ? "Switch to dark mode" : pref === "dark" ? "Use system theme" : "Switch to light mode";
-  const Icon = pref === "light" ? IconSun : pref === "dark" ? IconMoon : IconMonitor;
+  // Until the effect has read storage, render a placeholder with the same box so
+  // the header does not shift on hydration.
+  if (pref === null) {
+    return (
+      <div
+        aria-hidden="true"
+        className={`inline-flex h-9 items-center rounded-lg border border-white/[0.1] bg-ink-900 p-0.5 ${className}`}
+      />
+    );
+  }
 
   return (
-    <button
-      type="button"
-      onClick={cycle}
-      aria-label={`Theme: ${label}`}
-      title={label}
-      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-300 transition-colors hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400 ${className}`}
+    <div
+      role="radiogroup"
+      aria-label="Color theme"
+      className={`inline-flex h-9 items-center gap-0.5 rounded-lg border border-white/[0.1] bg-ink-900 p-0.5 ${className}`}
     >
-      <Icon className="h-4 w-4" />
-    </button>
+      {OPTIONS.map(({ value, label, Icon }) => {
+        const active = pref === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            title={
+              value === "system"
+                ? `Follow system theme (currently ${resolved})`
+                : `${label} theme`
+            }
+            onClick={() => choose(value)}
+            className={`inline-flex h-full items-center gap-1.5 rounded-[0.4rem] px-2 text-[11px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 ${
+              active
+                ? "bg-brand-500/20 text-white ring-1 ring-brand-500/40"
+                : "text-ink-400 hover:bg-white/[0.05] hover:text-white"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

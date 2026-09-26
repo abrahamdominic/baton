@@ -98,9 +98,20 @@ export default async function OrganizationAuditPage({
                       </span>
                     ) : null}
                   </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    actor @{r.actor}
-                    {r.ip ? <span className="text-ink-600"> · {r.ip}</span> : null}
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] text-ink-500">
+                    {r.user ? (
+                      <>
+                        <span className="font-semibold text-ink-200">@{r.user.login}</span>
+                        {r.user.name && r.user.name !== r.user.login ? (
+                          <span className="text-ink-400">({r.user.name})</span>
+                        ) : null}
+                        <span className="text-ink-600">user {r.userId?.slice(0, 12)}…</span>
+                      </>
+                    ) : (
+                      <span className="text-ink-300">actor @{r.actor}</span>
+                    )}
+                    <span className="text-ink-600">· recorded actor {r.actor}</span>
+                    {r.ip ? <span className="text-ink-600">· {r.ip}</span> : null}
                   </p>
                 </div>
                 <NiceDate date={r.createdAt} />

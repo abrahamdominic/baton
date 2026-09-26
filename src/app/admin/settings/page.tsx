@@ -4,10 +4,10 @@ import { config } from "@/lib/env-boot";
 import {
   isSupabaseConfigured,
   isSupabasePublishableConfigured,
-  isStripeConfigured,
   isUsdcConfigured,
   adminLogins,
   databaseUrlIssue,
+  diagnoseStripe,
 } from "@/lib/config";
 import { listPlans } from "@/lib/billing/plans";
 import { Badge, PageHeader } from "@/components/ui";
@@ -26,6 +26,7 @@ export default async function AdminSettingsPage() {
     .catch(() => 0);
 
   const dbIssue = databaseUrlIssue(config);
+  const stripe = diagnoseStripe(config);
 
   const checks = [
     {
@@ -57,10 +58,12 @@ export default async function AdminSettingsPage() {
       items: [
         {
           label: "Stripe Payment Gateway",
-          ok: isStripeConfigured(config),
-          note: isStripeConfigured(config)
-            ? `Mode: ${config.STRIPE_MODE}`
-            : "STRIPE_SECRET_KEY / WEBHOOK_SECRET missing",
+          ok: stripe.configured,
+          note: stripe.configured
+            ? `Mode: ${stripe.mode} — API key and webhook signing secret accepted`
+            : `Blocked: ${stripe.issues.map((i) => i.split(".")[0]).join("; ")}`,
+          detail: stripe.configured ? null : stripe.issues,
+          fixes: stripe.configured ? null : stripe.fixes,
         },
         {
           label: "USDC Base Smart Contract",
@@ -121,28 +124,60 @@ export default async function AdminSettingsPage() {
             </div>
 
             <ul className="divide-y divide-white/[0.05]">
-              {section.items.map((item) => (
-                <li
-                  key={item.label}
-                  className="flex flex-wrap items-center justify-between gap-4 p-5 text-xs transition-colors hover:bg-white/[0.015]"
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        item.ok ? "bg-signal-400" : "bg-warn-400"
-                      }`}
-                    />
-                    <div>
-                      <p className="font-semibold text-white">{item.label}</p>
-                      <p className="mt-0.5 font-mono text-[11px] text-ink-400">{item.note}</p>
-                    </div>
-                  </div>
+              {section.items.map((item) => {
+                const detail = "detail" in item ? (item.detail as string[] | null) : null;
+                const fixes = "fixes" in item ? (item.fixes as string[] | null) : null;
+                return (
+                  <li key={item.label} className="p-5 text-xs transition-colors hover:bg-white/[0.015]">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            item.ok ? "bg-signal-400" : "bg-warn-400"
+                          }`}
+                        />
+                        <div>
+                          <p className="font-semibold text-white">{item.label}</p>
+                          <p className="mt-0.5 font-mono text-[11px] text-ink-400">{item.note}</p>
+                        </div>
+                      </div>
 
-                  <Badge tone={item.ok ? "success" : "warn"}>
-                    {item.ok ? "ready" : "unconfigured"}
-                  </Badge>
-                </li>
-              ))}
+                      <Badge tone={item.ok ? "success" : "warn"}>
+                        {item.ok ? "ready" : "unconfigured"}
+                      </Badge>
+                    </div>
+
+                    {detail && detail.length > 0 ? (
+                      <ul className="mt-3 space-y-1.5 border-l-2 border-warn-500/40 pl-3">
+                        {detail.map((line) => (
+                          <li key={line} className="text-[11px] leading-relaxed text-ink-300">
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {fixes && fixes.length > 0 ? (
+                      <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-500/[0.06] p-3">
+                        <p className="font-mono text-[10px] uppercase tracking-wider text-brand-300">
+                          Required deployment variables
+                        </p>
+                        <ol className="mt-1.5 list-decimal space-y-1.5 pl-4">
+                          {fixes.map((step) => (
+                            <li key={step} className="text-[11px] leading-relaxed text-ink-200">
+                              {step}
+                            </li>
+                          ))}
+                        </ol>
+                        <p className="mt-2 text-[10px] leading-relaxed text-ink-400">
+                          Set these in the deployment platform&rsquo;s environment settings (they are
+                          read server-side at boot). Never commit them to the repository.
+                        </p>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ))}

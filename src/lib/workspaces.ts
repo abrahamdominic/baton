@@ -310,5 +310,11 @@ export async function organizationAuditLog(organizationId: string, take = 500) {
     where: { targetType: "organization", targetId: organizationId },
     orderBy: { createdAt: "desc" },
     take,
+    // The actor's GitHub handle is resolved by the same JOIN for every row, so
+    // the audit ledger and its CSV/JSON export can show `@handle` next to the id
+    // without an extra query per event.
+    include: {
+      user: { select: { id: true, login: true, name: true, email: true, avatarUrl: true } },
+    },
   });
 }

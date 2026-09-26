@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { IconCheck, IconX, IconArrowRight, IconGitHub } from "@/components/icons";
 import type { PlanRecord } from "@/lib/billing/types";
+import { GITHUB_URL } from "@/lib/site";
 
 export interface Tier {
   slug: string;
@@ -389,7 +390,7 @@ export function PricingView({
           </div>
 
           <a
-            href="https://github.com/baton-pr/baton"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-ghost btn-sm"

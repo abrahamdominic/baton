@@ -6,6 +6,7 @@ import { listPaymentsForSubscription } from "@/lib/billing/payments";
 import { prisma } from "@/lib/db";
 import { adminTargets } from "@/lib/billing/subscription-machine";
 import type { SubscriptionRecord } from "@/lib/billing/types";
+import { formatMoney } from "@/lib/billing/amounts";
 import { SubscriptionActions } from "./subscription-actions";
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/types";
 import { IconArrowLeft, IconLayers } from "@/components/icons";
@@ -48,12 +49,28 @@ export default async function AdminSubscriptionsPage({
   const plans = await listPlans().catch(() => []);
   let subscriptions = await listAllSubscriptions(100).catch(() => []);
   if (filterStatus) subscriptions = subscriptions.filter((s) => s.status === filterStatus);
-  if (filterUser) subscriptions = subscriptions.filter((s) => s.user_id.includes(filterUser));
+
   const users = await prisma.user.findMany({
     where: { id: { in: subscriptions.map((subscription) => subscription.user_id) } },
     select: { id: true, login: true, name: true, email: true, avatarUrl: true },
   }).catch(() => []);
   const usersById = new Map(users.map((user) => [user.id, user]));
+
+  // The filter box accepts a handle, an email, or the raw user id, so an
+  // administrator never has to copy an internal cuid out of the table.
+  if (filterUser) {
+    const needle = filterUser.trim().toLowerCase();
+    subscriptions = subscriptions.filter((s) => {
+      if (s.user_id.toLowerCase().includes(needle)) return true;
+      const user = usersById.get(s.user_id);
+      if (!user) return false;
+      return (
+        user.login.toLowerCase().includes(needle) ||
+        (user.name?.toLowerCase().includes(needle) ?? false) ||
+        (user.email?.toLowerCase().includes(needle) ?? false)
+      );
+    });
+  }
 
   return (
     <div className="space-y-8">
@@ -151,6 +168,21 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
   const canPlanChange = targets.includes("active");
   const canCancel = targets.includes("canceled");
 
+  // Prefer real billed amounts; fall back to the plan's configured price so an
+  // admin always sees a number rather than an empty field. `confirmed` is the
+  // settled payment state for both Stripe and USDC.
+  const latestPaid =
+    payments.find((p) => p.status === "confirmed") ?? payments[0];
+  const interval = (latestPaid?.metadata as { interval?: string } | null)?.interval ?? null;
+  const amountCents =
+    latestPaid && latestPaid.amount > 0
+      ? latestPaid.amount
+      : sub.plan
+      ? interval === "annual"
+        ? sub.plan.annual_price_cents
+        : sub.plan.monthly_price_cents
+      : null;
+
   return (
     <li className="p-5 sm:p-6 transition-colors hover:bg-white/[0.015]">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
@@ -190,6 +222,15 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
           </p>
 
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-ink-400">
+            {amountCents !== null ? (
+              <span className="font-semibold text-ink-200">
+                {formatMoney(
+                  amountCents,
+                  sub.payment_provider === "usdc" ? "USDC" : "USD",
+                )}
+                {interval ? ` / ${interval === "annual" ? "year" : "month"}` : ""}
+              </span>
+            ) : null}
             {sub.current_period_start ? (
               <span>
                 Period: {sub.current_period_start.slice(0, 10)} &rarr; {sub.current_period_end?.slice(0, 10)}

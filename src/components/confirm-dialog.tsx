@@ -4,21 +4,36 @@ import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 /**
- * Shared modal shell for confirmation-style dialogs (admin actions, plan
- * cancellations, checkout cancellations). Renders a fixed overlay + centered
- * card, closes on backdrop click / Escape, and is keyboard-focus safe.
+ * The single modal shell for every overlay in Baton (confirmation dialogs,
+ * destructive-action prompts, and composer dialogs). Renders a fixed overlay +
+ * centered card, closes on backdrop click / Escape, traps focus, and restores
+ * focus to the trigger. There is deliberately no second, one-off dialog
+ * implementation: any new surface composes `Dialog` (or `ConfirmDialog`) so
+ * focus handling, spacing, and tokens stay consistent.
  */
-export function ConfirmDialog({
+export function Dialog({
   open,
   onClose,
-  tone = "danger",
+  tone = "brand",
   labelledBy,
+  label,
+  size = "md",
+  bare = false,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   tone?: "brand" | "danger" | "warn";
   labelledBy?: string;
+  /** Accessible name when no `labelledBy` element id is available. */
+  label?: string;
+  size?: "md" | "lg";
+  /**
+   * When true the card has no padding and no clipping, so the children can lay
+   * out their own header/body/footer chrome (composer dialogs). When false the
+   * card is padded for a short body of text and controls.
+   */
+  bare?: boolean;
   children: ReactNode;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -75,6 +90,8 @@ export function ConfirmDialog({
 
   const toneRing =
     tone === "danger" ? "border-danger-500/30" : tone === "warn" ? "border-warn-500/30" : "border-brand-500/30";
+  const width = size === "lg" ? "max-w-lg" : "max-w-md";
+  const surface = bare ? "overflow-hidden rounded-2xl" : "rounded-xl p-5";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -87,12 +104,37 @@ export function ConfirmDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        aria-label={labelledBy ? undefined : label}
         ref={dialogRef}
         tabIndex={-1}
-        className={`relative w-full max-w-md rounded-xl border border-white/[0.1] ${toneRing} bg-ink-900 p-5 shadow-2xl`}
+        className={`relative w-full ${width} border border-white/[0.1] ${toneRing} ${surface} bg-ink-900 shadow-2xl`}
       >
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * Confirmation-style dialog built on the shared `Dialog` shell, for
+ * admin actions, plan cancellations, and destructive confirmations.
+ */
+export function ConfirmDialog({
+  open,
+  onClose,
+  tone = "danger",
+  labelledBy,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  tone?: "brand" | "danger" | "warn";
+  labelledBy?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Dialog open={open} onClose={onClose} tone={tone} labelledBy={labelledBy}>
+      {children}
+    </Dialog>
   );
 }

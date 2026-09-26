@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { config } from "@/lib/env-boot";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconCheckCircle, IconShield, IconActivity, IconTerminal, IconGitHub, IconBell } from "@/components/icons";
+import { GITHUB_CLONE_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -319,7 +320,8 @@ export default function DocsPage() {
           <div className="mt-6 rounded-xl border border-white/[0.08] bg-ink-900/90 p-5 font-mono text-xs text-ink-200">
             <div className="text-ink-500 pb-2"># Clone and run locally or with Docker</div>
             <pre className="overflow-x-auto text-brand-300">
-{`git clone https://github.com/baton-pr/baton.git
+{`git clone ${GITHUB_CLONE_URL}
+
 cd baton
 cp .env.example .env
 npm install

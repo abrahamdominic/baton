@@ -369,7 +369,7 @@ export function AppShell({
               </span>
             ) : null}
           </Link>
-          <ThemeToggle className="h-8 w-8" />
+          <ThemeToggle className="h-8" />
           {user.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img

@@ -2,10 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { config } from "@/lib/env-boot";
 import { SITE_NAME, SITE_TITLE } from "@/lib/site";
+import { buildPrepaintScript, THEME_COLORS } from "@/lib/theme";
 
-const THEME_KEY = "baton-theme";
-
-const PREPAINT_SCRIPT = `(function(){var t="system";try{t=localStorage.getItem("${THEME_KEY}")||"system"}catch(e){}var apply=function(p){var r=p==="system"?(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"):p;document.documentElement.setAttribute("data-theme",r)};apply(t);try{window.matchMedia("(prefers-color-scheme: light)").addEventListener("change",function(){try{if((localStorage.getItem("${THEME_KEY}")||"system")==="system")apply("system")}catch(e){}})}catch(e){}})();`;
+const PREPAINT_SCRIPT = buildPrepaintScript();
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.SITE_URL),
@@ -54,10 +53,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F4F6FA" },
-    { media: "(prefers-color-scheme: dark)", color: "#08090C" },
-  ],
+  // Baton's default theme is dark regardless of the OS setting, so the browser
+  // chrome starts dark and the pre-paint script keeps it in step with the
+  // resolved theme. Media queries are intentionally not used here: they would
+  // pick light chrome for a light OS even when the page itself is dark.
+  themeColor: THEME_COLORS.dark,
   width: "device-width",
   initialScale: 1,
 };

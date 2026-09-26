@@ -216,13 +216,27 @@ export function CheckoutForm(props: CheckoutFormProps) {
               </button>
             ) : null}
           </div>
-          {(props.providers.stripe || props.providers.usdc ? null : (
-            <p className="text-center text-xs text-ink-500">
-              Checkout is temporarily unavailable. Contact support or try again shortly.
-            </p>
-          ))}
+          {props.providers.stripe || props.providers.usdc ? (
+            /* One live provider and one still being configured: say which, so the
+               single remaining button is not mistaken for a missing option. */
+            props.providers.stripe && !props.providers.usdc ? (
+              <p className="text-center text-[11px] text-ink-500">
+                USDC payments are not enabled for this deployment yet. Card checkout is available.
+              </p>
+            ) : !props.providers.stripe && props.providers.usdc ? (
+              <p className="text-center text-[11px] text-ink-500">
+                Card checkout is not enabled for this deployment yet. USDC on Base is available.
+              </p>
+            ) : null
+          ) : (
+            <div className="rounded-lg border border-warn-500/25 bg-warn-500/[0.07] p-3 text-center text-xs leading-relaxed text-warn-200">
+              No payment method is currently available for this deployment. Please try again later
+              or contact support.
+            </div>
+          )}
           <p className="text-center text-[11px] text-ink-500">
-            Powered by Stripe Checkout and verified on-chain USDC. Cancel anytime.
+            Payments are processed by Stripe Checkout or settled on-chain in USDC on Base. Cancel
+            anytime.
           </p>
         </section>
       ) : null}

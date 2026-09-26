@@ -203,8 +203,114 @@ export function stripeWebhookSecretIssue(env: Env = getConfig()): string | null 
   return null;
 }
 
+/**
+ * Why the webhook secret is unusable, with the concrete remedy. Used by the
+ * admin readiness panel so an operator is told exactly which value to fetch and
+ * from where, instead of only seeing "unconfigured".
+ */
+export function stripeWebhookSecretFix(env: Env = getConfig()): string | null {
+  const secret = env.STRIPE_WEBHOOK_SECRET.trim();
+  if (!secret) return null;
+  if (secret.startsWith("whsec_")) return null;
+  if (/^https?:\/\//i.test(secret)) {
+    return "The value looks like the webhook ENDPOINT URL (the `…/webhooks` link in the Stripe dashboard), not the signing secret. Open Stripe Dashboard → Developers → Webhooks → select the endpoint → 'Signing secret' → Reveal, and set STRIPE_WEBHOOK_SECRET to the `whsec_…` string.";
+  }
+  return "Replace STRIPE_WEBHOOK_SECRET with the endpoint's 'Signing secret' from Stripe Dashboard → Developers → Webhooks. It must start with `whsec_`.";
+}
+
+/**
+ * Validate the Stripe secret API key. A key from the wrong environment (a live
+ * key in test mode, or vice versa) fails every API call at runtime, so the mode
+ * and the key prefix are checked against each other here.
+ */
+export function stripeSecretKeyIssue(env: Env = getConfig()): string | null {
+  const key = env.STRIPE_SECRET_KEY.trim();
+  if (!key) return null;
+  if (/^https?:\/\//i.test(key)) {
+    return "STRIPE_SECRET_KEY is a URL, not an API key. Use the secret key from Stripe Dashboard → Developers → API keys.";
+  }
+  if (!/^sk_(test|live)_/.test(key)) {
+    return "STRIPE_SECRET_KEY does not look like a Stripe secret key (expected `sk_test_…` or `sk_live_…`). Publishable keys (`pk_…`) and restricted keys (`rk_…`) cannot create Checkout sessions.";
+  }
+  const keyMode = key.startsWith("sk_live_") ? "live" : "test";
+  if (keyMode !== env.STRIPE_MODE) {
+    return `STRIPE_SECRET_KEY is a ${keyMode}-mode key but STRIPE_MODE is "${env.STRIPE_MODE}". Set STRIPE_MODE to "${keyMode}" or supply a matching key; every Stripe call would otherwise fail against the wrong environment.`;
+  }
+  return null;
+}
+
+export interface StripeDiagnosis {
+  /** True only when Stripe can actually create checkouts and verify webhooks. */
+  configured: boolean;
+  /** One line per blocking problem, empty when configured. */
+  issues: string[];
+  /** Ordered remediation steps, empty when configured. */
+  fixes: string[];
+  mode: "test" | "live";
+  /** Present (never the value) so the panel can prove a key is loaded. */
+  secretKeyPresent: boolean;
+  webhookSecretPresent: boolean;
+}
+
+/**
+ * Full Stripe readiness diagnosis. Reports the real cause of "unconfigured"
+ * instead of collapsing every failure into a single boolean, and never returns
+ * a secret value.
+ */
+export function diagnoseStripe(env: Env = getConfig()): StripeDiagnosis {
+  const secretKey = env.STRIPE_SECRET_KEY.trim();
+  const webhookSecret = env.STRIPE_WEBHOOK_SECRET.trim();
+  const issues: string[] = [];
+  const fixes: string[] = [];
+
+  const keyIssue = stripeSecretKeyIssue(env);
+  if (keyIssue) {
+    issues.push(keyIssue);
+    fixes.push(
+      "Stripe Dashboard → Developers → API keys → copy the Secret key and set STRIPE_SECRET_KEY.",
+    );
+  } else if (!secretKey) {
+    issues.push("STRIPE_SECRET_KEY is not set on this deployment.");
+    fixes.push(
+      "Stripe Dashboard → Developers → API keys → copy the Secret key and set STRIPE_SECRET_KEY.",
+    );
+  }
+
+  const webhookIssue = stripeWebhookSecretIssue(env);
+  if (webhookIssue) {
+    issues.push(webhookIssue);
+  } else if (!webhookSecret) {
+    issues.push(
+      "STRIPE_WEBHOOK_SECRET is not set, so incoming Stripe events cannot be signature-verified and no subscription will ever be activated.",
+    );
+  }
+  const webhookFix = stripeWebhookSecretFix(env);
+  if (webhookFix) fixes.push(webhookFix);
+  else if (!webhookSecret) {
+    fixes.push(
+      "Stripe Dashboard → Developers → Webhooks → your endpoint → 'Signing secret' → Reveal, and set STRIPE_WEBHOOK_SECRET to the `whsec_…` value.",
+    );
+  }
+
+  if (webhookSecret && !secretKey) {
+    fixes.push(
+      "The webhook endpoint only activates subscriptions when a Checkout Session can be created first, so STRIPE_SECRET_KEY is also required.",
+    );
+  }
+
+  return {
+    configured: isStripeConfigured(env),
+    issues,
+    fixes,
+    mode: env.STRIPE_MODE,
+    secretKeyPresent: secretKey.length > 0,
+    webhookSecretPresent: webhookSecret.length > 0,
+  };
+}
+
 export function isStripeConfigured(env: Env = getConfig()): boolean {
   const secret = env.STRIPE_WEBHOOK_SECRET.trim();
+  if (stripeSecretKeyIssue(env)) return false;
   return Boolean(env.STRIPE_SECRET_KEY && secret.startsWith("whsec_"));
 }
 

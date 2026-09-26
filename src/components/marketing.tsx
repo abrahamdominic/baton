@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SITE_NAME } from "@/lib/site";
+import { GITHUB_DISCUSSIONS_URL, GITHUB_URL, SITE_NAME } from "@/lib/site";
 import { currentUser } from "@/lib/auth/session";
 import { IconMenu, IconGitHub, IconArrowRight } from "@/components/icons";
 import { BatonLogo } from "@/components/logo";
@@ -39,7 +39,8 @@ const FOOTER_COLS = [
     links: [
       { href: "/docs", label: "Documentation" },
       { href: "/faq", label: "FAQ" },
-      { href: "https://github.com/baton-pr/baton", label: "GitHub repository", external: true },
+      { href: GITHUB_URL, label: "GitHub repository", external: true },
+      { href: GITHUB_DISCUSSIONS_URL, label: "Discussions", external: true },
       { href: "/auth/login?next=/dashboard", label: "Sign in with GitHub" },
     ],
   },
@@ -82,7 +83,7 @@ export async function MarketingHeader() {
         <div className="hidden items-center gap-3 md:flex">
           <ThemeToggle />
           <a
-            href="https://github.com/baton-pr/baton"
+            href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1.5 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:text-white"
@@ -114,7 +115,7 @@ export async function MarketingHeader() {
           </summary>
           <div className="absolute right-0 z-50 mt-3 w-64 rounded-xl border border-white/[0.12] bg-ink-900 p-3">
             <div className="flex items-center justify-end pb-2">
-              <ThemeToggle className="h-8 w-8" />
+              <ThemeToggle className="h-8" />
             </div>
             <div className="space-y-1">
               {NAV.map((item) => (

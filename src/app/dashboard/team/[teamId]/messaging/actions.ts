@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { requireActiveUser, requireTeamMember, requireOrganizationMember } from "@/lib/workspaces";
 import { fingerprintPublicKey, isValidDevicePublicKey } from "@/lib/messaging/crypto";
+import { conversationMemberRows, normalizeRoster } from "@/lib/messaging/participants";
 import { notifyConversationMessage } from "@/lib/notifications";
 
 // Baton messaging server actions.
@@ -177,6 +178,23 @@ export type CreateConversationResult =
   | { ok: false; error: string };
 
 /**
+ * Collapse repeated wrap entries for the same recipient device. The first
+ * occurrence wins; later ones are dropped so the nested create cannot violate
+ * `ConversationKeyWrap @@unique([threadKeyId, memberId, publicKeyId])`.
+ */
+function dedupeWrapEntries<T extends { userId: string; publicKeyId: string }>(entries: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const entry of entries) {
+    const key = `${entry.userId}::${entry.publicKeyId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(entry);
+  }
+  return out;
+}
+
+/**
  * Create a team or organization conversation. The thread key is generated on the client; this
  * action persists only the per-member wraps and the issuer's public key, so
  * every participant can unwrap their own copy but the server cannot.
@@ -198,8 +216,18 @@ export async function createConversationAction(
   if (!(await isValidDevicePublicKey(wrap.issuerPublicKeyB64))) {
     return { ok: false, error: "Issuer device key is not a valid ECDH public key." };
   }
-  const allIds = new Set<string>([me.id, ...memberIds]);
-  const wrapMemberIds = new Set(wrap.entries.map((e) => e.userId));
+  // Normalize before anything else touches the roster. A client may legitimately
+  // include the creator among the participants (the new-conversation UI offers
+  // every workspace member, including "you") and may repeat an id. Both would
+  // violate `ConversationMember @@unique([conversationId, userId])` if passed
+  // straight into the nested create, so the creator is dropped from the member
+  // list and duplicates are collapsed. See lib/messaging/participants.ts.
+  const roster = normalizeRoster(memberIds, me.id);
+  const allIds = new Set<string>(roster.allIds);
+  // `ConversationKeyWrap` is also unique per (threadKeyId, memberId, publicKeyId),
+  // so collapse repeated wrap entries for the same device before inserting.
+  const wrapEntries = dedupeWrapEntries(wrap.entries);
+  const wrapMemberIds = new Set(wrapEntries.map((e) => e.userId));
   if (wrapMemberIds.size === 0 || [...allIds].some((id) => !wrapMemberIds.has(id))) {
     return { ok: false, error: "Every member needs at least one wrap entry." };
   }
@@ -230,20 +258,20 @@ export async function createConversationAction(
   // the creator's wrap must be under the creator's own registered device.
   const deviceKeys = await prisma.devicePublicKey.findMany({
     where: {
-      id: { in: wrap.entries.map((e) => e.publicKeyId) },
+      id: { in: wrapEntries.map((e) => e.publicKeyId) },
       revokedAt: null,
     },
     select: { id: true, userId: true, publicKeyB64: true },
   });
   const keyById = new Map(deviceKeys.map((k) => [k.id, k]));
-  const creatorWrap = wrap.entries.find((e) => e.userId === me.id);
+  const creatorWrap = wrapEntries.find((e) => e.userId === me.id);
   if (!creatorWrap) return { ok: false, error: "Creator must have a wrapped copy." };
   const creatorDevice = keyById.get(creatorWrap.publicKeyId);
   if (!creatorDevice || creatorDevice.userId !== me.id) {
     return { ok: false, error: "The creator's wrap must be under their own device." };
   }
 
-  for (const entry of wrap.entries) {
+  for (const entry of wrapEntries) {
     const dev = keyById.get(entry.publicKeyId);
     if (!dev || dev.userId !== entry.userId) {
       return { ok: false, error: "A wrap references an unrelated device key." };
@@ -259,10 +287,9 @@ export async function createConversationAction(
           kind: orgId ? "org" : "team",
           createdById: me.id,
           members: {
-            create: [
-              { userId: me.id, role: "owner" },
-              ...memberIds.map((userId) => ({ userId, role: "member" })),
-            ],
+            // Duplicate-free by construction: the creator is the single owner
+            // row and every other participant appears exactly once.
+            create: conversationMemberRows(memberIds, me.id),
           },
         },
         select: { id: true },
@@ -280,7 +307,7 @@ export async function createConversationAction(
           epoch: 1,
           active: true,
           wraps: {
-            create: wrap.entries.map((entry) => {
+            create: wrapEntries.map((entry) => {
               const memberId = memberByUser.get(entry.userId);
               if (!memberId) throw new Error("Missing conversation member for wrap.");
               return {

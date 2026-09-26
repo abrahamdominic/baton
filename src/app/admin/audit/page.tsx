@@ -70,10 +70,34 @@ export default async function AdminAuditPage() {
                           ID: <code className="rounded bg-white/[0.04] px-1.5 py-0.5 text-ink-200">{a.resourceId}</code>
                         </span>
                       ) : null}
+                      <span
+                        className={`chip ${a.ip ? "chip-neutral" : "chip-info"}`}
+                        title={a.ip ? `Source IP ${a.ip}` : "No source IP recorded for this entry"}
+                      >
+                        {a.ip ? a.ip : "no source IP"}
+                      </span>
                     </div>
 
                     <p className="mt-1 font-mono text-[11px] text-ink-400">
-                      Actor: <span className="text-ink-200">{a.adminUserId ? `@${a.adminUserId}` : "System / Bootstrap"}</span> &middot; Entry ID: {a.id.slice(0, 16)}&hellip;
+                      {a.adminHandle ? (
+                        <>
+                          Actor:{" "}
+                          <span className="font-semibold text-ink-100">{a.adminHandle}</span>
+                          {a.adminName && a.adminName !== a.adminHandle ? (
+                            <span className="text-ink-300"> ({a.adminName})</span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <>Actor: <span className="text-ink-200">System / Bootstrap</span></>
+                      )}
+                      {a.adminUserId ? (
+                        <span className="text-ink-500">
+                          {" "}
+                          &middot; user <code className="text-ink-400">{a.adminUserId}</code>
+                        </span>
+                      ) : null}
+                      {" · Entry "}
+                      {a.id.slice(0, 16)}&hellip;
                     </p>
 
                     {a.detail && Object.keys(a.detail).length > 0 ? (

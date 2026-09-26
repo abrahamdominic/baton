@@ -56,6 +56,9 @@ export async function GET(
       id: r.id,
       createdAt: r.createdAt.toISOString(),
       actor: r.actor,
+      actor_handle: r.user ? `@${r.user.login}` : null,
+      actor_name: r.user?.name ?? null,
+      actor_user_id: r.userId,
       action: r.action,
       targetType: r.targetType,
       targetId: r.targetId,
@@ -73,7 +76,20 @@ export async function GET(
     });
   }
 
-  const csvHeaders = ["id", "created_at", "actor", "action", "target_type", "target_id", "detail", "ip", "user_agent"];
+  const csvHeaders = [
+    "id",
+    "created_at",
+    "actor",
+    "actor_handle",
+    "actor_name",
+    "actor_user_id",
+    "action",
+    "target_type",
+    "target_id",
+    "detail",
+    "ip",
+    "user_agent",
+  ];
   const esc = (v: unknown) => {
     const s = v === null || v === undefined ? "" : String(v);
     const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
@@ -86,6 +102,9 @@ export async function GET(
         esc(r.id),
         esc(r.createdAt.toISOString()),
         esc(r.actor),
+        esc(r.user ? `@${r.user.login}` : null),
+        esc(r.user?.name ?? null),
+        esc(r.userId),
         esc(r.action),
         esc(r.targetType),
         esc(r.targetId),

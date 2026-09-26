@@ -13,6 +13,8 @@ import {
   listOrgDeviceKeysAction,
 } from "@/app/dashboard/team/[teamId]/messaging/actions";
 import { ensureDevice, buildConversationWraps } from "@/lib/messaging/client";
+import { normalizeParticipantIds } from "@/lib/messaging/participants";
+import { Dialog } from "@/components/confirm-dialog";
 import {
   IconSend,
   IconUsers,
@@ -184,6 +186,9 @@ function NewConversationDialog({
   }, [teamId, orgId]);
 
   const toggle = (userId: string) => {
+    // Never add the creator to `selected`: they are inserted server-side as the
+    // conversation owner, and ConversationMember is unique per (conversation, user).
+    if (userId === currentUserId) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(userId)) next.delete(userId);
@@ -201,8 +206,16 @@ function NewConversationDialog({
         setError("Could not set up your device key. Please try again.");
         return;
       }
+      // The creator is always a participant (inserted server-side as the owner),
+      // so they are never sent in `memberIds`. `normalizeParticipantIds` also
+      // collapses any duplicate selection, so a user can never be sent twice.
+      const memberIds = normalizeParticipantIds([...selected], currentUserId);
+      if (memberIds.length === 0) {
+        setError("Select at least one teammate to start a conversation.");
+        return;
+      }
       // The creator's own device must also be wrapped so they can decrypt.
-      const memberSet = new Set<string>([currentUserId, ...selected]);
+      const memberSet = new Set<string>([currentUserId, ...memberIds]);
       const chosen = (members ?? []).filter((m) => memberSet.has(m.userId));
       if (chosen.some((m) => m.devices.length === 0)) {
         setError("Every selected member needs a registered device key. Ask them to sign in to Baton once on their device.");
@@ -216,7 +229,7 @@ function NewConversationDialog({
       const result: CreateConversationResult = await createConversationAction({
         teamId,
         orgId,
-        memberIds: [...selected],
+        memberIds,
         wrap: {
           issuerPublicKeyB64: device.publicKeyB64,
           entries: wraps.entries,
@@ -239,100 +252,97 @@ function NewConversationDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div aria-hidden="true" onClick={onClose} className="absolute inset-0 bg-black/75 backdrop-blur-sm" />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="New conversation"
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-2xl"
-      >
-        <div className="border-b border-white/[0.07] px-5 py-4">
-          <h2 className="flex items-center gap-2 text-sm font-bold text-white">
-            <IconSend className="h-4 w-4 text-brand-400" />
-            New conversation
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-ink-400">
-            Pick team members. A fresh thread key is generated on your device and wrapped for
-            every participant&apos;s registered device.
-          </p>
-        </div>
-
-        <div className="max-h-72 overflow-y-auto p-4">
-          {!members ? (
-            <p className="text-xs text-ink-500">Loading team devices…</p>
-          ) : (
-            <ul className="space-y-1">
-              {members.map((m) => {
-                const isMe = m.userId === currentUserId;
-                const noDevice = m.devices.length === 0;
-                const checked = selected.has(m.userId);
-                return (
-                  <li key={m.userId}>
-                    <button
-                      type="button"
-                      disabled={noDevice}
-                      onClick={() => toggle(m.userId)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                        checked
-                          ? "border-brand-500/40 bg-brand-500/10"
-                          : noDevice
-                          ? "cursor-not-allowed border-white/[0.05] bg-ink-950/40 opacity-50"
-                          : "border-white/[0.06] bg-ink-950/50 hover:border-white/[0.14]"
-                      }`}
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-semibold text-white">
-                          {m.name ?? m.login}
-                          {isMe ? <span className="ml-1.5 text-ink-500">(you)</span> : null}
-                        </span>
-                        <span className="block font-mono text-[10px] text-ink-500">
-                          @{m.login} · {m.devices.length} device{m.devices.length === 1 ? "" : "s"}
-                        </span>
-                      </span>
-                      {noDevice ? (
-                        <IconAlertCircle className="h-4 w-4 shrink-0 text-warn-400" />
-                      ) : (
-                        <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
-                            checked
-                              ? "border-brand-500 bg-brand-500 text-white"
-                              : "border-white/[0.2]"
-                          }`}
-                        >
-                          {checked ? <IconCheckCircle className="h-3 w-3" /> : null}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-5 py-4">
-          <p className="text-[11px] leading-relaxed text-ink-500">
-            <IconLockHint />
-          </p>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={create}
-              disabled={pending || selected.size === 0}
-              className="btn btn-primary btn-sm"
-            >
-              {pending ? "Creating…" : "Create"}
-            </button>
-          </div>
-        </div>
-
-        {error ? <ErrorBanner message={error} /> : null}
+    <Dialog open onClose={onClose} size="lg" bare label="New conversation">
+      <div className="border-b border-white/[0.07] px-5 py-4">
+        <h2 className="flex items-center gap-2 text-sm font-bold text-white">
+          <IconSend className="h-4 w-4 text-brand-400" />
+          New conversation
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-ink-400">
+          Pick team members. A fresh thread key is generated on your device and wrapped for
+          every participant&apos;s registered device.
+        </p>
       </div>
-    </div>
+
+      <div className="max-h-72 overflow-y-auto p-4">
+        {!members ? (
+          <p className="text-xs text-ink-500">Loading team devices…</p>
+        ) : (
+          <ul className="space-y-1">
+            {members.map((m) => {
+              const isMe = m.userId === currentUserId;
+              const noDevice = m.devices.length === 0;
+              const checked = selected.has(m.userId);
+              // The creator is always added server-side as the conversation owner,
+              // so their own row is not toggleable.
+              const locked = isMe;
+              return (
+                <li key={m.userId}>
+                  <button
+                    type="button"
+                    disabled={noDevice || locked}
+                    aria-pressed={checked}
+                    onClick={() => toggle(m.userId)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                      checked
+                        ? "border-brand-500/40 bg-brand-500/10"
+                        : noDevice || locked
+                        ? "cursor-not-allowed border-white/[0.05] bg-ink-950/40 opacity-60"
+                        : "border-white/[0.06] bg-ink-950/50 hover:border-white/[0.14]"
+                    }`}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-semibold text-white">
+                        {m.name ?? m.login}
+                        {isMe ? <span className="ml-1.5 text-ink-500">(you)</span> : null}
+                      </span>
+                      <span className="block font-mono text-[10px] text-ink-500">
+                        @{m.login} · {m.devices.length} device{m.devices.length === 1 ? "" : "s"}
+                        {locked ? <span className="ml-1.5">· always included</span> : null}
+                      </span>
+                    </span>
+                    {noDevice ? (
+                      <IconAlertCircle className="h-4 w-4 shrink-0 text-warn-400" />
+                    ) : (
+                      <span
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                          checked
+                            ? "border-brand-500 bg-brand-500 text-white"
+                            : "border-white/[0.2]"
+                        }`}
+                      >
+                        {checked ? <IconCheckCircle className="h-3 w-3" /> : null}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-5 py-4">
+        <p className="text-[11px] leading-relaxed text-ink-500">
+          <IconLockHint />
+        </p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={create}
+            disabled={pending || selected.size === 0}
+            className="btn btn-primary btn-sm"
+          >
+            {pending ? "Creating…" : "Create"}
+          </button>
+        </div>
+      </div>
+
+      {error ? <ErrorBanner message={error} /> : null}
+    </Dialog>
   );
 }
 
