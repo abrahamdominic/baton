@@ -10,6 +10,7 @@ import {
   diagnoseStripe,
 } from "@/lib/config";
 import { listPlans } from "@/lib/billing/plans";
+import { cronMisconfigurationIssue } from "@/lib/cron-auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { IconArrowLeft } from "@/components/icons";
 
@@ -27,8 +28,24 @@ export default async function AdminSettingsPage() {
 
   const dbIssue = databaseUrlIssue(config);
   const stripe = diagnoseStripe(config);
+  const cronIssue = cronMisconfigurationIssue();
 
   const checks = [
+    {
+      category: "Background Processing",
+      items: [
+        {
+          // The single most important readiness signal in the app: without it
+          // webhooks still succeed, jobs still enqueue, and no PR is ever
+          // classified. That failure mode is invisible unless it is surfaced.
+          label: "Job Queue Scheduler (CRON_SECRET)",
+          ok: !cronIssue,
+          note:
+            cronIssue ??
+            "Scheduled drains and repository sweeps authorized; queued work will be executed",
+        },
+      ],
+    },
     {
       category: "Database & Backend",
       items: [

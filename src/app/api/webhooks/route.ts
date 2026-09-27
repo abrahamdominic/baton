@@ -1,11 +1,13 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { z } from "zod";
 import { config } from "@/lib/env-boot";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { verifyWebhookSignature } from "@/lib/webhooks/verify";
 import { dispatchEvent, isEventTracked } from "@/lib/webhooks/dispatcher";
+import { drainQueue } from "@/lib/engine/job-runner";
 import { rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -56,16 +58,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   // Idempotency: one row per (deliveryId, eventType) forever.
+  //
+  // The unique constraint is on RECEIPT, but the short-circuit below only
+  // applies once the row is marked `processedAt`. A delivery recorded by a
+  // request that then died before enqueueing must be reprocessable on GitHub's
+  // retry; treating "seen" as "done" would silently discard the only chance to
+  // recover that work.
   const recorded = await prisma.webhookEvent.create({
     data: { deliveryId, eventType, rawJson: raw },
-  }).catch((e: { code?: string }) => {
+  }).catch(async (e: { code?: string }) => {
     if (e.code === "P2002") {
-      logger.debug("webhook-duplicate", { deliveryId, event: eventType });
-      return null;
+      const existing = await prisma.webhookEvent.findUnique({
+        where: { deliveryId_eventType: { deliveryId, eventType } },
+        select: { processedAt: true },
+      });
+      if (existing?.processedAt) {
+        logger.debug("webhook-duplicate", { deliveryId, event: eventType });
+        return "done" as const;
+      }
+      logger.info("webhook-retry-incomplete", { deliveryId, event: eventType });
+      return "retry" as const;
     }
     throw e;
   });
-  if (!recorded) return new NextResponse("ok", { status: 200 });
+  if (recorded === "done") return new NextResponse("ok", { status: 200 });
 
   const schema = z.object({
     action: z.string().optional(),
@@ -104,7 +120,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return new NextResponse("bad payload", { status: 400 });
   }
 
-  const result = dispatchEvent(eventType, parsed.data);
+  // Enqueue BEFORE marking the delivery processed, and await it. If this throws
+  // we answer 500 with `processedAt` still null, so GitHub's retry re-enters
+  // the completed-delivery check above and the work is not lost.
+  let result: Awaited<ReturnType<typeof dispatchEvent>>;
+  try {
+    result = await dispatchEvent(eventType, parsed.data);
+  } catch (e) {
+    logger.error("webhook-dispatch-failed", {
+      event: eventType,
+      deliveryId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return new NextResponse("dispatch failed", { status: 500 });
+  }
+
   if (result.jobs > 0 || result.handled !== "ignored") {
     logger.info("webhook-dispatched", {
       event: eventType,
@@ -118,6 +148,47 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     where: { deliveryId_eventType: { deliveryId, eventType } },
     data: { processedAt: new Date() },
   });
+
+  // Execute a small batch of the work this delivery just queued, in the same
+  // invocation. The enqueue-then-wait-for-scheduler design meant a PR could sit
+  // unclassified until the next cron tick — up to hours on a plan whose cron
+  // cadence is coarse. GitHub expects a fast response, so the batch is small
+  // and the drain is handed off with `after()`: the response is written
+  // immediately and the work continues within the same function's budget.
+  //
+  // The event is already durably recorded and the jobs are already enqueued, so
+  // this is strictly an optimization. Scheduling it must therefore never be able
+  // to fail the request: `after()` throws outside a request scope, and letting
+  // that escape would return 500 for a delivery we had in fact handled
+  // successfully, making GitHub retry a webhook that needs no retry.
+  if (result.jobs > 0) {
+    const runInlineDrain = async (): Promise<void> => {
+      try {
+        await drainQueue({
+          maxJobs: config.BATON_WEBHOOK_DRAIN_JOBS,
+          budgetMs: config.BATON_WEBHOOK_DRAIN_BUDGET_MS,
+          concurrency: 1,
+          label: `webhook:${eventType}`,
+        });
+      } catch (e) {
+        logger.error("webhook-drain-failed", {
+          event: eventType,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    };
+
+    try {
+      after(runInlineDrain);
+    } catch (e) {
+      // No request scope to defer into. Leave the work queued; the scheduled
+      // drain will pick it up.
+      logger.warn("webhook-drain-not-scheduled", {
+        event: eventType,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
 
   return new NextResponse("ok", { status: 200 });
 }

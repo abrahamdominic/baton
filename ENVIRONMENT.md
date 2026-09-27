@@ -75,11 +75,63 @@ if "Request user authorization (OAuth) during installation" is enabled, its
 
 ## Worker & scheduling
 
+Baton is a Vercel (serverless) deployment, so **no long-running worker process
+runs there.** Vercel functions are request-scoped and frozen between requests,
+so the original `setInterval` poll loop could never make progress past its first
+tick. Queued work is now executed by *bounded drains* — a drain runs a capped
+number of jobs within a capped time budget and then returns.
+
+Three things trigger drains, together covering both latency and durability:
+
+| Trigger | Endpoint / process | Purpose |
+| --- | --- | --- |
+| Inline, after a webhook enqueues | `POST /api/webhooks` (via `after()`) | Near-real-time classification. Small batch only; GitHub expects a fast response. |
+| Scheduled catch-up | `GET /api/cron/drain` (Vercel Cron) | Recovers anything left after downtime or a failed delivery. |
+| Scheduled repository sweep | `GET /api/cron/sweep` (Vercel Cron) | Re-scans every enabled repo so state converges; also runs billing housekeeping. |
+
+`vercel.json` declares both crons. **`CRON_SECRET` is required**: Vercel sends
+`Authorization: Bearer $CRON_SECRET`, and both endpoints reject anything else.
+They **fail closed** — if `CRON_SECRET` is unset they return 401 for every
+request, because an unauthenticated sweep or drain is a free amplification vector
+against both our database and every connected installation's GitHub API quota.
+
+If you would rather run a real long-lived process (Fly.io, Railway, Render, ECS),
+`npm run worker` polls continuously. It uses the same atomic job claiming, so it
+is safe to run alongside a Vercel deployment: each job is processed once.
+
 | Variable | Default | Description |
 | --- | --- | --- |
-| `BATON_WORKER_POLL_MS` | `5000` | How often the worker polls the job queue. |
-| `BATON_JOB_CONCURRENCY` | `4` | Number of jobs the worker processes in parallel. |
-| `BATON_CRON_INTERVAL_MIN` | `720` | Intended sweep cadence (documentation + scheduling hint). |
+| `CRON_SECRET` | `""` | Bearer token for `/api/cron/*`. Unset ⇒ scheduled endpoints reject everything. Use 16+ random characters. |
+| `BATON_DRAIN_MAX_JOBS` | `40` | Job cap for a single scheduled drain. |
+| `BATON_DRAIN_BUDGET_MS` | `50000` | Wall-clock budget for a scheduled drain. A drain stops claiming before this is spent so it always responds in time. |
+| `BATON_DRAIN_CONCURRENCY` | `4` | Parallel executors inside a drain (hard-capped at 16). |
+| `BATON_WEBHOOK_DRAIN_JOBS` | `2` | Jobs a single webhook delivery executes inline. |
+| `BATON_WEBHOOK_DRAIN_BUDGET_MS` | `6000` | Wall-clock budget for the inline post-webhook drain. |
+| `BATON_WORKER_POLL_MS` | `5000` | Poll interval for the standalone worker process. |
+| `BATON_JOB_CONCURRENCY` | `4` | Parallel executors for the standalone worker process. |
+| `BATON_CRON_INTERVAL_MIN` | `720` | Documented sweep cadence hint. The actual cadence is the cron expression in `vercel.json`. |
+
+### Vercel plan limits
+
+Vercel Hobby allows only **one cron invocation per day**. That is acceptable
+here because the inline post-webhook drain — not the scheduler — provides
+low latency; the scheduled drain is a durability net. On a plan with a coarser
+cron limit, PR classification still happens within seconds of the webhook.
+
+### Verifying the worker
+
+```bash
+npm run test:db          # real Prisma, real queue (needs the SQLite client)
+# or, against a live database:
+npx tsx --tsconfig tsconfig.cli.json scripts/queue-probe.ts enqueue 3
+npm run worker           # drains them; Ctrl-C shuts down gracefully
+npx tsx --tsconfig tsconfig.cli.json scripts/queue-probe.ts status
+```
+
+A healthy drain logs `queue-drain` with `processed > 0` and `remaining: 0`.
+`/admin/health` shows queue depth, oldest unfinished job age, and an explicit
+**"Job queue is stalled"** alert when work is waiting and nothing is draining it.
+
 
 ## Production checklist (Vercel)
 
@@ -96,6 +148,7 @@ must be set in the hosting provider's environment settings:
 | `GITHUB_APP_ID` | yes | App installs cannot be associated. |
 | `GITHUB_APP_PRIVATE_KEY_BASE64` | yes | App API calls fail. |
 | `GITHUB_APP_WEBHOOK_SECRET` | yes | Webhook route returns 500. |
+| `CRON_SECRET` | yes | `/api/cron/drain` and `/api/cron/sweep` return 401, so no queued PR is ever classified and no repository is ever swept. |
 | `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET` | only if "Request user authorization during installation" is enabled | App code exchange fails (`/dashboard` redirect) if set incorrectly or using OAuth App values. |
 
 ### GitHub configuration (exact URLs)

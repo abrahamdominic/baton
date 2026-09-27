@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { prisma } from "@/lib/db";
 import { recentSystemEvents } from "@/lib/billing/system-events";
+import { queueSnapshot } from "@/lib/engine/queue-metrics";
 import { StatCard, PageHeader } from "@/components/ui";
 import {
-  IconGauge,
   IconAlertCircle,
   IconClock,
   IconArrowLeft,
@@ -25,28 +24,20 @@ export default async function AdminHealthPage({
   const params = searchParams ? await searchParams : undefined;
   const severityFilter = params?.severity ?? "all";
 
-  const [events, jobCounts, queueAge] = await Promise.all([
+  const [events, queue] = await Promise.all([
     recentSystemEvents(100),
-    prisma.job
-      .groupBy({ by: ["status"], _count: { _all: true } })
-      .then((rows) => Object.fromEntries(rows.map((r) => [r.status, r._count._all]))),
-    prisma.job
-      .aggregate({
-        _min: { createdAt: true },
-        // Only unfinished work indicates a backlog. Including completed jobs made
-        // this card show a date forever, falsely implying a stuck queue.
-        where: { status: { in: ["pending", "processing"] } },
-      })
-      .then((r) => r._min.createdAt),
+    queueSnapshot(),
   ]);
 
   const errorCount = events.filter((e) => e.severity === "error").length;
   const warnCount = events.filter((e) => e.severity === "warn").length;
   const infoCount = events.filter((e) => e.severity === "info").length;
-  // `processing` and `done` are the statuses the job runner actually writes;
-  // the old list showed three tiles that were permanently zero and hid the two
-  // that carry real volume.
-  const staleJobs = jobCounts.failed ?? 0;
+  const jobCounts: Record<string, number> = {
+    pending: queue.pending,
+    processing: queue.processing,
+    done: queue.done,
+    failed: queue.failed,
+  };
 
   const filteredEvents =
     severityFilter === "error"
@@ -90,19 +81,55 @@ export default async function AdminHealthPage({
           icon={IconAlertCircle}
         />
         <StatCard
-          label="Failed / Stale Jobs"
-          value={staleJobs}
-          detail={staleJobs > 0 ? "Jobs requiring retry" : "All worker jobs healthy"}
-          tone={staleJobs > 0 ? "danger" : "signal"}
-          icon={IconGauge}
+          label="Failed Jobs (24h)"
+          value={queue.failedLast24h}
+          detail={queue.failedLast24h > 0 ? "Dead-lettered; see job log" : "No job failures"}
+          tone={queue.failedLast24h > 0 ? "danger" : "signal"}
+          icon={IconAlertCircle}
         />
         <StatCard
-          label="Earliest Pending Job"
-          value={queueAge ? new Date(queueAge).toISOString().slice(0, 10) : "All Clear"}
-          detail={queueAge ? "Queue latency indicator" : "Zero backlogged jobs"}
+          label="Oldest Unfinished Job"
+          value={
+            queue.oldestPendingAgeSec === null
+              ? "All Clear"
+              : `${Math.floor(queue.oldestPendingAgeSec / 60)}m`
+          }
+          detail={
+            queue.pending === 0
+              ? "Zero backlogged jobs"
+              : `${queue.runnable} runnable · ${queue.processing} in flight`
+          }
+          tone={queue.stalled ? "danger" : queue.oldestPendingAgeSec && queue.oldestPendingAgeSec > 300 ? "warn" : "signal"}
           icon={IconClock}
         />
       </section>
+
+      {/* A queue with work and nothing in flight is the one state that means
+          "nothing is draining the queue" — the original symptom of the missing
+          worker. It must be impossible to miss. */}
+      {queue.stalled && (
+        <div
+          role="alert"
+          className="rounded-xl border border-danger-500/40 bg-danger-500/10 p-5"
+        >
+          <div className="flex items-start gap-3">
+            <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger-400" />
+            <div>
+              <h2 className="font-semibold text-danger-300">Job queue is stalled</h2>
+              <p className="mt-1 text-sm text-danger-200/80">
+                {queue.pending} job{queue.pending === 1 ? "" : "s"} pending, nothing in flight, and the
+                oldest has waited {Math.floor((queue.oldestPendingAgeSec ?? 0) / 60)} minutes. No
+                executor is draining the queue, so PRs are not being classified or nudged.
+              </p>
+              <p className="mt-2 text-sm text-danger-200/70">
+                Check that <code className="font-mono">CRON_SECRET</code> is set and that the
+                crons in <code className="font-mono">vercel.json</code> are active, then call{" "}
+                <code className="font-mono">GET /api/cron/drain</code> manually.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Worker Job Queue Distribution */}
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">

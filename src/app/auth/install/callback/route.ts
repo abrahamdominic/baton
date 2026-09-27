@@ -144,7 +144,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         currentOwner: existing.userId,
       });
     }
-    void enqueueInstallRegister(installationId).catch(() => {});
+    // Awaited. `registerInstallation` below is the synchronous path; the enqueue
+    // is a durable retry if it fails. Swallowing the error with `void ...catch()`
+    // would discard the only durable record of work this callback created.
+    await enqueueInstallRegister(installationId).catch((e) => {
+      logger.warn("app-install-callback-enqueue-failed", {
+        installationId,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    });
     try {
       await registerInstallation(installationId, { accountLogin: user.login });
     } catch (e) {
@@ -154,7 +162,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     if (appUserToken) {
       const installationIds = await fetchUserInstallations(appUserToken).catch(() => []);
       for (const id of installationIds) {
-        void enqueueInstallRegister(id).catch(() => {});
+        await enqueueInstallRegister(id).catch(() => {});
         try {
           await registerInstallation(id, { accountLogin: user.login });
         } catch {

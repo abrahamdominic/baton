@@ -40,14 +40,41 @@ function repoOf(payload: EventPayload): { owner: string; repo: string } | null {
   return { owner, repo: name };
 }
 
+/** Cap on PRs refreshed from a single delivery, to bound fan-out. */
+const MAX_PRS_PER_EVENT = 10;
+
+/** Awaited fan-out so no enqueue is left racing the HTTP response. */
+async function enqueuePrRefreshes(
+  installationId: number,
+  repo: { owner: string; repo: string },
+  numbers: number[],
+): Promise<void> {
+  const unique = [...new Set(numbers)];
+  await Promise.all(
+    unique.slice(0, MAX_PRS_PER_EVENT).map((n) =>
+      enqueuePrRefresh(installationId, repo.owner, repo.repo, n),
+    ),
+  );
+}
+
 /**
- * Map a raw webhook event to Baton work. Pure-ish decision layer; the route
- * performs the DB writes. Anything unrelated returns handled=false.
+ * Map a raw webhook event to Baton work and PERSIST that work.
+ *
+ * Every enqueue is awaited. This used to be `void enqueuePrRefresh(...)` —
+ * fire-and-forget — which is unreliable by construction on a serverless host:
+ * the route responds, Vercel freezes the instance, and the in-flight `INSERT`
+ * into `Job` is discarded. The webhook had already been recorded, so GitHub's
+ * redelivery was deduplicated and could never recover the work, and the PR was
+ * never classified. The returned `jobs` count was also a guess rather than a
+ * count of rows actually written, so logs and metrics overstated throughput.
+ *
+ * A rejected enqueue now propagates so the route can answer 500 and let GitHub
+ * retry, which is what at-least-once delivery requires.
  */
-export function dispatchEvent(
+export async function dispatchEvent(
   eventType: string,
   payload: EventPayload,
-): DispatchResult {
+): Promise<DispatchResult> {
   const appId = getAppId();
   // Ignore events where *we* are the sender. Prevents self-triggered loops.
   if (appId && payload.sender && String(payload.sender.id) === String(appId)) {
@@ -59,11 +86,11 @@ export function dispatchEvent(
       const id = installationIdOf(payload);
       if (!id) return { registered: false, jobs: 0, handled: "installation.no-id" };
       if (payload.action === "created" || payload.action === "new_permissions_accepted") {
-        void enqueueInstallRegister(id);
+        await enqueueInstallRegister(id);
         return { registered: true, jobs: 1, handled: `installation.${payload.action}` };
       }
       if (payload.action === "deleted") {
-        void enqueueInstallUnregister(id);
+        await enqueueInstallUnregister(id);
         return { registered: false, jobs: 1, handled: "installation.deleted" };
       }
       return { registered: false, jobs: 0, handled: "installation.ignore" };
@@ -73,7 +100,7 @@ export function dispatchEvent(
     case "installation_repositories.added":
     case "installation_repositories.removed": {
       const id = installationIdOf(payload);
-      if (id) void enqueueInstallRegister(id);
+      if (id) await enqueueInstallRegister(id);
       return { registered: Boolean(id), jobs: 0, handled: eventType };
     }
 
@@ -86,7 +113,7 @@ export function dispatchEvent(
       if (!id || !repo || numbers.length === 0) {
         return { registered: false, jobs: 0, handled: "pull_request.skip" };
       }
-      for (const number of numbers) void enqueuePrRefresh(id, repo.owner, repo.repo, number);
+      await enqueuePrRefreshes(id, repo, numbers);
       return { registered: false, jobs: numbers.length, handled: `pull_request.${payload.action ?? ""}` };
     }
 
@@ -98,7 +125,7 @@ export function dispatchEvent(
       if (!id || !repo || numbers.length === 0) {
         return { registered: false, jobs: 0, handled: "review.skip" };
       }
-      for (const number of numbers) void enqueuePrRefresh(id, repo.owner, repo.repo, number);
+      await enqueuePrRefreshes(id, repo, numbers);
       return { registered: false, jobs: numbers.length, handled: eventType };
     }
 
@@ -109,7 +136,7 @@ export function dispatchEvent(
       if (!id || !repo || numbers.length === 0) {
         return { registered: false, jobs: 0, handled: "review_request.skip" };
       }
-      for (const number of numbers) void enqueuePrRefresh(id, repo.owner, repo.repo, number);
+      await enqueuePrRefreshes(id, repo, numbers);
       return { registered: false, jobs: numbers.length, handled: "pull_request_review_request" };
     }
 
@@ -124,10 +151,11 @@ export function dispatchEvent(
       if (!id || !repo || numbers.length === 0) {
         return { registered: false, jobs: 0, handled: "check.skip" };
       }
-      for (const number of numbers.slice(0, 10)) {
-        void enqueuePrRefresh(id, repo.owner, repo.repo, number);
-      }
-      return { registered: false, jobs: numbers.length, handled: eventType + ".completed" };
+      // Bounded: a check suite on a busy branch can reference many PRs, and an
+      // unbounded fan-out would let one delivery monopolise the queue.
+      const capped = numbers.slice(0, MAX_PRS_PER_EVENT);
+      await enqueuePrRefreshes(id, repo, capped);
+      return { registered: false, jobs: capped.length, handled: eventType + ".completed" };
     }
 
     case "issue_comment": {
@@ -141,7 +169,7 @@ export function dispatchEvent(
       if (isBot || !isPr || !id || !repo || typeof number !== "number") {
         return { registered: false, jobs: 0, handled: "issue_comment.skip" };
       }
-      void enqueuePrRefresh(id, repo.owner, repo.repo, number);
+      await enqueuePrRefresh(id, repo.owner, repo.repo, number);
       return { registered: false, jobs: 1, handled: "issue_comment" };
     }
 

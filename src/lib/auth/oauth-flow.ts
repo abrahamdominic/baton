@@ -77,7 +77,11 @@ export async function finishOAuthSignIn(
           data: { userId: user.id },
         });
       }
-      void enqueueInstallRegister(installationId).catch(() => {});
+      // Awaited, not fire-and-forget: this is the only path that registers an
+      // installation discovered at sign-in, so a discarded enqueue would leave
+      // the user's repositories permanently unregistered. The enclosing catch
+      // logs and continues, so a failure here cannot break sign-in.
+      await enqueueInstallRegister(installationId);
     } catch (e) {
       logger.warn("oauth-link-installation-failed", { error: String(e), installationId });
     }
@@ -94,7 +98,17 @@ export async function finishOAuthSignIn(
       where: { installationId: { in: installationIds } },
       data: { userId: user.id },
     });
-    for (const id of installationIds) void enqueueInstallRegister(id).catch(() => {});
+    for (const id of installationIds) {
+      // Same reasoning as above: awaited so a lost enqueue cannot silently
+      // strand an installation. One failure must not abandon the rest.
+      await enqueueInstallRegister(id).catch((e) => {
+        logger.error("oauth-enqueue-install-register-failed", {
+          installationId: id,
+          error: e instanceof Error ? e.message : String(e),
+          hint: "This installation may need to be reconnected from the dashboard.",
+        });
+      });
+    }
   }
 
   logger.info("oauth-signin", { login: gh.login, installations: installationIds.length, ip: params.ip });

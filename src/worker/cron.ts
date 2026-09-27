@@ -1,33 +1,25 @@
 import { prisma } from "../lib/db";
 import { logger } from "../lib/logger";
-import { sweepEnabledRepos } from "../lib/engine/sweep";
-import { config } from "../lib/env-boot";
-import { runBillingHousekeeping } from "../lib/billing/subscriptions";
+import { runSweepOnce, type SweepResult } from "../lib/engine/sweep-run";
 
 /**
- * Hosted-cron entrypoint: performs one full sweep of every enabled repo and
+ * Hosted-cron CLI entrypoint: performs one full sweep of every enabled repo and
  * enqueues refreshes for all open PRs, plus billing housekeeping (expiring
  * past-due subscriptions, completing cancellations, failing orphaned pending
  * checkouts). Exits when done.
  *
- * Run with:  npm run cron   (expected to be triggered by Vercel Cron / GitHub
- * Actions schedule; this process exits after one pass).
+ * On Vercel the sweep runs as a scheduled function instead:
+ *   GET /api/cron/sweep   (see vercel.json)
+ *
+ * Run with:  npm run cron
  */
-export async function runOnce(): Promise<{
-  repos: number;
-  prsEnqueued: number;
-  billing: Awaited<ReturnType<typeof runBillingHousekeeping>>;
-}> {
-  logger.info("cron-start", { intervalMinutes: config.BATON_CRON_INTERVAL_MIN });
-  const sweep = await sweepEnabledRepos();
-  const billing = await runBillingHousekeeping();
-  return { ...sweep, billing };
-}
+export const runOnce = runSweepOnce;
+export type { SweepResult };
 
 if (process.argv[1]?.endsWith("cron.ts")) {
   runOnce()
     .then((res) => {
-      logger.info("cron-done", res);
+      logger.info("cron-done", { ...res });
       return prisma.$disconnect();
     })
     .then(() => process.exit(0))

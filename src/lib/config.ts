@@ -50,6 +50,39 @@ const envSchema = z.object({
   BATON_CRON_INTERVAL_MIN: z.coerce.number().default(720),
   BATON_JOB_CONCURRENCY: z.coerce.number().default(4),
 
+  // ------------------------------------------------------------------
+  // Serverless queue execution.
+  //
+  // On Vercel a long-lived worker process cannot run (functions are
+  // request-scoped and frozen between requests), so work is executed by
+  // bounded drains instead: one inline after a webhook enqueues, one on a
+  // schedule for catch-up. These bound a single drain so it always finishes
+  // and responds inside the function duration limit.
+  // ------------------------------------------------------------------
+  /** Jobs a single scheduled drain may execute. */
+  BATON_DRAIN_MAX_JOBS: z.coerce.number().default(40),
+  /** Wall-clock budget for a single scheduled drain, in milliseconds. */
+  BATON_DRAIN_BUDGET_MS: z.coerce.number().default(50_000),
+  /** Parallel executors inside a drain. */
+  BATON_DRAIN_CONCURRENCY: z.coerce.number().default(4),
+  /**
+   * Jobs a single webhook delivery may execute inline. Kept small: GitHub
+   * expects a fast webhook response and a burst of deliveries must not turn
+   * into a burst of unbounded background work.
+   */
+  BATON_WEBHOOK_DRAIN_JOBS: z.coerce.number().default(2),
+  /** Wall-clock budget for the inline post-webhook drain. */
+  BATON_WEBHOOK_DRAIN_BUDGET_MS: z.coerce.number().default(6_000),
+
+  /**
+   * Shared secret for scheduled endpoints (`Authorization: Bearer …`).
+   * Vercel Cron sends it automatically when `CRON_SECRET` is set. Scheduling
+   * is REFUSED when this is empty: a drain or sweep endpoint that accepts
+   * anonymous requests is an unauthenticated amplification vector against both
+   * our database and every connected installation's GitHub API budget.
+   */
+  CRON_SECRET: trimmedString.default(""),
+
   // ---------------------------------------------------------------
   // Supabase backend (billing, payments, subscriptions, admin store).
   // The service-role key must ONLY ever be used server-side.
