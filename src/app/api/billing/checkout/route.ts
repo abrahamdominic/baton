@@ -63,6 +63,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     );
   }
 
+  // Validated before any state is written: creating a pending subscription and
+  // then rejecting the request left orphaned pending rows for plans that can
+  // never be paid.
+  const amount = planPriceCents(plan, parsed.billing);
+  if (amount <= 0 && parsed.provider === "usdc") {
+    return NextResponse.json(
+      { error: "This plan has no payable price (custom pricing). Choose a different plan." },
+      { status: 400 },
+    );
+  }
+
   try {
     const prepared = await prepareSubscriptionForCheckout(user.id, plan.id, parsed.provider);
     const subscription = prepared.subscription;
@@ -70,14 +81,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: "You're already on this plan." },
         { status: 409 },
-      );
-    }
-
-    const amount = planPriceCents(plan, parsed.billing);
-    if (amount <= 0 && parsed.provider === "usdc") {
-      return NextResponse.json(
-        { error: "This plan has no payable price (custom pricing). Choose a different plan." },
-        { status: 400 },
       );
     }
 

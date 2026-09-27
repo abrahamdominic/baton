@@ -586,10 +586,6 @@ export async function listAllSubscriptions(limit = 100): Promise<SubscriptionRec
   );
 }
 
-export async function listSubscriptionsByUser(userId: string): Promise<SubscriptionRecord[]> {
-  return listSubscriptionsForUser(userId);
-}
-
 export interface AdminOverrideInput {
   to: SubscriptionStatus;
   reason: string;

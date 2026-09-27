@@ -45,18 +45,26 @@ export async function setRepoEnabled(repoId: string, enabled: boolean): Promise<
   revalidatePath("/dashboard/repos");
 }
 
+/**
+ * Only the inactivity thresholds are editable in the product today. The GitHub
+ * write switches are optional so a threshold save leaves whatever an operator or
+ * organization policy configured untouched, instead of silently forcing them
+ * back on.
+ */
 const settingsSchema = z.object({
   repoId: z.string().min(1),
-  statusCommentEnabled: z.boolean(),
-  labelsEnabled: z.boolean(),
-  nudgesEnabled: z.boolean(),
+  statusCommentEnabled: z.boolean().optional(),
+  labelsEnabled: z.boolean().optional(),
+  nudgesEnabled: z.boolean().optional(),
   firstResponseHours: z.coerce.number().int().min(1).max(720),
   reviewFollowUpHours: z.coerce.number().int().min(1).max(720),
   changesRequiredHours: z.coerce.number().int().min(1).max(720),
   ciFailHours: z.coerce.number().int().min(1).max(720),
   conflictHours: z.coerce.number().int().min(1).max(720),
   readyToMergeHours: z.coerce.number().int().min(1).max(720),
-  maxNudgesPerState: z.coerce.number().int().min(0).max(10),
+  // Not exposed as a control on the per-repo form; org policy and the stored
+  // value own it, so an optional field keeps a threshold save from resetting it.
+  maxNudgesPerState: z.coerce.number().int().min(0).max(10).optional(),
 });
 
 export async function updateRepoSettings(input: z.infer<typeof settingsSchema>): Promise<void> {

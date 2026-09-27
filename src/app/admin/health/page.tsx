@@ -30,13 +30,23 @@ export default async function AdminHealthPage({
     prisma.job
       .groupBy({ by: ["status"], _count: { _all: true } })
       .then((rows) => Object.fromEntries(rows.map((r) => [r.status, r._count._all]))),
-    prisma.job.aggregate({ _min: { createdAt: true } }).then((r) => r._min.createdAt),
+    prisma.job
+      .aggregate({
+        _min: { createdAt: true },
+        // Only unfinished work indicates a backlog. Including completed jobs made
+        // this card show a date forever, falsely implying a stuck queue.
+        where: { status: { in: ["pending", "processing"] } },
+      })
+      .then((r) => r._min.createdAt),
   ]);
 
   const errorCount = events.filter((e) => e.severity === "error").length;
   const warnCount = events.filter((e) => e.severity === "warn").length;
   const infoCount = events.filter((e) => e.severity === "info").length;
-  const staleJobs = (jobCounts.stale ?? 0) + (jobCounts.failed ?? 0);
+  // `processing` and `done` are the statuses the job runner actually writes;
+  // the old list showed three tiles that were permanently zero and hid the two
+  // that carry real volume.
+  const staleJobs = jobCounts.failed ?? 0;
 
   const filteredEvents =
     severityFilter === "error"
@@ -104,9 +114,9 @@ export default async function AdminHealthPage({
 
         <div className="p-5">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            {["pending", "running", "completed", "failed", "stale"].map((st) => {
+            {["pending", "processing", "done", "failed"].map((st) => {
               const count = jobCounts[st] ?? 0;
-              const isDanger = st === "failed" || st === "stale";
+              const isDanger = st === "failed";
               return (
                 <div
                   key={st}

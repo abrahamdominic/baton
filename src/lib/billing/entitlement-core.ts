@@ -1,5 +1,5 @@
 import { isPeriodExpired, subscriptionCountsAsPaid } from "./subscription-machine";
-import { SUBSCRIPTION_STATUS_LABELS } from "./types";
+import { FEATURE_KEYS, SUBSCRIPTION_STATUS_LABELS } from "./types";
 import type {
   Entitlement,
   FeatureKey,
@@ -30,6 +30,18 @@ const PLAN_PRIORITY: Record<string, number> = {
   free: 10,
 };
 
+/**
+ * The only feature keys an entitlement may ever grant. `plan.limits.features` is
+ * persisted as free-form JSON, so a corrupted or hand-edited row must not be
+ * able to invent keys (or prototype-pollute the feature map) and unlock a
+ * capability no plan actually sells.
+ */
+const KNOWN_FEATURE_KEYS: ReadonlySet<string> = new Set<string>(Object.values(FEATURE_KEYS));
+
+function isFeatureKey(value: unknown): value is FeatureKey {
+  return typeof value === "string" && KNOWN_FEATURE_KEYS.has(value);
+}
+
 export function parsePlanLimits(limits: unknown): PlanLimits {
   const raw = (limits ?? {}) as Record<string, unknown>;
   const maxRepos =
@@ -41,7 +53,7 @@ export function parsePlanLimits(limits: unknown): PlanLimits {
       ? raw.maxMembers
       : null;
   const features = Array.isArray(raw.features)
-    ? (raw.features.filter((k): k is FeatureKey => typeof k === "string") as FeatureKey[])
+    ? (raw.features.filter(isFeatureKey) as FeatureKey[])
     : [];
   return {
     maxRepos,
@@ -127,6 +139,13 @@ export function freeEntitlement(sub: SubscriptionRecord | null): Entitlement {
 export function mergeEntitlements(a: Entitlement | null, b: Entitlement | null): Entitlement | null {
   if (!a) return b;
   if (!b) return a;
+  // Paid access must be carried over from whichever side actually has it.
+  // Hardcoding `true` here would report paid access for a user whose only
+  // entitlements are the free tier.
+  const hasPaidAccess = a.hasPaidAccess || b.hasPaidAccess;
+  if (!hasPaidAccess) {
+    return { ...a, ...b, ...freeEntitlement(null), subscription: a.subscription ?? null };
+  }
   const winner = betterPlan(
     { slug: a.planSlug, name: a.planName },
     { slug: b.planSlug, name: b.planName },

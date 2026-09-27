@@ -147,11 +147,11 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
         </div>
 
         {plan ? (
-          <form
-            action={stripeAction}
-            className="flex flex-wrap items-center gap-3 rounded-lg border border-white/[0.07] bg-ink-950/40 px-4 py-3"
-          >
-            <input type="hidden" name="id" value={plan.id} />
+          // Not a nested <form>: forms cannot nest, and browsers drop the inner
+          // element during parsing, which left this submit button with no form
+          // owner. `formAction` points the same submission at the Stripe sync
+          // action instead, and the plan id is already in the outer form.
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/[0.07] bg-ink-950/40 px-4 py-3">
             <div className="min-w-0 flex-1 text-xs text-ink-300">
               <p className="font-semibold text-ink-200">Stripe price sync</p>
               <p className="mt-0.5 text-[10px] text-ink-500">
@@ -160,7 +160,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
                 plan amount as the source of truth; re-run after changing prices.
               </p>
             </div>
-            <button type="submit" className="btn btn-ghost btn-sm">
+            <button type="submit" formAction={stripeAction} className="btn btn-ghost btn-sm">
               {stripePending ? "Syncing…" : "Sync Stripe Prices"}
             </button>
             {stripeState?.error ? (
@@ -169,7 +169,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
             {stripeState?.ok ? (
               <p className="w-full text-xs font-medium text-signal-300">Stripe prices synced successfully.</p>
             ) : null}
-          </form>
+          </div>
         ) : null}
       </div>
 

@@ -589,8 +589,7 @@ export default async function LandingPage({
             Stop asking &ldquo;who&apos;s on this?&rdquo; in Slack.
           </h2>
           <p className="mt-4 max-w-xl mx-auto text-sm text-ink-300 leading-relaxed">
-            Install the GitHub App in under two minutes. Free for individual developers and
-            open-source repositories.
+            Install the GitHub App in under two minutes. Free forever for individual developers.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">

@@ -1,7 +1,6 @@
 import { prisma } from "../lib/db";
 import { logger } from "../lib/logger";
 import { sweepEnabledRepos } from "../lib/engine/sweep";
-import { enqueuePrRefresh } from "../lib/engine/jobs";
 import { config } from "../lib/env-boot";
 import { runBillingHousekeeping } from "../lib/billing/subscriptions";
 
@@ -37,5 +36,3 @@ if (process.argv[1]?.endsWith("cron.ts")) {
       process.exit(1);
     });
 }
-
-export { enqueuePrRefresh };

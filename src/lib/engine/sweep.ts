@@ -48,19 +48,23 @@ export async function sweepEnabledRepos(): Promise<{
 
 async function sweepRepo(installationId: number, owner: string, name: string): Promise<number> {
   const { rest } = await installationClients(installationId);
-  const res = await rest.pulls.list({
+  let enqueued = 0;
+  // Paginate: a single page silently dropped the oldest open PRs — exactly the
+  // long-stalled ones the sweep exists to find — on any repo with more than 100
+  // open non-draft PRs.
+  for await (const page of rest.paginate.iterator(rest.pulls.list, {
     owner,
     repo: name,
     state: "open",
     per_page: 100,
     sort: "updated",
     direction: "desc",
-  });
-  let enqueued = 0;
-  for (const pr of res.data) {
-    if (pr.draft) continue;
-    await enqueuePrRefresh(installationId, owner, name, pr.number);
-    enqueued += 1;
+  })) {
+    for (const pr of page.data) {
+      if (pr.draft) continue;
+      await enqueuePrRefresh(installationId, owner, name, pr.number);
+      enqueued += 1;
+    }
   }
   return enqueued;
 }

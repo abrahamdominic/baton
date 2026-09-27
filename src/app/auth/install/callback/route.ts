@@ -20,7 +20,7 @@ import {
 import type { GitHubUser } from "@/lib/auth/github-oauth";
 import { getAppBaseUrl } from "@/lib/auth/redirect";
 import { enqueueInstallRegister } from "@/lib/engine/jobs";
-import { registerInstallation } from "@/lib/github/install";
+import { registerInstallation, resolveInstallationAttribution } from "@/lib/github/install";
 import { getClientIp } from "@/lib/net";
 
 export const dynamic = "force-dynamic";
@@ -119,7 +119,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       where: { installationId },
       select: { userId: true },
     });
-    if (!existing) {
+    const attribution = resolveInstallationAttribution(existing, user.id);
+    if (attribution === "create") {
       await prisma.appInstallation.create({
         data: {
           installationId,
@@ -128,10 +129,19 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           userId: user.id,
         },
       });
-    } else if (existing.userId !== user.id) {
+    } else if (attribution === "adopt") {
+      // Unattributed (e.g. the webhook row landed before anyone signed in).
       await prisma.appInstallation.update({
         where: { installationId },
         data: { userId: user.id },
+      });
+    } else if (existing && existing.userId !== user.id) {
+      // Already attributed to someone else: leave the owner in place and record
+      // the attempt. `registerInstallation` below preserves the owner too.
+      logger.warn("app-install-callback-owner-mismatch", {
+        installationId,
+        requestedBy: user.id,
+        currentOwner: existing.userId,
       });
     }
     void enqueueInstallRegister(installationId).catch(() => {});

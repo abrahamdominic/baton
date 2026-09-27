@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { adminDashboardMetrics, subscriptionStatusCounts } from "@/lib/billing/analytics";
+import {
+  adminDashboardMetrics,
+  formatCurrencyTotal,
+  subscriptionStatusCounts,
+} from "@/lib/billing/analytics";
 import { SUBSCRIPTION_STATUSES } from "@/lib/billing/types";
 import { StatCard, PageHeader } from "@/components/ui";
 import {
@@ -20,7 +24,15 @@ export default async function AdminAnalyticsPage() {
 
   const totalSubscriptions = Object.values(counts).reduce((a, b) => a + b, 0);
   const totalPayments = Object.values(metrics.payments.byStatus).reduce((a, b) => a + b, 0);
-  const revenueUsd = metrics.payments.totalConfirmedMinor / 100;
+  // Confirmed totals stay separated per currency: USDC minor units are not
+  // dollars, so a single combined "revenue" figure would be fabricated.
+  const revenueByCurrency = Object.entries(metrics.payments.byCurrency);
+  const revenueSummary =
+    revenueByCurrency.length === 0
+      ? "\u2014"
+      : revenueByCurrency
+          .map(([currency, total]) => formatCurrencyTotal(currency, total.amountMinor))
+          .join(" + ");
 
   return (
     <div className="space-y-8">
@@ -56,8 +68,12 @@ export default async function AdminAnalyticsPage() {
         />
         <StatCard
           label="Confirmed Revenue"
-          value={`$${revenueUsd.toFixed(2)}`}
-          detail="Across all payment providers"
+          value={revenueSummary}
+          detail={
+            revenueByCurrency.length > 1
+              ? "Per currency, never combined"
+              : "Confirmed payments only"
+          }
           tone="brand"
           icon={IconActivity}
         />

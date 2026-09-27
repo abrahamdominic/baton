@@ -2,7 +2,6 @@ import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
 import { getPlanById } from "./plans";
 import {
-  getCurrentSubscription,
   getSubscriptionById,
   activateSubscription,
   renewSubscription,
@@ -348,16 +347,8 @@ export async function cancelCheckoutPayment(paymentId: string): Promise<PaymentR
   return current;
 }
 
-export async function failPayment(paymentId: string, reason: string): Promise<PaymentRecord> {
-  return setPaymentStatus(paymentId, "failed", { failure_reason: reason.slice(0, 300) });
-}
-
 export async function rejectPayment(paymentId: string, reason: string): Promise<PaymentRecord> {
   return setPaymentStatus(paymentId, "rejected", { failure_reason: reason.slice(0, 300) });
-}
-
-export async function refundPayment(paymentId: string): Promise<PaymentRecord> {
-  return setPaymentStatus(paymentId, "refunded");
 }
 
 /** Insert a payment verification record (admin manual verification history). */
@@ -674,15 +665,3 @@ export async function listPaymentsAdmin(query: AdminPaymentQuery = {}) {
   );
 }
 
-export async function countPaymentsAdmin(filters: { status?: PaymentStatus | null } = {}) {
-  const sb = getAdminClient();
-  let q = sb.from("payments").select("id", { count: "exact", head: true });
-  if (filters.status) q = q.eq("status", filters.status);
-  const { count, error } = await q;
-  if (error) throw new Error(`payments.count failed: ${error.message}`);
-  return count ?? 0;
-}
-
-export async function currentUserSubscriptionForActivation(userId: string) {
-  return getCurrentSubscription(userId);
-}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { adminDashboardMetrics } from "@/lib/billing/analytics";
+import { adminDashboardMetrics, formatCurrencyTotal } from "@/lib/billing/analytics";
 import { listPaymentsAdmin } from "@/lib/billing/payments";
 import { recentSystemEvents } from "@/lib/billing/system-events";
 import { StatCard, PageHeader } from "@/components/ui";
@@ -42,7 +42,8 @@ export default async function AdminOverviewPage() {
     prisma.repo.count().catch(() => 0),
   ]);
 
-  const revenueUsd = metrics.payments.totalConfirmedMinor / 100;
+  // Never summed across currencies: each currency is reported on its own.
+  const revenueByCurrency = Object.entries(metrics.payments.byCurrency);
   const errorEvents = latestEvents.filter((e) => e.severity === "error").length;
 
   return (
@@ -119,12 +120,30 @@ export default async function AdminOverviewPage() {
           <div className="p-5 sm:p-6 space-y-5">
             <div>
               <span className="text-xs text-ink-400">Total Confirmed Revenue</span>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="font-mono text-3xl font-extrabold tabular-nums tracking-tight text-white">
-                  ${revenueUsd.toFixed(2)}
-                </span>
-                <span className="font-mono text-xs font-semibold text-ink-400">USD</span>
-              </div>
+              {revenueByCurrency.length === 0 ? (
+                <div className="mt-1 font-mono text-3xl font-extrabold tabular-nums tracking-tight text-ink-500">
+                  &mdash;
+                </div>
+              ) : (
+                <div className="mt-1 space-y-1">
+                  {revenueByCurrency.map(([currency, total]) => (
+                    <div key={currency} className="flex items-baseline gap-2">
+                      <span className="font-mono text-3xl font-extrabold tabular-nums tracking-tight text-white">
+                        {formatCurrencyTotal(currency, total.amountMinor).split(" ")[1]}
+                      </span>
+                      <span className="font-mono text-xs font-semibold text-ink-400">
+                        {currency}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {revenueByCurrency.length > 1 && (
+                <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
+                  Totals are listed per currency and are never converted or added
+                  together.
+                </p>
+              )}
             </div>
 
             <div className="space-y-3.5 border-t border-white/[0.06] pt-4">
@@ -133,10 +152,15 @@ export default async function AdminOverviewPage() {
               </span>
 
               {Object.entries(metrics.payments.byProvider).map(([provider, details]) => {
-                const provAmount = details.amountMinor / 100;
+                // Each provider settles in exactly one currency, so the share
+                // is computed within that provider's own currency rather than
+                // against a cross-currency total.
+                const currency =
+                  provider === "usdc" ? "USDC" : "USD";
+                const providerTotal = metrics.payments.byCurrency[currency]?.amountMinor ?? 0;
                 const pct =
-                  metrics.payments.totalConfirmedMinor > 0
-                    ? Math.round((details.amountMinor / metrics.payments.totalConfirmedMinor) * 100)
+                  providerTotal > 0
+                    ? Math.round((details.amountMinor / providerTotal) * 100)
                     : 0;
 
                 return (
@@ -146,7 +170,7 @@ export default async function AdminOverviewPage() {
                         {provider === "usdc" ? "USDC (Base)" : "Stripe (Card)"}
                       </span>
                       <span className="font-mono text-ink-200">
-                        ${provAmount.toFixed(2)}{" "}
+                        {formatCurrencyTotal(currency, details.amountMinor)}{" "}
                         <span className="text-ink-500">
                           ({details.count} pay{details.count === 1 ? "" : "s"} &middot; {pct}%)
                         </span>

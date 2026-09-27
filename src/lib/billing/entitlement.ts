@@ -1,8 +1,8 @@
 import "server-only";
 import { prisma } from "../db";
 import { getCurrentSubscription } from "./subscriptions";
-import { SUBSCRIPTION_STATUS_LABELS } from "./types";
-import type { Entitlement, PlanLimits, SubscriptionRecord } from "./types";
+import { FEATURE_KEYS, SUBSCRIPTION_STATUS_LABELS } from "./types";
+import type { Entitlement, FeatureKey, PlanLimits, SubscriptionRecord } from "./types";
 import {
   FREE_TIER_MAX_REPOS,
   FREE_PLAN_LIMITS,
@@ -48,8 +48,15 @@ export { FEATURE_KEYS } from "./types";
  * The pure resolution rules live in entitlement-core.ts (unit-tested).
  */
 
+/**
+ * Administrators get the same feature set as the highest plan. Leaving
+ * `features` empty while `hasPaidAccess` is true made the UI render a
+ * "custom thresholds require Team or Organization" upsell to the very operators
+ * who configure plans, which contradicts the rule above.
+ */
 function adminEntitlement(sub: SubscriptionRecord | null): Entitlement {
-  const limits: PlanLimits = { maxRepos: null, maxMembers: null, features: [] };
+  const allFeatures: FeatureKey[] = Object.values(FEATURE_KEYS);
+  const limits: PlanLimits = { maxRepos: null, maxMembers: null, features: allFeatures };
   return {
     planSlug: sub?.plan?.slug ?? "organization",
     planName: sub?.plan?.name ?? "Organization",

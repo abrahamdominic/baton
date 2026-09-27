@@ -255,17 +255,21 @@ export async function processPrRefresh(payload: {
           ghReference: String(commentId),
         },
       });
+      // Only a delivered comment may consume quota. Recording the bucket after a
+      // failed send (permissions, locked repo, rate limit) permanently burned one
+      // of maxNudgesPerState, so a single transient error meant the PR was never
+      // nudged at all.
+      const updatedBuckets = [
+        ...buckets.filter((b) => b.key !== nudge.bucketKey),
+        { key: nudge.bucketKey, firedAt: new Date().toISOString() },
+      ];
+      await prisma.pullRequest.update({
+        where: { id: pr.id },
+        data: { nudgeBucketsJson: JSON.stringify(updatedBuckets) },
+      });
     } catch (e) {
       logger.warn("nudge-failed", { owner, repo, number, error: String(e) });
     }
-    const updatedBuckets = [
-      ...buckets.filter((b) => b.key !== nudge.bucketKey),
-      { key: nudge.bucketKey, firedAt: new Date().toISOString() },
-    ];
-    await prisma.pullRequest.update({
-      where: { id: pr.id },
-      data: { nudgeBucketsJson: JSON.stringify(updatedBuckets) },
-    });
   }
 
   if (statusCommentId && statusCommentId !== knownCommentId) {

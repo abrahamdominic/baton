@@ -65,7 +65,7 @@ if "Request user authorization (OAuth) during installation" is enabled, its
 | Variable | Required | Description |
 | --- | --- | --- |
 | `GITHUB_APP_ID` | yes | Numeric App ID. |
-| `GITHUB_APP_SLUG` | no (default `baton`) | App URL slug, used for install links. Must match the real app (`https://github.com/apps/<slug>` returns 200). |
+| `GITHUB_APP_SLUG` | no (default `abrahamdominic`) | App URL slug, used for install links. Must match the real app (`https://github.com/apps/<slug>` returns 200). This is the live GitHub App slug; keep it. |
 | `GITHUB_APP_CLIENT_ID` | only if "Request user authorization during installation" is enabled | The GitHub App's **own** Client ID, never the OAuth App's. |
 | `GITHUB_APP_CLIENT_SECRET` | only if "Request user authorization during installation" is enabled | The GitHub App's **own** client secret, never `GITHUB_OAUTH_CLIENT_SECRET`. |
 | `GITHUB_APP_PRIVATE_KEY_BASE64` | one of | Base64-encoded PEM (`openssl base64 -A < key.pem`). |
@@ -96,7 +96,6 @@ must be set in the hosting provider's environment settings:
 | `GITHUB_APP_ID` | yes | App installs cannot be associated. |
 | `GITHUB_APP_PRIVATE_KEY_BASE64` | yes | App API calls fail. |
 | `GITHUB_APP_WEBHOOK_SECRET` | yes | Webhook route returns 500. |
-| `GITHUB_APP_SLUG` | no (default `abrahamdominic`) | Install links use `abrahamdominic`. This is the live GitHub App slug; keep it. |
 | `GITHUB_APP_CLIENT_ID` / `GITHUB_APP_CLIENT_SECRET` | only if "Request user authorization during installation" is enabled | App code exchange fails (`/dashboard` redirect) if set incorrectly or using OAuth App values. |
 
 ### GitHub configuration (exact URLs)

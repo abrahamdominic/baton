@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { IconCheck, IconX, IconArrowRight, IconGitHub } from "@/components/icons";
+import { IconCheck, IconX, IconArrowRight } from "@/components/icons";
 import type { PlanRecord } from "@/lib/billing/types";
-import { GITHUB_URL } from "@/lib/site";
+import { planBillingNote, planPriceCents, planPriceLabel } from "@/lib/billing/pricing";
+import { catalogPlanBySlug, type CatalogPlan } from "@/lib/billing/plan-catalog";
 
 export interface Tier {
   slug: string;
@@ -25,16 +26,27 @@ export interface Tier {
   highlightBadge?: string;
 }
 
-const TIERS: Tier[] = [
+/**
+ * The copy-only tier definition. Paid prices and billing notes are deliberately
+ * absent here: they are always derived from plan data by `priceFields` below.
+ * Only the free tier declares a price inline, because it has no plan row — it
+ * is genuinely $0 rather than a value that could drift.
+ */
+type StaticTier = Omit<Tier, "monthlyPrice" | "annualPrice"> & {
+  monthlyPrice?: string;
+  annualPrice?: string;
+};
+
+const TIERS: StaticTier[] = [
   {
     slug: "individual",
     name: "Individual",
-    monthlyPrice: "$0",
+    monthlyPrice: "$0", // no plan row exists for the free tier
     annualPrice: "$0",
     monthlyPeriod: "free forever",
     annualPeriod: "free forever",
-    monthlyNote: "Free forever for individuals & public repos",
-    annualNote: "Free forever for individuals & public repos",
+    monthlyNote: "Free forever for individual developers",
+    annualNote: "Free forever for individual developers",
     blurb: "For solo developers and open-source contributors.",
     features: [
       "Up to 3 repositories",
@@ -53,12 +65,8 @@ const TIERS: Tier[] = [
   {
     slug: "team",
     name: "Team",
-    monthlyPrice: "$15",
-    annualPrice: "$150",
     monthlyPeriod: "per month",
     annualPeriod: "per year, billed annually",
-    monthlyNote: "Billed monthly at $15/month",
-    annualNote: "Billed annually at $150/year (save $30/year)",
     blurb: "For engineering teams that want to ship fast and stop PR stalls.",
     features: [
       "Unlimited repositories",
@@ -79,12 +87,8 @@ const TIERS: Tier[] = [
   {
     slug: "organization",
     name: "Organization",
-    monthlyPrice: "$49",
-    annualPrice: "$490",
     monthlyPeriod: "per month",
     annualPeriod: "per year, billed annually",
-    monthlyNote: "Billed monthly at $49/month",
-    annualNote: "Billed annually at $490/year (save $98/year)",
     blurb: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
     features: [
       "Everything in Team",
@@ -100,6 +104,46 @@ const TIERS: Tier[] = [
     featured: false,
   },
 ];
+
+/**
+ * Price strings and the annual-savings claim are always computed from plan
+ * data, never written into `TIERS`:
+ *
+ *   - Normal path: the plan row the server just read out of the `plans` table.
+ *   - Fallback path: the same entry in the shared `PLAN_CATALOG` the server
+ *     store seeds itself from, used only when the plan fetch failed.
+ *
+ * Both paths run through the helpers in `@/lib/billing/pricing`, so the
+ * marketing card cannot disagree with the amount checkout actually charges.
+ */
+function priceFields(plan: {
+  monthly_price_cents: number;
+  annual_price_cents: number;
+  price_custom: boolean;
+}): Partial<Tier> {
+  const monthly = planPriceLabel(planPriceCents(plan, "monthly"));
+  const annual = planPriceLabel(planPriceCents(plan, "annual"));
+  return {
+    monthlyPrice: plan.price_custom ? "Custom" : monthly,
+    annualPrice: plan.price_custom ? "Custom" : annual,
+    monthlyNote: planBillingNote(plan, "monthly"),
+    annualNote: planBillingNote(plan, "annual"),
+  };
+}
+
+function pricesFromPlan(plan: PlanRecord): Partial<Tier> {
+  return priceFields(plan);
+}
+
+function pricesFromCatalog(slug: string): Partial<Tier> {
+  const catalog: CatalogPlan | null = catalogPlanBySlug(slug);
+  if (!catalog) return {};
+  return priceFields({
+    monthly_price_cents: catalog.monthlyPriceCents,
+    annual_price_cents: catalog.annualPriceCents,
+    price_custom: catalog.priceCustom,
+  });
+}
 
 /**
  * Capabilities the compare matrix can talk about. One source of truth: the
@@ -208,7 +252,22 @@ export function PricingView({
 }) {
   const [annual, setAnnual] = useState(false);
 
-  const tiers: Tier[] = TIERS.map((t) => (overrides[t.slug] ? { ...t, ...overrides[t.slug] } : t));
+  const planBySlug = new Map(plans.map((p) => [p.slug, p]));
+  const tiers: Tier[] = TIERS.map((t) => {
+    const plan = planBySlug.get(t.slug);
+    const derived = plan ? pricesFromPlan(plan) : pricesFromCatalog(t.slug);
+    const merged = { ...t, ...derived, ...(overrides[t.slug] ?? {}) } as Omit<
+      Tier,
+      "monthlyPrice" | "annualPrice"
+    > & { monthlyPrice?: string; annualPrice?: string };
+    return {
+      ...merged,
+      // Only reachable if a tier is added without a matching catalog entry, in
+      // which case showing a placeholder beats rendering a wrong number.
+      monthlyPrice: merged.monthlyPrice ?? "\u2014",
+      annualPrice: merged.annualPrice ?? "\u2014",
+    };
+  });
 
   const columns: { slug: string; label: string; plan: PlanRecord | null; featured: boolean }[] = [
     {
@@ -279,7 +338,7 @@ export function PricingView({
           </button>
         </div>
         <p className="text-xs text-ink-400 font-mono">
-          Free for public open-source repos. No credit card required to start.
+          No credit card required to start on the free plan.
         </p>
       </div>
 
@@ -369,35 +428,6 @@ export function PricingView({
             </div>
           );
         })}
-      </div>
-
-      {/* Open Source Pledge Banner */}
-      <div className="rounded-xl border border-signal-500/30 bg-signal-500/[0.04] p-6 sm:p-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-signal-500/30 bg-signal-500/10 text-signal-400">
-              <IconGitHub className="h-5 w-5" />
-            </span>
-            <div>
-              <h3 className="text-base font-bold text-white">
-                Open Source Commitment: 100% Free for Public Repositories
-              </h3>
-              <p className="mt-1 text-xs text-ink-300">
-                Any public GitHub repository automatically receives all Team plan features at zero cost.
-                Baton is itself licensed under AGPL-3.0 and can be self-hosted.
-              </p>
-            </div>
-          </div>
-
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-ghost btn-sm"
-          >
-            Inspect AGPL-3.0 Source
-          </a>
-        </div>
       </div>
 
       {/* Feature Comparison Matrix */}

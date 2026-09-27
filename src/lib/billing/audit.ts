@@ -1,5 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
+import { logger } from "@/lib/logger";
 import { userIdentitiesById, type UserIdentity } from "@/lib/user-identity";
 
 export interface AdminAuditInput {
@@ -14,11 +15,16 @@ export interface AdminAuditInput {
 /**
  * Append to the administrative audit log. Rows are immutable (see migration
  * trigger); nothing can silently edit or delete history afterwards.
+ *
+ * A Supabase insert reports failure in the returned `error` rather than by
+ * throwing, so the result is inspected explicitly. Otherwise a privileged
+ * action could complete with no audit row at all while the console advertises
+ * an immutable trail.
  */
 export async function logAdminAudit(input: AdminAuditInput): Promise<void> {
   const sb = getAdminClient();
   const detail = sanitize(input.detail);
-  await sb.from("audit_logs").insert({
+  const { error } = await sb.from("audit_logs").insert({
     admin_user_id: input.adminUserId,
     action: input.action,
     resource_type: input.resourceType ?? null,
@@ -26,6 +32,15 @@ export async function logAdminAudit(input: AdminAuditInput): Promise<void> {
     detail,
     ip: input.ip ?? null,
   });
+  if (error) {
+    logger.error("admin-audit-write-failed", {
+      action: input.action,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      error: error.message,
+    });
+    throw new Error(`audit write failed: ${error.message}`);
+  }
 }
 
 function sanitize(detail: Record<string, unknown> | undefined): Record<string, unknown> {

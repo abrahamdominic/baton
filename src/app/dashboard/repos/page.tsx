@@ -3,6 +3,11 @@ import { currentUser } from "@/lib/auth/session";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { config } from "@/lib/env-boot";
+import { REPO_SETTING_DEFAULTS } from "@/lib/engine/thresholds";
+
+function hours(n: number): string {
+  return `${n}h`;
+}
 import { setRepoEnabled, updateRepoSettings, rescanRepo } from "../actions";
 import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { RepoSyncButton } from "@/components/dashboard/repo-sync-button";
@@ -331,7 +336,12 @@ export default async function ReposPage() {
                               <span>Custom thresholds require a Team or Organization plan</span>
                             </div>
                             <p className="mt-1.5 text-xs text-ink-400 leading-relaxed">
-                              This repository currently uses Baton&apos;s standard defaults (24h first response, 48h re-review). Upgrade your plan to adjust hours per state or configure organization-wide review policies.
+                              This repository currently uses Baton&apos;s standard defaults (
+                              {hours(REPO_SETTING_DEFAULTS.firstResponseHours)} first response,{" "}
+                              {hours(REPO_SETTING_DEFAULTS.reviewFollowUpHours)} re-review,{" "}
+                              {hours(REPO_SETTING_DEFAULTS.changesRequiredHours)} changes requested
+                              ). Upgrade your plan to adjust hours per state or configure
+                              organization-wide review policies.
                             </p>
                             <div className="mt-3">
                               <Link href="/dashboard/billing" className="btn btn-secondary btn-sm">
@@ -385,19 +395,24 @@ export default async function ReposPage() {
                               id={`settings-${r.id}`}
                               action={async (formData) => {
                                 "use server";
-                                const int = (k: string) => Number(formData.get(k) ?? 24);
+                                // An empty number input submits "", and `Number("")`
+                                // is 0, which fails validation. Fall back to the
+                                // built-in default instead of erroring.
+                                const int = (k: string) => {
+                                  const raw = formData.get(k);
+                                  const n = Number(raw);
+                                  return raw === null || raw === "" || Number.isNaN(n)
+                                    ? REPO_SETTING_DEFAULTS[k as keyof typeof REPO_SETTING_DEFAULTS]
+                                    : n;
+                                };
                                 await updateRepoSettings({
                                   repoId: r.id,
-                                  statusCommentEnabled: true,
-                                  labelsEnabled: true,
-                                  nudgesEnabled: true,
                                   firstResponseHours: int("firstResponseHours"),
                                   reviewFollowUpHours: int("reviewFollowUpHours"),
                                   changesRequiredHours: int("changesRequiredHours"),
                                   ciFailHours: int("ciFailHours"),
                                   conflictHours: int("conflictHours"),
                                   readyToMergeHours: int("readyToMergeHours"),
-                                  maxNudgesPerState: 1,
                                 });
                               }}
                               className="mt-3 flex items-center justify-between border-t border-white/[0.05] pt-3"

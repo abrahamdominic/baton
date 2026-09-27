@@ -13,6 +13,27 @@ export interface InstallationInfo {
 }
 
 /**
+ * What the install callback should do with an installation's owner.
+ *
+ * `installation_id` is a sequential integer that reaches the callback as a query
+ * parameter, so it is never proof of ownership. Only a brand-new or previously
+ * unattributed installation may be claimed; one that already belongs to another
+ * Baton user must keep its owner, otherwise any signed-in user could take over
+ * another account's installation and read its repositories.
+ */
+export type InstallationAttribution = "create" | "adopt" | "keep";
+
+export function resolveInstallationAttribution(
+  existing: { userId: string | null } | null | undefined,
+  currentUserId: string,
+): InstallationAttribution {
+  if (!existing) return "create";
+  if (existing.userId === null) return "adopt";
+  if (existing.userId === currentUserId) return "keep";
+  return "keep";
+}
+
+/**
  * Fetch an installation's details + repos from the GitHub API using App JWT and installation token.
  */
 export async function fetchInstallationInfo(installationId: number): Promise<InstallationInfo> {

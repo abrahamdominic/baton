@@ -2,100 +2,127 @@
 
 import { useState } from "react";
 import { IconCheckCircle, IconBell } from "@/components/icons";
+import { STATE_META, type BatonState } from "@/lib/engine/types";
+import { REPO_SETTING_DEFAULTS } from "@/lib/engine/thresholds";
 
 interface StateDefinition {
+  /** Engine state key; the GitHub label is read from STATE_META, not restated. */
+  key: BatonState;
   state: string;
-  label: string;
   turn: "Reviewers" | "Author" | "Maintainer" | "None";
   tone: "info" | "warn" | "danger" | "success" | "neutral";
   trigger: string;
-  defaultThreshold: string;
   nudgeRule: string;
   actionText: string;
 }
 
+/**
+ * Display copy for each engine state. The state key, the GitHub label, and the
+ * default threshold are all read from the engine's own tables so this marketing
+ * matrix cannot advertise a label or a threshold the product does not use.
+ */
 const ALL_STATES: StateDefinition[] = [
   {
+    key: "awaiting_review",
     state: "Waiting for review",
-    label: "baton:awaiting-review",
     turn: "Reviewers",
     tone: "info",
     trigger: "PR opened, non-draft, reviewers requested or required by CODEOWNERS, 0 review decisions submitted yet.",
-    defaultThreshold: "24 hours",
     nudgeRule: "Dispatches at most 1 targeted @-mention to requested reviewers. Timer resets if author pushes commits.",
     actionText: "Review the PR changes and submit Approve or Request Changes.",
   },
   {
+    key: "awaiting_review_after_fix",
     state: "Fix pushed, re-review due",
-    label: "baton:re-review",
     turn: "Reviewers",
     tone: "info",
     trigger: "A reviewer previously requested changes or commented, and author subsequently pushed new commits.",
-    defaultThreshold: "24 hours",
     nudgeRule: "Mentions only the reviewers whose feedback was addressed. Spares reviewers who already approved.",
     actionText: "Verify the new commits resolve the prior objections.",
   },
   {
+    key: "changes_required",
     state: "Changes required",
-    label: "baton:changes-required",
     turn: "Author",
     tone: "warn",
     trigger: "At least one reviewer submitted 'Request Changes'.",
-    defaultThreshold: "48 hours",
     nudgeRule: "Reviewers are silenced. Author is nudged only after the grace period expires without new commits.",
     actionText: "Push changes or reply in thread to resolve reviewer concerns.",
   },
   {
+    key: "ci_failing",
     state: "CI failing",
-    label: "baton:ci-failing",
     turn: "Author",
     tone: "danger",
     trigger: "One or more required check suites or status contexts concluded as failure or timed out.",
-    defaultThreshold: "12 hours",
     nudgeRule: "Strict safety rule: Reviewers are never nudged while CI is broken. Author is gently notified.",
     actionText: "Inspect CI logs, resolve tests/lint, and push fixes.",
   },
   {
+    key: "conflicts",
     state: "Merge conflicts",
-    label: "baton:conflicts",
     turn: "Author",
     tone: "danger",
     trigger: "GitHub reports mergeable = CONFLICTING against the base branch.",
-    defaultThreshold: "24 hours",
     nudgeRule: "Alerts author that the branch has drifted out of sync with main.",
     actionText: "Rebase onto base branch or merge target and resolve conflicts.",
   },
   {
+    key: "ready_to_merge",
     state: "Ready to merge",
-    label: "baton:ready-to-merge",
     turn: "Author",
     tone: "success",
     trigger: "Approved by required reviewers, all CI checks passed, zero merge conflicts.",
-    defaultThreshold: "24 hours",
     nudgeRule: "Nudges author or maintainers if PR sits unmerged despite all lights being green.",
     actionText: "Perform merge (squash, rebase, or merge commit).",
   },
   {
+    key: "blocked_on_checks",
     state: "Checks pending",
-    label: "baton:checks-pending",
     turn: "None",
     tone: "neutral",
     trigger: "CI check suites are in-progress; mergeability cannot be evaluated yet.",
-    defaultThreshold: "No nudge",
     nudgeRule: "Silent state. No one is nudged while automated jobs are still compiling or testing.",
     actionText: "Wait for CI pipelines to complete.",
   },
   {
+    key: "draft",
     state: "Draft",
-    label: "baton:draft",
     turn: "None",
     tone: "neutral",
     trigger: "PR is explicitly marked as draft by the author.",
-    defaultThreshold: "No nudge",
     nudgeRule: "Completely passive. Reviewers are never pinged on work-in-progress drafts.",
     actionText: "Mark as ready for review when prepared.",
   },
 ];
+
+/** Which engine threshold drives each state's default. */
+const STATE_THRESHOLD: Partial<Record<BatonState, keyof typeof REPO_SETTING_DEFAULTS>> = {
+  awaiting_review: "firstResponseHours",
+  awaiting_review_after_fix: "reviewFollowUpHours",
+  changes_required: "changesRequiredHours",
+  ci_failing: "ciFailHours",
+  conflicts: "conflictHours",
+  ready_to_merge: "readyToMergeHours",
+};
+
+function hours(n: number): string {
+  return n === 1 ? "1 hour" : `${n} hours`;
+}
+
+/** The real built-in threshold, or an explicit "no nudge" for silent states. */
+function defaultThreshold(key: BatonState): string {
+  const field = STATE_THRESHOLD[key];
+  return field ? hours(REPO_SETTING_DEFAULTS[field]) : "No nudge";
+}
+/**
+ * The label Baton actually writes to GitHub for a state. States with no label
+ * (draft, checks-pending, merged, closed) are silent by design, so the marketing
+ * matrix must not advertise a `baton:*` label that is never created.
+ */
+function githubLabel(key: BatonState): string {
+  return STATE_META[key].labelName;
+}
 
 export function StateMatrix() {
   const [selectedState, setSelectedState] = useState<StateDefinition>(ALL_STATES[0]);
@@ -109,10 +136,10 @@ export function StateMatrix() {
         </div>
         <div className="divide-y divide-white/[0.05]">
           {ALL_STATES.map((s) => {
-            const isSelected = selectedState.label === s.label;
+            const isSelected = selectedState.key === s.key;
             return (
               <button
-                key={s.label}
+                key={s.key}
                 onClick={() => setSelectedState(s)}
                 className={`w-full text-left p-4 transition-all flex items-center justify-between gap-4 ${
                   isSelected
@@ -137,9 +164,15 @@ export function StateMatrix() {
                     />
                     <span className="font-medium text-sm text-white">{s.state}</span>
                   </div>
-                  <code className="mt-1 block font-mono text-xs text-ink-400">
-                    {s.label}
-                  </code>
+                  {githubLabel(s.key) ? (
+                    <code className="mt-1 block font-mono text-xs text-ink-400">
+                      {githubLabel(s.key)}
+                    </code>
+                  ) : (
+                    <code className="mt-1 block font-mono text-xs text-ink-500">
+                      No GitHub label (silent state)
+                    </code>
+                  )}
                 </div>
 
                 <div className="text-right">
@@ -163,7 +196,7 @@ export function StateMatrix() {
             <h3 className="text-xl font-bold text-white mt-1">{selectedState.state}</h3>
           </div>
           <code className="rounded border border-brand-500/30 bg-brand-500/10 px-2.5 py-1 font-mono text-xs text-brand-300">
-            {selectedState.label}
+            defaultThreshold(selectedState.key)
           </code>
         </div>
 
@@ -185,7 +218,7 @@ export function StateMatrix() {
             <div className="rounded-lg border border-white/[0.06] bg-ink-950/60 p-3">
               <span className="font-mono text-[10px] uppercase text-ink-500 block">Default Threshold</span>
               <span className="mt-1 font-mono font-bold text-sm text-brand-300 block">
-                {selectedState.defaultThreshold}
+                {defaultThreshold(selectedState.key)}
               </span>
             </div>
           </div>

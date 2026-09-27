@@ -200,21 +200,3 @@ export async function listGifts(limit = 50): Promise<GiftRecord[]> {
   );
 }
 
-/** A user's gift grants (used by the billing page to explain gifted access). */
-export async function listGiftsForUser(userId: string, limit = 10): Promise<GiftRecord[]> {
-  const sb = getAdminClient();
-  const { data, error } = await sb
-    .from("gift_grants")
-    .select("*")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(`gifts.user-list failed: ${error.message}`);
-  return Promise.all(
-    (data ?? []).map(async (r) => {
-      const g = giftFromRow(r as Row);
-      g.plan = await getPlanById(g.plan_id);
-      return g;
-    }),
-  );
-}

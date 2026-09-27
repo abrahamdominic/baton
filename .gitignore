@@ -59,3 +59,7 @@ coverage/
 *~
 # generated/local verification scripts
 /verify-*.mjs
+
+# local agent working docs (not part of the product)
+/skill.md
+/docs/BLUEPRINT.md

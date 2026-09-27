@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { IconCheckCircle, IconClock, IconGitPullRequest, IconBell } from "@/components/icons";
+import { REPO_SETTING_DEFAULTS } from "@/lib/engine/thresholds";
+
+/** Which built-in threshold the scenario demonstrates. */
+type ThresholdField = keyof typeof REPO_SETTING_DEFAULTS;
 
 interface Scenario {
   id: string;
+  /** Derived from REPO_SETTING_DEFAULTS so the demo cannot contradict the engine. */
+  thresholdField: ThresholdField;
   tabLabel: string;
   stateBadge: string;
   badgeTone: "info" | "warn" | "danger" | "success";
   whoseTurn: string;
   turnRole: "Reviewers" | "Author" | "Maintainer";
   blockedFor: string;
-  threshold: string;
   nextAction: string;
   triggerEvent: string;
   labelApplied: string;
@@ -21,67 +26,71 @@ interface Scenario {
   checksStatus: string;
 }
 
+function hours(n: number): string {
+  return n === 1 ? "1h" : `${n}h`;
+}
+
 const SCENARIOS: Scenario[] = [
   {
     id: "stalled-review",
-    tabLabel: "1. Review Stalled (48h)",
+    thresholdField: "firstResponseHours",
+    tabLabel: "1. Review Stalled",
     stateBadge: "Waiting for review",
     badgeTone: "info",
     whoseTurn: "@sarah-chen",
     turnRole: "Reviewers",
     blockedFor: "48h 12m",
-    threshold: "24h threshold",
     nextAction: "Review the latest changes (3 commits, +142 -18)",
     triggerEvent: "PR opened 2 days ago; review requested from @sarah-chen; no review submitted yet.",
     labelApplied: "baton:awaiting-review",
     nudgeSent: true,
-    nudgeText: "Friendly nudge: PR #247 has been awaiting review for 48h (threshold: 24h). @sarah-chen could you take a look when you have a moment?",
-    ruleExplanation: "Deterministic Rule: Open + Non-Draft + Pending Reviewer Request + Checks Green → State = AWAITING_REVIEW. Exceeded 24h threshold, so exactly 1 nudge dispatched.",
+    nudgeText: "Friendly nudge: PR #247 has been awaiting review for 48h. @sarah-chen could you take a look when you have a moment?",
+    ruleExplanation: "Deterministic Rule: Open + Non-Draft + Pending Reviewer Request + Checks Green → State = AWAITING_REVIEW. The first-response threshold elapsed, so exactly 1 nudge dispatched.",
     checksStatus: "4/4 passing",
   },
   {
     id: "changes-requested",
+    thresholdField: "changesRequiredHours",
     tabLabel: "2. Changes Requested",
     stateBadge: "Changes required",
     badgeTone: "warn",
     whoseTurn: "@dev-alex (Author)",
     turnRole: "Author",
     blockedFor: "6h 40m",
-    threshold: "48h threshold",
     nextAction: "Address feedback on auth middleware in src/auth/session.ts",
     triggerEvent: "@sarah-chen submitted review with 'Request changes': 'Please ensure token expiry handles UTC timezone skew'.",
     labelApplied: "baton:changes-required",
     nudgeSent: false,
-    nudgeText: "Timer active. 42h remaining before gentle reminder to author.",
+    nudgeText: "Timer active. The author is reminded once the grace period expires without new commits.",
     ruleExplanation: "Deterministic Rule: Latest review decision is CHANGES_REQUESTED. The baton immediately passes back to the author. Reviewers will NOT be nudged.",
     checksStatus: "4/4 passing",
   },
   {
     id: "re-review",
+    thresholdField: "reviewFollowUpHours",
     tabLabel: "3. Fix Pushed (Re-review)",
     stateBadge: "Fix pushed, re-review due",
     badgeTone: "info",
     whoseTurn: "@sarah-chen",
     turnRole: "Reviewers",
     blockedFor: "3h 15m",
-    threshold: "24h threshold",
     nextAction: "Verify fix commit 4d92fa1 for UTC timezone skew",
     triggerEvent: "@dev-alex pushed new commit 4d92fa1 ('fix: enforce UTC epoch in session verification').",
     labelApplied: "baton:re-review",
     nudgeSent: false,
-    nudgeText: "Within grace period (3h elapsed of 24h threshold).",
+    nudgeText: "Within the grace period, so no reminder is sent yet.",
     ruleExplanation: "Deterministic Rule: Previous review was CHANGES_REQUESTED, but author pushed new commits. State flips to RE_REVIEW. Timer resets to 0.",
     checksStatus: "4/4 passing",
   },
   {
     id: "ci-failing",
+    thresholdField: "ciFailHours",
     tabLabel: "4. CI Failing (Checks Red)",
     stateBadge: "CI failing",
     badgeTone: "danger",
     whoseTurn: "@dev-alex (Author)",
     turnRole: "Author",
     blockedFor: "1h 05m",
-    threshold: "12h threshold",
     nextAction: "Fix failing integration suite: test:integration (exit 1)",
     triggerEvent: "GitHub Actions run failed on 'test:integration'.",
     labelApplied: "baton:ci-failing",
@@ -92,18 +101,18 @@ const SCENARIOS: Scenario[] = [
   },
   {
     id: "ready-to-merge",
+    thresholdField: "readyToMergeHours",
     tabLabel: "5. Approved & Ready to Merge",
     stateBadge: "Ready to merge",
     badgeTone: "success",
     whoseTurn: "@dev-alex or Maintainer",
     turnRole: "Maintainer",
     blockedFor: "18h 30m",
-    threshold: "24h threshold",
     nextAction: "Squash and merge into main",
     triggerEvent: "@sarah-chen approved the pull request. All 4 CI checks are green, zero merge conflicts.",
     labelApplied: "baton:ready-to-merge",
     nudgeSent: false,
-    nudgeText: "PR is green and unblocked. If unmerged past 24h, Baton will remind author/maintainer.",
+    nudgeText: "PR is green and unblocked. Once the ready-to-merge window elapses, Baton reminds the author or a maintainer.",
     ruleExplanation: "Deterministic Rule: Review approved + Checks success + Mergeable. No more review needed, someone just needs to press the green button.",
     checksStatus: "All checks green",
   },
@@ -248,7 +257,7 @@ export function PrSimulator() {
               </div>
               <div>
                 <span className="block font-mono text-[10px] uppercase text-ink-500">Threshold Policy</span>
-                <span className="mt-0.5 font-mono text-ink-300">{current.threshold}</span>
+                <span className="mt-0.5 font-mono text-ink-300">{hours(REPO_SETTING_DEFAULTS[current.thresholdField])} threshold</span>
               </div>
             </div>
 

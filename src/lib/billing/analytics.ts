@@ -20,29 +20,66 @@ export async function subscriptionStatusCounts() {
   return counts;
 }
 
-export async function confirmedPaymentAggregates() {
+/**
+ * Confirmed payment totals bucketed by currency.
+ *
+ * Amounts are never summed across currencies: a USDC payment is recorded in
+ * USDC minor units, so adding it to a USD total and labelling the result "USD"
+ * reports a fabricated number. Each currency keeps its own minor-unit total
+ * and its own formatting.
+ */
+export interface CurrencyTotal {
+  count: number;
+  amountMinor: number;
+}
+
+export interface PaymentAggregates {
+  /** Confirmed totals keyed by currency, e.g. `{ USD: {...}, USDC: {...} }`. */
+  byCurrency: Record<string, CurrencyTotal>;
+  byProvider: Record<string, CurrencyTotal>;
+  byStatus: Record<string, number>;
+  totalRows: number;
+}
+
+export async function confirmedPaymentAggregates(): Promise<PaymentAggregates> {
   const sb = getAdminClient();
   const { data, error } = await sb.from("payments").select("status,payment_provider,amount,currency");
   if (error) throw new Error(`analytics.payments failed: ${error.message}`);
   const rows = data ?? [];
-  const byProvider: Record<string, { count: number; amountMinor: number }> = {};
+  const byProvider: Record<string, CurrencyTotal> = {};
+  const byCurrency: Record<string, CurrencyTotal> = {};
   const byStatus: Record<string, number> = {};
   for (const s of PAYMENT_STATUSES) byStatus[s] = 0;
-  let totalConfirmedMinor = 0;
   for (const row of rows) {
     const provider = String(row.payment_provider ?? "usdc");
     const status = String(row.status ?? "pending");
+    const currency = String(row.currency ?? "USD").toUpperCase();
     const amount = Number(row.amount ?? 0);
     byStatus[status] = (byStatus[status] ?? 0) + 1;
-    if (status === "confirmed") {
-      totalConfirmedMinor += amount;
-      const entry = (byProvider[provider] ??= { count: 0, amountMinor: 0 });
-      entry.count += 1;
-      entry.amountMinor += amount;
-    }
+    if (status !== "confirmed") continue;
+    const providerEntry = (byProvider[provider] ??= { count: 0, amountMinor: 0 });
+    providerEntry.count += 1;
+    providerEntry.amountMinor += amount;
+    const currencyEntry = (byCurrency[currency] ??= { count: 0, amountMinor: 0 });
+    currencyEntry.count += 1;
+    currencyEntry.amountMinor += amount;
   }
-  return { totalConfirmedMinor, byProvider, byStatus, totalRows: rows.length };
+  return { byCurrency, byProvider, byStatus, totalRows: rows.length };
 }
+
+/** Decimals used to render a currency's minor units (USDC has 6). */
+const CURRENCY_DECIMALS: Record<string, number> = { USDC: 6 };
+
+/** Format a minor-unit total in its own currency. Never mixes currencies. */
+export function formatCurrencyTotal(currency: string, amountMinor: number): string {
+  const decimals = CURRENCY_DECIMALS[currency.toUpperCase()] ?? 2;
+  const value = (amountMinor / 10 ** decimals).toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${currency.toUpperCase()} ${value}`;
+}
+
 
 export async function adminDashboardMetrics() {
   const [subs, payments] = await Promise.all([

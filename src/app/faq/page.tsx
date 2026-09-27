@@ -65,14 +65,14 @@ const FAQ_ITEMS: FAQItem[] = [
     a: "Reviewers are never nudged for PRs with failing checks. Baton automatically flips the state to 'CI failing' with ownership assigned to the author. Reviewers are only alerted once the build is green.",
   },
 
-  // Billing & Open Source
+  // Billing & Licensing
   {
-    category: "Billing & Open Source",
+    category: "Billing & Licensing",
     q: "Is Baton really free for open-source repositories?",
-    a: "Yes. All public repositories get full Team plan functionality at zero cost. There are no credit card requirements or time limits for open-source projects.",
+    a: "The free plan covers individual developers with up to 3 repositories, with no credit card and no time limit. Team and Organization capabilities — unlimited repositories, team workspaces, organization policies, and audit export — are paid plans, and a repository's visibility does not change which plan it is on. If you maintain an open-source project that needs more than the free plan covers, contact us.",
   },
   {
-    category: "Billing & Open Source",
+    category: "Billing & Licensing",
     q: "Can we self-host Baton on our own servers?",
     a: "Yes. Baton is AGPL-3.0 open source. The entire codebase, database migrations, and deployment configs are public. You can run it on your own PostgreSQL infrastructure without external dependencies.",
   },

@@ -1,6 +1,7 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
 import { annualFromMonthly, annualAmountDescription } from "./pricing";
+import { PLAN_CATALOG } from "./plan-catalog";
 import { BillingInputError } from "./errors";
 import { planFromRow, type Row } from "./records";
 import type { PlanRecord } from "./types";
@@ -8,78 +9,32 @@ import type { PlanRecord } from "./types";
 /**
  * Plan catalog. Public pricing reads the same source of truth the admin
  * dashboard edits (supabase `plans`), so prices never drift between pages.
+ * The seed/fallback below is generated from the shared `PLAN_CATALOG`, which is
+ * the only place a price is written down in code.
  */
 
-export const DEFAULT_PLANS: PlanRecord[] = [
-  {
-    id: "plan_team_default",
-    slug: "team",
-    name: "Team",
-    description: "For engineering teams that want to ship fast and stop PR stalls.",
-    monthly_price_cents: 1500,
-    annual_price_cents: 15000,
-    price_custom: false,
-    currency: "USD",
-    features: [
-      "Unlimited repositories",
-      "Deterministic state classifier",
-      "Per-repo customizable nudge thresholds",
-      "Automated @-mention reviewer nudges",
-      "Team-wide repository boards",
-      "Your Move queue with priority sorting",
-    ],
-    limits: {
-      maxRepos: null,
-      maxMembers: 25,
-      features: ["custom_thresholds", "team_workspace", "unlimited_repos"],
-    },
-    stripe_product_id: null,
-    stripe_monthly_price_id: null,
-    stripe_annual_price_id: null,
-    is_active: true,
-    is_public: true,
-    sort_order: 10,
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "plan_org_default",
-    slug: "organization",
-    name: "Organization",
-    description: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
-    monthly_price_cents: 4900,
-    annual_price_cents: 49000,
-    price_custom: false,
-    currency: "USD",
-    features: [
-      "Everything in Team",
-      "Unlimited repositories & team members",
-      "Organization-wide review stall policies",
-      "Team roles, invitations & permissions with audit trail",
-      "Audit log export (CSV/JSON)",
-    ],
-    limits: {
-      maxRepos: null,
-      maxMembers: 1000,
-      features: [
-        "custom_thresholds",
-        "team_workspace",
-        "organization_workspace",
-        "organization_policies",
-        "audit_export",
-        "unlimited_repos",
-      ],
-    },
-    stripe_product_id: null,
-    stripe_monthly_price_id: null,
-    stripe_annual_price_id: null,
-    is_active: true,
-    is_public: true,
-    sort_order: 20,
-    created_at: "2026-01-01T00:00:00.000Z",
-    updated_at: "2026-01-01T00:00:00.000Z",
-  },
-];
+const SEED_TIMESTAMP = "2026-01-01T00:00:00.000Z";
+
+export const DEFAULT_PLANS: PlanRecord[] = PLAN_CATALOG.map((p) => ({
+  id: p.id,
+  slug: p.slug,
+  name: p.name,
+  description: p.description,
+  monthly_price_cents: p.monthlyPriceCents,
+  annual_price_cents: p.annualPriceCents,
+  price_custom: p.priceCustom,
+  currency: p.currency,
+  features: [...p.features],
+  limits: { ...p.limits },
+  stripe_product_id: null,
+  stripe_monthly_price_id: null,
+  stripe_annual_price_id: null,
+  is_active: true,
+  is_public: true,
+  sort_order: p.sortOrder,
+  created_at: SEED_TIMESTAMP,
+  updated_at: SEED_TIMESTAMP,
+}));
 
 export async function listPlans(opts: { includeInactive?: boolean } = {}): Promise<PlanRecord[]> {
   try {

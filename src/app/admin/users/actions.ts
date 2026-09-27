@@ -27,7 +27,17 @@ async function requestMeta() {
   };
 }
 
-async function writeAudit(actor: { id: string; login: string }, action: string, targetId: string, detail: string) {
+/**
+ * `detail` is a structured record, not a pre-serialized string: storing
+ * `JSON.stringify(detail)` on an already-stringified value produced a JSON
+ * string containing JSON, which no reader could consume as an object.
+ */
+async function writeAudit(
+  actor: { id: string; login: string },
+  action: string,
+  targetId: string,
+  detail: Record<string, unknown>,
+) {
   await prisma.auditLog.create({
     data: {
       actor: actor.login,
@@ -68,7 +78,7 @@ export async function setUserRoleAction(
       return { ok: false, error: "You cannot demote your own account." };
     }
     await prisma.user.update({ where: { id: userId }, data: { role } });
-    await writeAudit(admin, "user.role.set", userId, JSON.stringify({ role, previous: target.role }));
+    await writeAudit(admin, "user.role.set", userId, { role, previous: target.role });
     logger.info("admin-user-role", { actor: admin.login, userId, role });
     revalidatePath("/admin/users");
     return { ok: true };
@@ -98,7 +108,9 @@ export async function setSuspensionAction(
     if (suspended) {
       await revokeAllSessionsForUser(userId);
     }
-    await writeAudit(admin, suspended ? "user.suspended" : "user.unsuspended", userId, JSON.stringify({ previous: target.suspendedAt?.toISOString() ?? null }));
+    await writeAudit(admin, suspended ? "user.suspended" : "user.unsuspended", userId, {
+      previous: target.suspendedAt?.toISOString() ?? null,
+    });
     logger.info("admin-user-suspension", { actor: admin.login, userId, suspended });
     revalidatePath("/admin/users");
     return { ok: true };
