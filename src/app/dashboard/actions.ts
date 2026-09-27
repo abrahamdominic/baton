@@ -98,10 +98,7 @@ export async function syncUserRepositories(): Promise<{ count: number }> {
 
   for (const inst of installations) {
     try {
-      const info = await registerInstallation(inst.installationId, {
-        accountLogin: inst.accountLogin,
-        accountType: inst.accountType,
-      });
+      const info = await registerInstallation(inst.installationId);
       totalRepos += info.repositories.length;
     } catch (err) {
       logger.error("sync-user-repos-failed", {

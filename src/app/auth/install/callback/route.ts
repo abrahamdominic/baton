@@ -111,6 +111,41 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(login);
   }
 
+  // CSRF: `/install` puts `uid:<userId>` in the GitHub App `state`, and GitHub
+  // echoes it back here. It used to be ignored entirely, so this
+  // state-mutating GET could be triggered on any signed-in browser with an
+  // arbitrary `installation_id`. When GitHub supplies a state it must match the
+  // session performing the attribution.
+  const stateParam = params.get("state");
+  if (stateParam) {
+    const presented = stateParam.startsWith("uid:") ? stateParam.slice("uid:".length) : null;
+    if (presented !== user.id) {
+      logger.warn("app-install-state-mismatch", {
+        requestedBy: user.id,
+        hasUid: Boolean(presented),
+        ip: getClientIp(req),
+      });
+      return NextResponse.redirect(new URL("/dashboard?install_error=1&reason=state_mismatch", baseUrl));
+    }
+  }
+
+  // Authoritative ownership proof when the App granted a user token: GitHub
+  // itself reports which installations this user administers. `installation_id`
+  // is a sequential integer, so this membership check — not the query
+  // parameter — is what makes attribution legitimate.
+  let administeredInstallations: number[] = [];
+  if (appUserToken) {
+    administeredInstallations = await fetchUserInstallations(appUserToken).catch(() => []);
+    if (!administeredInstallations.includes(installationId)) {
+      logger.warn("app-install-not-administered", {
+        installationId,
+        requestedBy: user.id,
+        ip: getClientIp(req),
+      });
+      return NextResponse.redirect(new URL("/dashboard?install_error=1&reason=not_admin", baseUrl));
+    }
+  }
+
   try {
     // Link the installation to the authenticated Baton user BEFORE the
     // registration job runs, so org installs are attributed even though the
@@ -136,13 +171,15 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         data: { userId: user.id },
       });
     } else if (existing && existing.userId !== user.id) {
-      // Already attributed to someone else: leave the owner in place and record
-      // the attempt. `registerInstallation` below preserves the owner too.
+      // Already attributed to someone else. Leave the owner in place and abort:
+      // continuing would still enqueue/register on the victim's behalf. The
+      // mismatch is a takeover attempt, not something to paper over.
       logger.warn("app-install-callback-owner-mismatch", {
         installationId,
         requestedBy: user.id,
         currentOwner: existing.userId,
       });
+      return NextResponse.redirect(new URL("/dashboard?install_error=1&reason=already_claimed", baseUrl));
     }
     // Awaited. `registerInstallation` below is the synchronous path; the enqueue
     // is a durable retry if it fails. Swallowing the error with `void ...catch()`
@@ -154,20 +191,20 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       });
     });
     try {
-      await registerInstallation(installationId, { accountLogin: user.login });
+      await registerInstallation(installationId);
     } catch (e) {
       logger.warn("app-install-immediate-register-fallback-to-queue", { installationId, error: String(e) });
     }
 
-    if (appUserToken) {
-      const installationIds = await fetchUserInstallations(appUserToken).catch(() => []);
-      for (const id of installationIds) {
-        await enqueueInstallRegister(id).catch(() => {});
-        try {
-          await registerInstallation(id, { accountLogin: user.login });
-        } catch {
-          // Synchronous registration best-effort fallback to enqueued job
-        }
+    // Reuse the already-verified GitHub-side list; re-fetching here would also
+    // re-introduce an unchecked source of installation ids.
+    for (const id of administeredInstallations) {
+      if (id === installationId) continue; // already registered above
+      await enqueueInstallRegister(id).catch(() => {});
+      try {
+        await registerInstallation(id);
+      } catch {
+        // Synchronous registration best-effort fallback to enqueued job
       }
     }
   } catch (err) {

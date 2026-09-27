@@ -103,25 +103,16 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       return oauthFailure("exchange_failed");
     }
 
-    // If next path carries an installation_id (e.g. from GitHub App setup callback
-    // redirecting through OAuth sign-in), link it immediately during sign-in.
-    let installationIdFromNext: number | undefined;
-    try {
-      const nextUrl = new URL(next, "http://localhost");
-      const idParam = nextUrl.searchParams.get("installation_id");
-      if (idParam && /^\d+$/.test(idParam)) {
-        installationIdFromNext = Number(idParam);
-      }
-    } catch {
-      installationIdFromNext = undefined;
-    }
-
-    // GitHub's state cookie may also carry a brand-new bare session if the
-    // site is ever breached to re-check; finishOAuthSignIn re-links installs.
+    // `next` is fully attacker-controlled (it round-trips through the OAuth
+    // `state`), so it must NEVER carry an identity-bearing parameter. It used to
+    // be mined for `installation_id` and handed to `finishOAuthSignIn`, which
+    // reassigned `AppInstallation.userId` with no proof the caller administered
+    // that installation — a cross-tenant takeover, since installation ids are
+    // sequential and enumerable. Installation linking happens only in
+    // /auth/install/callback, which verifies GitHub-side authority.
     const result = await finishOAuthSignIn({
       accessToken: exchanged.access_token,
       next,
-      installationId: installationIdFromNext,
       ip: getClientIp(req),
       userAgent: req.headers.get("user-agent"),
     });
@@ -129,11 +120,9 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     logger.info("oauth-signin", {
       login: result.user.login,
       installations: result.installationIds.length,
-      linkedInstallId: installationIdFromNext,
     });
 
-    const destination = installationIdFromNext ? "/dashboard?installed=1" : result.next;
-    const response = NextResponse.redirect(new URL(destination, baseUrl));
+    const response = NextResponse.redirect(new URL(result.next, baseUrl));
     const isHttps = baseUrl.startsWith("https");
     response.cookies.set(SESSION_COOKIE, result.token, {
       httpOnly: true,

@@ -87,11 +87,18 @@ export async function fetchInstallationInfo(installationId: number): Promise<Ins
  * Persist an installation + its repositories. Idempotent; safe to call on
  * `installation.created`, `installation_repositories`, and on lazy registration
  * from a webhook/worker.
+ *
+ * `accountLogin`/`accountType` are ALWAYS taken from GitHub, never from a
+ * caller. They used to be overridable via `opts`, and the install callback
+ * passed the signed-in user's own login. That mattered because
+ * `myInstallations` grants repository visibility on
+ * `OR: [{ userId }, { accountLogin: user.login }]`, so overwriting
+ * `accountLogin` with a caller's login handed that caller read AND write access
+ * to every repository of the victim installation — and simultaneously locked the
+ * real owner out. The single source of truth for an account's identity is
+ * GitHub's own answer, so the override is gone rather than merely unused.
  */
-export async function registerInstallation(
-  installationId: number,
-  opts: { accountLogin?: string | null; accountType?: string | null } = {},
-): Promise<InstallationInfo> {
+export async function registerInstallation(installationId: number): Promise<InstallationInfo> {
   let info: InstallationInfo;
   try {
     info = await fetchInstallationInfo(installationId);
@@ -100,8 +107,7 @@ export async function registerInstallation(
     throw e;
   }
 
-  const accountLogin = opts.accountLogin ?? info.accountLogin;
-  const accountType = opts.accountType ?? info.accountType;
+  const { accountLogin, accountType } = info;
 
   // Link the installation to a local user whose GitHub login matches, so the
   // per-person dashboard only shows repos the user actually installed on.

@@ -242,7 +242,6 @@ describe("finishOAuthSignIn (full pipeline)", () => {
         // GitHub App user-to-server token: ghu_* (only these can list installs).
         accessToken: "ghu_flow_test_token",
         next: "/dashboard?plan=team&billing=monthly",
-        installationId: TEST_INSTALLATION_ID,
         ip: "10.0.0.1",
         userAgent: "vitest",
       });

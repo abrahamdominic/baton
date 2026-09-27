@@ -7,7 +7,6 @@ import { enqueueInstallRegister } from "../engine/jobs";
 export interface FinishOAuthSignInParams {
   accessToken: string;
   next: string;
-  installationId?: number | null;
   ip?: string | null;
   userAgent?: string | null;
 }
@@ -22,13 +21,13 @@ export interface FinishOAuthSignInResult {
 
 /**
  * Complete an OAuth sign-in: resolve the GitHub user, upsert the Baton user,
- * create a server-side session, and link any GitHub App installations to the
- * account. Throws on failure so the caller can route to `/?oauth_error=1`.
+ * create a server-side session, and link any GitHub App installations that
+ * GitHub itself reports the user administers. Throws on failure so the caller can route to `/?oauth_error=1`.
  */
 export async function finishOAuthSignIn(
   params: FinishOAuthSignInParams,
 ): Promise<FinishOAuthSignInResult> {
-  const { accessToken, next, installationId } = params;
+  const { accessToken, next } = params;
 
   const gh = await fetchGitHubUser(accessToken);
 
@@ -54,38 +53,6 @@ export async function finishOAuthSignIn(
     ip: params.ip ?? null,
     userAgent: params.userAgent ?? null,
   });
-
-  // Combined flow: GitHub App installation plus freshly-authorized token.
-  if (installationId !== null && installationId !== undefined && installationId > 0) {
-    try {
-      const existing = await prisma.appInstallation.findUnique({
-        where: { installationId },
-        select: { userId: true },
-      });
-      if (!existing) {
-        await prisma.appInstallation.create({
-          data: {
-            installationId,
-            accountLogin: "pending",
-            accountType: "User",
-            userId: user.id,
-          },
-        });
-      } else if (existing.userId !== user.id) {
-        await prisma.appInstallation.update({
-          where: { installationId },
-          data: { userId: user.id },
-        });
-      }
-      // Awaited, not fire-and-forget: this is the only path that registers an
-      // installation discovered at sign-in, so a discarded enqueue would leave
-      // the user's repositories permanently unregistered. The enclosing catch
-      // logs and continues, so a failure here cannot break sign-in.
-      await enqueueInstallRegister(installationId);
-    } catch (e) {
-      logger.warn("oauth-link-installation-failed", { error: String(e), installationId });
-    }
-  }
 
   // Link every installation reachable with the user's token to this account.
   // Only GitHub App user-to-server tokens (`ghu_`) can list installations;

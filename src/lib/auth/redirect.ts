@@ -62,10 +62,43 @@ export function getOAuthBaseUrl(req?: NextRequest): string {
   return getAppBaseUrl(req);
 }
 
-/** post-login `next` is only honored for internal paths (anti open-redirect). */
+/** Only used to prove a candidate `next` stayed on our own origin. */
+const SAME_ORIGIN_BASE = "https://baton.invalid";
+
+/**
+ * post-login `next` is only honored for internal paths (anti open-redirect).
+ *
+ * A `startsWith("/") && !startsWith("//")` check is NOT sufficient. The WHATWG
+ * URL parser treats `\` as `/` for special schemes, so `/\evil.com` and
+ * `/\\evil.com` pass that guard and then resolve to `https://evil.com/`. The
+ * reachable sinks are the post-login redirect in the OAuth callback and the
+ * unauthenticated `GET /auth/logout`, which makes this usable as a phishing
+ * primitive: a victim authenticates at github.com and is handed to an
+ * attacker-controlled site.
+ *
+ * So the value is checked three ways: reject obvious shapes, reject characters
+ * with special meaning in a URL, and finally confirm with the actual parser
+ * that the result is same-origin.
+ */
 export function sanitizeNextPath(next: string | null): string {
-  if (!next) return "/dashboard";
-  if (!next.startsWith("/") || next.startsWith("//")) return "/dashboard";
+  const fallback = "/dashboard";
+  if (!next) return fallback;
+  if (!next.startsWith("/")) return fallback;
+  if (next.startsWith("//") || next.startsWith("/\\")) return fallback;
+  // Control characters (including a raw newline or CR, which enable header
+  // splitting if this ever reaches a Location header) and backslashes.
+  // eslint-disable-next-line no-control-regex
+  if (/[\u0000-\u001f\u007f\\]/.test(next)) return fallback;
+
+  // Authoritative check: let the URL parser decide, then require our origin.
+  let resolved: URL;
+  try {
+    resolved = new URL(next, SAME_ORIGIN_BASE);
+  } catch {
+    return fallback;
+  }
+  if (resolved.origin !== SAME_ORIGIN_BASE) return fallback;
+
   return next;
 }
 
