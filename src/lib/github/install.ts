@@ -84,6 +84,46 @@ export async function fetchInstallationInfo(installationId: number): Promise<Ins
 }
 
 /**
+ * Attribute installations to a signed-in user, WITHOUT ever displacing an
+ * existing owner.
+ *
+ * This exists because a plain `updateMany({ where: { installationId: { in: ids } },
+ * data: { userId } })` is a silent ownership takeover: GitHub reports every
+ * installation a user administers, and for an Organization account that is the
+ * shared org installation. When a second admin of the same org signed in, the
+ * stamp moved to them and the first admin lost visibility of their own
+ * organization's repositories — last-writer-wins on a shared resource.
+ *
+ * Organization installations must therefore never be personally owned at all.
+ * They belong to the org and are surfaced through `OrganizationInstallation` /
+ * `TeamInstallation`; visibility for members comes from
+ * `myInstallations`' organization-membership branch.
+ *
+ * The claim is conditional in the WHERE clause, not read-then-write, so two
+ * concurrent sign-ins cannot both win.
+ *
+ * @returns installation ids this call actually claimed.
+ */
+export async function claimUnownedInstallations(
+  installationIds: number[],
+  userId: string,
+): Promise<number[]> {
+  const claimed: number[] = [];
+  for (const raw of installationIds) {
+    const installationId = Number(raw);
+    if (!Number.isFinite(installationId) || installationId <= 0) continue;
+    const res = await prisma.appInstallation.updateMany({
+      // Unowned AND a personal account. Organization installations are owned by
+      // the organization, never by an individual admin.
+      where: { installationId, userId: null, accountType: "User" },
+      data: { userId },
+    });
+    if (res.count > 0) claimed.push(installationId);
+  }
+  return claimed;
+}
+
+/**
  * Persist an installation + its repositories. Idempotent; safe to call on
  * `installation.created`, `installation_repositories`, and on lazy registration
  * from a webhook/worker.

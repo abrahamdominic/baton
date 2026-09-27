@@ -3,7 +3,20 @@ import type { SessionUser } from "../auth/session";
 import { STATE_META, ORDERED_STATES } from "../engine/types";
 
 /**
- * Installations visible to the signed-in user (user-linked or same login).
+ * Installations visible to the signed-in user.
+ *
+ * Three legitimate visibility paths, all server-side:
+ *  - personally claimed  (`userId`): a personal-account GitHub install. The
+ *    claim is conditional on the installation being unowned, so this is
+ *    exclusive and cannot be stolen by a second sign-in.
+ *  - same login          (`accountLogin`): GitHub's own account identity for a
+ *    personal account, so an install is visible even before it is claimed.
+ *  - organization member (`organizationLinks`): an Organization installation is
+ *    owned by the organization, never by an individual admin, so every member
+ *    sees it. This branch is what replaces personal ownership of org installs —
+ *    without it, stopping the ownership flip would hide an org's repositories
+ *    from everyone but the last admin who signed in.
+ *
  * By default only enabled repos are returned; pass `allRepos: true` for admin
  * surfaces that should show every connected repository (including paused).
  */
@@ -14,7 +27,16 @@ export async function myInstallations(
   return prisma.appInstallation.findMany({
     where: {
       uninstalledAt: null,
-      OR: [{ userId: user.id }, { accountLogin: user.login }],
+      OR: [
+        { userId: user.id },
+        { accountLogin: user.login },
+        {
+          organizationLinks: {
+            some: { organization: { members: { some: { userId: user.id } } } },
+          },
+        },
+        { teamLinks: { some: { team: { members: { some: { userId: user.id } } } } } },
+      ],
     },
     include: {
       repos: opts.allRepos
@@ -58,8 +80,32 @@ export interface YourMoveItem {
 }
 
 /**
- * "Your move": every open, non-draft PR on the user's repos that is stalled,
- * ordered by how actionable/oldest it is.
+ * Classified states in which the PR author is the one who has to act next.
+ * Mirrors `whoseTurnLabel` so the two can never disagree about who owns the
+ * turn.
+ */
+const AUTHOR_ACT_STATES = new Set(["changes_required", "ci_failing", "conflicts"]);
+/** States whose turn belongs to reviewers, kept in step with `whoseTurnLabel`. */
+const REVIEWER_ACT_STATES = new Set(["awaiting_review", "awaiting_review_after_fix"]);
+
+/**
+ * "Your move": the open, non-draft PRs that are actually waiting on *this*
+ * user, most actionable first.
+ *
+ * This previously returned every open, non-draft PR on the user's repositories
+ * — including PRs authored by other people that are not waiting on the user at
+ * all — while the surrounding copy called it "Your move" and claimed it was
+ * "stalled". It filtered on nothing that connects a PR to the viewer, so the
+ * primary dashboard queue was a mislabelled list of someone else's work.
+ *
+ * Two real cases earn a place here:
+ *  1. The user is a requested reviewer and the PR is awaiting review.
+ *  2. The user authored the PR and the classified state says the author must
+ *     act (changes requested, CI failing, or conflicting).
+ *
+ * `ready_to_merge` is deliberately excluded: with no approval/review-count
+ * signal on the row, a merge-ready PR is a team decision, not this user's
+ * personal obligation, and guessing here is what made the old list wrong.
  */
 export async function yourMove(user: SessionUser): Promise<YourMoveItem[]> {
   const installations = await myInstallations(user);
@@ -77,12 +123,34 @@ export async function yourMove(user: SessionUser): Promise<YourMoveItem[]> {
     include: { repo: true },
   });
 
+  const login = user.login.toLowerCase();
+
   const actionableOrder = (state: string) => {
     const idx = ORDERED_STATES.indexOf(state as (typeof ORDERED_STATES)[number]);
     return idx === -1 ? 99 : idx;
   };
 
+  const requestedBy: (pr: (typeof prs)[number]) => boolean = (pr) => {
+    try {
+      const list = JSON.parse(pr.requestedReviewersJson || "[]") as unknown;
+      return Array.isArray(list) && list.some((r) => {
+        if (typeof r === "string") return r.toLowerCase() === login;
+        if (r && typeof r === "object") {
+          const l = (r as { login?: unknown }).login;
+          return typeof l === "string" && l.toLowerCase() === login;
+        }
+        return false;
+      });
+    } catch {
+      return false;
+    }
+  };
+
   return prs
+    .filter((pr) => {
+      if (pr.authorLogin.toLowerCase() === login) return AUTHOR_ACT_STATES.has(pr.state);
+      return REVIEWER_ACT_STATES.has(pr.state) && requestedBy(pr);
+    })
     .map((pr) => ({
       prId: pr.id,
       number: pr.number,
@@ -94,7 +162,9 @@ export async function yourMove(user: SessionUser): Promise<YourMoveItem[]> {
       stateLabel: STATE_META[pr.state as keyof typeof STATE_META]?.label ?? "Unknown",
       stateTone: STATE_META[pr.state as keyof typeof STATE_META]?.tone ?? "neutral",
       whoseTurn: whoseTurnLabel(pr.state),
-      hoursInState: (now - pr.stateEnteredAt.getTime()) / 3_600_000,
+      // Whole hours, not a fractional float: this is rendered as "3h" and
+      // previously leaked values like 3.48372.
+      hoursInState: Math.floor((now - pr.stateEnteredAt.getTime()) / 3_600_000),
       authorLogin: pr.authorLogin,
       lastActivity: pr.githubUpdatedAt,
     }))
@@ -155,69 +225,97 @@ const ACTIVITY_STATE_META = STATE_META as Record<string, { label: string }>;
  * targeted nudges, and PR refreshes that actually changed the classified state.
  * `pr_snapshot` rows where the state didn't change are noise and are filtered
  * out here.
+ *
+ * The filter has to happen while paging, not after a single `take`. The worker
+ * writes a `pr_snapshot` row on *every* PR refresh, so the newest N rows are
+ * almost entirely snapshots that carry no state change; taking one page and
+ * filtering in JavaScript returned an empty or badly under-filled feed even
+ * though real activity existed further back. So the query excludes the row
+ * types that can never be shown, then walks pages until `limit` meaningful
+ * items are collected or a hard scan cap is reached.
  */
+const ACTIVITY_SCAN_CAP = 2000;
+const ACTIVITY_PAGE = 200;
+
 export async function recentActivity(user: SessionUser, limit = 50): Promise<ActivityItem[]> {
   const installations = await myInstallations(user, { allRepos: true });
   const repoIds = installations.flatMap((i) => i.repos.map((r) => r.id));
   if (repoIds.length === 0) return [];
 
-  const rows = await prisma.action.findMany({
-    where: { repoId: { in: repoIds } },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    select: {
-      id: true,
-      type: true,
-      targetJson: true,
-      createdAt: true,
-      repo: { select: { owner: true, name: true } },
-      pr: { select: { number: true, title: true } },
-    },
-  });
-
   const items: ActivityItem[] = [];
-  for (const row of rows) {
-    if (!row.repo || !row.pr) continue;
-    let target: { state?: string; prevState?: string } = {};
-    try {
-      target = JSON.parse(row.targetJson || "{}") as { state?: string; prevState?: string };
-    } catch {
-      target = {};
-    }
+  let cursor: string | undefined;
+  let scanned = 0;
 
-    if (row.type === "nudge") {
-      items.push({
-        id: row.id,
-        type: "nudge",
-        owner: row.repo.owner,
-        repo: row.repo.name,
-        prNumber: row.pr.number,
-        prTitle: row.pr.title,
-        createdAt: row.createdAt,
-        description: `Sent a targeted @mention nudge on #${row.pr.number}`,
-      });
-      continue;
-    }
+  while (items.length < limit && scanned < ACTIVITY_SCAN_CAP) {
+    const take = Math.min(ACTIVITY_PAGE, ACTIVITY_SCAN_CAP - scanned);
+    const rows = await prisma.action.findMany({
+      where: {
+        repoId: { in: repoIds },
+        // Only these two types can ever produce an activity entry. Excluding
+        // status_comment/label/comment in SQL stops them from consuming the
+        // page budget.
+        type: { in: ["nudge", "pr_snapshot"] },
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        type: true,
+        targetJson: true,
+        createdAt: true,
+        repo: { select: { owner: true, name: true } },
+        pr: { select: { number: true, title: true } },
+      },
+    });
+    if (rows.length === 0) break;
+    scanned += rows.length;
+    cursor = rows[rows.length - 1]!.id;
 
-    if (row.type === "pr_snapshot" && target.prevState && target.state && target.prevState !== target.state) {
-      items.push({
-        id: row.id,
-        type: "state_change",
-        owner: row.repo.owner,
-        repo: row.repo.name,
-        prNumber: row.pr.number,
-        prTitle: row.pr.title,
-        createdAt: row.createdAt,
-        state: target.state,
-        previousState: target.prevState,
-        description: `State changed on #${row.pr.number}: ${
-          ACTIVITY_STATE_META[target.prevState]?.label ?? target.prevState
-        } → ${ACTIVITY_STATE_META[target.state]?.label ?? target.state}`,
-      });
+    for (const row of rows) {
+      if (items.length >= limit) break;
+      if (!row.repo || !row.pr) continue;
+      let target: { state?: string; prevState?: string } = {};
+      try {
+        target = JSON.parse(row.targetJson || "{}") as { state?: string; prevState?: string };
+      } catch {
+        target = {};
+      }
+
+      if (row.type === "nudge") {
+        items.push({
+          id: row.id,
+          type: "nudge",
+          owner: row.repo.owner,
+          repo: row.repo.name,
+          prNumber: row.pr.number,
+          prTitle: row.pr.title,
+          createdAt: row.createdAt,
+          description: `Sent a targeted @mention nudge on #${row.pr.number}`,
+        });
+        continue;
+      }
+
+      if (row.type === "pr_snapshot" && target.prevState && target.state && target.prevState !== target.state) {
+        items.push({
+          id: row.id,
+          type: "state_change",
+          owner: row.repo.owner,
+          repo: row.repo.name,
+          prNumber: row.pr.number,
+          prTitle: row.pr.title,
+          createdAt: row.createdAt,
+          state: target.state,
+          previousState: target.prevState,
+          description: `State changed on #${row.pr.number}: ${
+            ACTIVITY_STATE_META[target.prevState]?.label ?? target.prevState
+          } → ${ACTIVITY_STATE_META[target.state]?.label ?? target.state}`,
+        });
+      }
     }
   }
 
-  return items.slice(0, limit);
+  return items;
 }
 
 // ---------------------------------------------------------------------------

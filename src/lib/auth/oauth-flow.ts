@@ -3,6 +3,7 @@ import { logger } from "../logger";
 import { fetchGitHubUser, fetchUserInstallations } from "./github-oauth";
 import { createSession, defaultRoleForLogin, type SessionUser } from "./session";
 import { enqueueInstallRegister } from "../engine/jobs";
+import { claimUnownedInstallations } from "../github/install";
 
 export interface FinishOAuthSignInParams {
   accessToken: string;
@@ -57,14 +58,23 @@ export async function finishOAuthSignIn(
   // Link every installation reachable with the user's token to this account.
   // Only GitHub App user-to-server tokens (`ghu_`) can list installations;
   // standalone OAuth App tokens (`gho_`) get a 401 back, so skip the call.
+  //
+  // Claiming is conditional: an installation already owned by someone else is
+  // never displaced, and Organization installations are never personally owned
+  // (two admins of one org would otherwise flip ownership on every sign-in).
   const installationIds = accessToken.startsWith("ghu_")
     ? await fetchUserInstallations(accessToken).catch(() => [])
     : [];
   if (installationIds.length > 0) {
-    await prisma.appInstallation.updateMany({
-      where: { installationId: { in: installationIds } },
-      data: { userId: user.id },
-    });
+    const claimed = await claimUnownedInstallations(installationIds, user.id);
+    const skipped = installationIds.filter((id) => !claimed.includes(id));
+    if (skipped.length > 0) {
+      logger.info("oauth-installations-not-claimed", {
+        login: gh.login,
+        count: skipped.length,
+        reason: "owned-by-another-user-or-organization-account",
+      });
+    }
     for (const id of installationIds) {
       // Same reasoning as above: awaited so a lost enqueue cannot silently
       // strand an installation. One failure must not abandon the rest.

@@ -206,23 +206,23 @@ export default async function DashboardPage({
             icon={IconBranch}
           />
           <StatCard
-            label="Open PRs in Queue"
+            label="Waiting on You"
             value={items.length}
-            detail="Active across all repos"
+            detail="Needs your action"
             tone={items.length > 0 ? "brand" : "default"}
             icon={IconGitPullRequest}
           />
           <StatCard
             label="Stalled (24h+)"
             value={stalled}
-            detail={stalled > 0 ? "Exceeds response SLA" : "Zero stalled work"}
+            detail={stalled > 0 ? "Sitting on you past a day" : "Nothing sitting"}
             tone={stalled > 0 ? "warn" : "signal"}
             icon={IconClock}
           />
           <StatCard
-            label="Waiting on Review"
+            label="Your Reviews"
             value={waitingReviewers}
-            detail={`${waitingAuthor} waiting on author fixes`}
+            detail={`${waitingAuthor} of your PRs need fixes`}
             tone={waitingReviewers > 0 ? "brand" : "default"}
             icon={IconActivity}
           />
