@@ -145,6 +145,9 @@ export async function runClaimedJob(): Promise<JobOutcome> {
     } else if (job.kind === "install_unregister" && payload.kind === "install_unregister") {
       const { handleUninstall } = await import("@/lib/github/install");
       await handleUninstall(payload.installationId);
+    } else if (job.kind === "repo_intel" && payload.kind === "repo_intel") {
+      const { processRepoIntel } = await import("@/lib/engine/runner");
+      await processRepoIntel(payload);
     } else {
       // `kind` on the row and `kind` inside the payload disagree, or neither is
       // recognised. Retrying cannot fix either case.

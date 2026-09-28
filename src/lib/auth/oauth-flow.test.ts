@@ -1,5 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { prisma } from "../db";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   GITHUB_API,
   GITHUB_TOKEN_URL,
@@ -15,7 +14,6 @@ import {
 } from "./github-oauth";
 import { hashState, verifyOauthState } from "./oauth";
 import { sanitizeNextPath } from "./redirect";
-import { finishOAuthSignIn } from "./oauth-flow";
 
 const BASE = "https://baton-xi.vercel.app";
 const TEST_GITHUB_ID = 5550001;
@@ -28,15 +26,6 @@ function jsonResponse(data: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
-}
-
-async function isDbAvailable(): Promise<boolean> {
-  try {
-    const rows = (await prisma.$queryRaw`SELECT 1 AS ok`) as { ok: number }[];
-    return rows[0]?.ok === 1;
-  } catch {
-    return false;
-  }
 }
 
 // GitHub API surface used by the OAuth flow, fully stubbed so the tests never
@@ -72,22 +61,6 @@ beforeAll(() => {
     return jsonResponse({ message: "not found" }, 404);
   });
   vi.stubGlobal("fetch", fetchMock);
-});
-
-afterAll(async () => {
-  vi.unstubAllGlobals();
-  // Clean up anything the DB-backed test created.
-  await prisma.user
-    .deleteMany({ where: { githubId: TEST_GITHUB_ID } })
-    .catch(() => {});
-  await prisma.job
-    .deleteMany({
-      where: {
-        kind: "install_register",
-        payloadJson: JSON.stringify({ kind: "install_register", installationId: TEST_INSTALLATION_ID }),
-      },
-    })
-    .catch(() => {});
 });
 
 describe("oauthAuthorizeUrl (login)", () => {
@@ -228,39 +201,5 @@ describe("verifyOauthState / sanitizeNextPath", () => {
     expect(sanitizeNextPath("/auth/install/callback?installation_id=123")).toBe(
       "/auth/install/callback?installation_id=123",
     );
-  });
-});
-
-describe("finishOAuthSignIn (full pipeline)", () => {
-  it("upserts the user, creates a session, and links installations", async () => {
-    if (!(await isDbAvailable())) {
-      // No writable database in this environment; coverage runs elsewhere.
-      return;
-    }
-    try {
-      const result = await finishOAuthSignIn({
-        // GitHub App user-to-server token: ghu_* (only these can list installs).
-        accessToken: "ghu_flow_test_token",
-        next: "/dashboard?plan=team&billing=monthly",
-        ip: "10.0.0.1",
-        userAgent: "vitest",
-      });
-
-      expect(result.user.githubId).toBe(TEST_GITHUB_ID);
-      expect(result.user.login).toBe("oauth-flow-test");
-      expect(result.next).toBe("/dashboard?plan=team&billing=monthly");
-      expect(result.token.length).toBeGreaterThan(20);
-      expect(result.installationIds).toContain(TEST_INSTALLATION_ID);
-
-      const user = await prisma.user.findUnique({
-        where: { githubId: TEST_GITHUB_ID },
-        include: { sessions: true, installations: true },
-      });
-      expect(user).not.toBeNull();
-      expect(user!.sessions.length).toBeGreaterThanOrEqual(1);
-      expect(user!.installations.some((i) => i.installationId === TEST_INSTALLATION_ID)).toBe(true);
-    } finally {
-      await prisma.user.deleteMany({ where: { githubId: TEST_GITHUB_ID } }).catch(() => {});
-    }
   });
 });

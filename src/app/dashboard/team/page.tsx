@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { currentUser } from "@/lib/auth/session";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { listUserTeams, pendingTeamInvites } from "@/lib/workspaces";
@@ -19,6 +20,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function TeamsPage() {
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -40,13 +42,13 @@ export default async function TeamsPage() {
             Team Workspaces
           </span>
         }
-        title="Teams"
+        title={t("teams:teams")}
         description="A team shares a review board across its members' GitHub accounts, while the team owner's subscription unlocks plan entitlements for everyone."
         actions={
           canUseTeams ? (
             <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
               <IconShield className="h-3.5 w-3.5" />
-              <span>Manage plan</span>
+              <span>{t("teams:manage_plan")}</span>
             </Link>
           ) : undefined
         }
@@ -88,11 +90,11 @@ export default async function TeamsPage() {
       {!canUseTeams ? (
         <EmptyState
           icon={IconUsers}
-          title="Team workspaces require the Team or Organization plan"
-          hint="Upgrade to invite members, share boards across GitHub accounts, and give admins a shared view of every stalled pull request."
+          title={t("teams:teams_require_plan")}
+          hint={t("teams:teams_require_plan_hint")}
           action={
             <Link href="/dashboard/billing" className="btn btn-primary btn-sm">
-              <span>Upgrade to Team</span>
+              <span>{t("teams:upgrade_to_team")}</span>
               <IconArrowRight className="h-3.5 w-3.5" />
             </Link>
           }
@@ -101,7 +103,7 @@ export default async function TeamsPage() {
         <>
           {/* Create team */}
           <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
-            <h2 className="text-sm font-bold text-white">Create a team</h2>
+            <h2 className="text-sm font-bold text-white">{t("teams:create_team")}</h2>
             <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
               The owner&apos;s paid plan activates team limits for every member. Share one of your
               GitHub installations to seed the team board.
@@ -143,7 +145,7 @@ export default async function TeamsPage() {
                 />
               </div>
               <button type="submit" className="btn btn-primary btn-sm h-9">
-                <span>Create team</span>
+                <span>{t("teams:create_team_action")}</span>
                 <IconChevronRight className="h-3.5 w-3.5" />
               </button>
             </form>
@@ -152,8 +154,8 @@ export default async function TeamsPage() {
           {teams.length === 0 ? (
             <EmptyState
               icon={IconUsers}
-              title="No teams yet"
-              hint="Create your first team above, then share a GitHub installation so members can collaborate on the same board."
+              title={t("teams:no_teams_yet")}
+              hint={t("teams:no_teams_yet_hint")}
             />
           ) : (
             <ul className="space-y-4">
@@ -200,11 +202,11 @@ export default async function TeamsPage() {
                         className="btn btn-ghost btn-sm"
                       >
                         <IconGitPullRequest className="h-3.5 w-3.5" />
-                        <span>Board</span>
+                        <span>{t("teams:board")}</span>
                         <IconChevronRight className="h-3 w-3" />
                       </Link>
                       <Link href={`/dashboard/team/${team.id}`} className="btn btn-ghost btn-sm">
-                        <span>Manage</span>
+                        <span>{t("teams:manage")}</span>
                         <IconArrowRight className="h-3 w-3" />
                       </Link>
                     </div>

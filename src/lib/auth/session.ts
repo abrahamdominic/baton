@@ -61,6 +61,8 @@ export interface SessionUser {
   avatarUrl: string | null;
   role: string;
   suspendedAt: Date | null;
+  /** BCP-47 tag the user explicitly chose, or null when they never chose. */
+  preferredLanguage: string | null;
 }
 
 /** Resolve a request's session token to its user (with expiry check). */
@@ -85,6 +87,7 @@ export async function getUserFromToken(token: string | undefined | null): Promis
     avatarUrl: u.avatarUrl,
     role: u.role,
     suspendedAt: u.suspendedAt,
+    preferredLanguage: u.preferredLanguage,
   };
 }
 

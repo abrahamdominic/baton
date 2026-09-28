@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { currentUser } from "@/lib/auth/session";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
@@ -61,6 +62,7 @@ const THRESHOLDS = [
 ];
 
 export default async function ReposPage() {
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -83,14 +85,14 @@ export default async function ReposPage() {
     return (
       <div className="space-y-8">
         <PageHeader
-          title="Tracked Repositories"
-          description="Configure Baton monitoring and polite review stall nudge thresholds per repository."
+          title={t("repos:tracked_repositories")}
+          description={t("repos:repos_description")}
         />
 
         <EmptyState
           icon={IconBranch}
-          title="No repositories connected"
-          hint="Install the Baton GitHub App on your GitHub accounts or sync existing installations to begin monitoring."
+          title={t("repos:no_repos_connected")}
+          hint={t("repos:no_repos_connected_hint")}
           action={
             <div className="flex flex-wrap items-center justify-center gap-3">
               <RepoSyncButton />
@@ -101,7 +103,7 @@ export default async function ReposPage() {
                 rel="noreferrer"
               >
                 <IconGitHub className="h-3.5 w-3.5" />
-                <span>Install Baton on GitHub</span>
+                <span>{t("repos:install_baton_on_github")}</span>
               </a>
             </div>
           }
@@ -225,7 +227,7 @@ export default async function ReposPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-ghost btn-sm"
-                      title="View repository on GitHub"
+                      title={t("repos:view_repo_on_github")}
                     >
                       <IconGitHub className="h-3.5 w-3.5" />
                       <IconExternalLink className="h-3 w-3" />
@@ -234,7 +236,7 @@ export default async function ReposPage() {
                       href={`/dashboard/repos/${r.owner}/${r.name}`}
                       className="btn btn-ghost btn-sm"
                     >
-                      <span>Repo Board</span>
+                      <span>{t("repos:repo_board")}</span>
                       <IconChevronRight className="h-3 w-3" />
                     </Link>
                     <form
@@ -264,12 +266,12 @@ export default async function ReposPage() {
                         {r.enabled ? (
                           <>
                             <IconPause className="h-3 w-3 text-warn-400" />
-                            <span>Pause</span>
+                            <span>{t("repos:pause")}</span>
                           </>
                         ) : (
                           <>
                             <IconPlay className="h-3 w-3 text-signal-400" />
-                            <span>Resume</span>
+                            <span>{t("repos:resume")}</span>
                           </>
                         )}
                       </button>
@@ -283,7 +285,7 @@ export default async function ReposPage() {
                       <button
                         type="submit"
                         className="btn btn-ghost btn-sm"
-                        title="Trigger an immediate full sweep of this repo's pull requests"
+                        title={t("repos:sweep_now")}
                       >
                         <IconRefresh className="h-3 w-3" />
                         <span>Re-scan</span>
@@ -298,7 +300,7 @@ export default async function ReposPage() {
                   {r.setting ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-mono text-[10px] uppercase font-semibold text-ink-500 mr-1">
-                        Active Thresholds:
+                        {t("repos:active_thresholds")}
                       </span>
                       {THRESHOLDS.map((t) => (
                         <span
@@ -318,10 +320,10 @@ export default async function ReposPage() {
                       <summary className="flex cursor-pointer items-center justify-between py-1 text-xs font-semibold text-ink-300 transition-colors hover:text-white outline-none select-none">
                         <span className="flex items-center gap-2">
                           <IconSliders className="h-3.5 w-3.5 text-brand-400" />
-                          <span>Customize Inactivity Thresholds (Hours)</span>
+                          <span>{t("repos:customize_thresholds")}</span>
                           {!canCustomThresholds && (
                             <span className="rounded border border-brand-400/30 bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-mono text-brand-300">
-                              Team &amp; Org
+                              {t("repos:team_org_badge")}
                             </span>
                           )}
                         </span>
@@ -333,7 +335,7 @@ export default async function ReposPage() {
                           <div className="rounded-lg border border-brand-500/20 bg-brand-500/[0.04] p-4 text-xs">
                             <div className="flex items-center gap-2 font-semibold text-white">
                               <IconLock className="h-3.5 w-3.5 text-brand-400" />
-                              <span>Custom thresholds require a Team or Organization plan</span>
+                              <span>{t("repos:thresholds_require_plan")}</span>
                             </div>
                             <p className="mt-1.5 text-xs text-ink-400 leading-relaxed">
                               This repository currently uses Baton&apos;s standard defaults (

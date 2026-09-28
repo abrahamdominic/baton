@@ -3,8 +3,15 @@ import "./globals.css";
 import { config } from "@/lib/env-boot";
 import { SITE_NAME, SITE_TITLE } from "@/lib/site";
 import { buildPrepaintScript, THEME_COLORS } from "@/lib/theme";
+import { buildLocalePrepaintScript } from "@/lib/i18n/prepaint";
+import { directionFor, localeTag, type Locale } from "@/lib/i18n/config";
+import { loadBundle } from "@/lib/i18n/bundles";
+import { resolveRequestLocale } from "@/lib/i18n/resolve";
+import { I18nProvider } from "@/lib/i18n/provider";
+import { savePreferredLanguageAction } from "@/app/actions/language";
 
 const PREPAINT_SCRIPT = buildPrepaintScript();
+const LOCALE_PREPAINT_SCRIPT = buildLocalePrepaintScript();
 
 export const metadata: Metadata = {
   metadataBase: new URL(config.SITE_URL),
@@ -62,14 +69,36 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Resolved on the server so the first paint is already in the right
+  // language. `lang` and `dir` are set here rather than by the client provider,
+  // which is what removes the "English, then Spanish" flash.
+  const { locale, accountLocale } = await resolveRequestLocale();
+  const bundles = await loadBundle(locale);
+
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang={localeTag(locale)} dir={directionFor(locale)} data-theme="dark" suppressHydrationWarning>
       <head>
         {/* Resolve the stored theme before first paint to avoid a flash. */}
         <script dangerouslySetInnerHTML={{ __html: PREPAINT_SCRIPT }} />
+        {/*
+          Stamps the stored/ detected language onto <html> before React
+          hydrates, so direction and language are correct even on the very first
+          frame. The server already sent the right value; this keeps the DOM in
+          step if local storage holds a more recent explicit choice.
+        */}
+        <script dangerouslySetInnerHTML={{ __html: LOCALE_PREPAINT_SCRIPT }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <I18nProvider
+          initialLocale={locale as Locale}
+          bundles={bundles}
+          accountLocale={accountLocale}
+          persist={savePreferredLanguageAction}
+        >
+          {children}
+        </I18nProvider>
+      </body>
     </html>
   );
 }

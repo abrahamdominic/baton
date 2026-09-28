@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { currentUser } from "@/lib/auth/session";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { listUserOrganizations, pendingOrgInvites } from "@/lib/workspaces";
@@ -19,6 +20,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function OrganizationsPage() {
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -41,13 +43,13 @@ export default async function OrganizationsPage() {
             Organization Workspaces
           </span>
         }
-        title="Organizations"
+        title={t("organizations:organizations")}
         description="Heads of engineering run organization-wide review stall policies and export a full audit trail, while members share a single board."
         actions={
           canUseOrgs ? (
             <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
               <IconShield className="h-3.5 w-3.5" />
-              <span>Manage plan</span>
+              <span>{t("organizations:manage_plan")}</span>
             </Link>
           ) : undefined
         }
@@ -89,11 +91,11 @@ export default async function OrganizationsPage() {
       {!canUseOrgs ? (
         <EmptyState
           icon={IconBuilding}
-          title="Organization workspaces require the Organization plan"
+          title={t("organizations:orgs_require_plan")}
           hint="Unlock organization-wide review stall policies, roles and invitations, shared boards, and an exportable audit trail."
           action={
             <Link href="/dashboard/billing" className="btn btn-primary btn-sm">
-              <span>Upgrade to Organization</span>
+              <span>{t("organizations:upgrade_to_org")}</span>
               <IconArrowRight className="h-3.5 w-3.5" />
             </Link>
           }
@@ -102,7 +104,7 @@ export default async function OrganizationsPage() {
         <>
           {/* Create organization */}
           <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
-            <h2 className="text-sm font-bold text-white">Create an organization</h2>
+            <h2 className="text-sm font-bold text-white">{t("organizations:create_org")}</h2>
             <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
               Organization owners set stall policies that apply across every shared repository, and
               the audit log records member, invite, policy, and installation changes.
@@ -144,7 +146,7 @@ export default async function OrganizationsPage() {
                 />
               </div>
               <button type="submit" className="btn btn-primary btn-sm h-9">
-                <span>Create organization</span>
+                <span>{t("organizations:create_org_action")}</span>
                 <IconChevronRight className="h-3.5 w-3.5" />
               </button>
             </form>
@@ -153,7 +155,7 @@ export default async function OrganizationsPage() {
           {orgs.length === 0 ? (
             <EmptyState
               icon={IconBuilding}
-              title="No organizations yet"
+              title={t("organizations:no_orgs_yet")}
               hint="Create your first organization above to set org-wide policies and share boards with your engineering team."
             />
           ) : (

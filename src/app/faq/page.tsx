@@ -40,7 +40,7 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     category: "Security & Permissions",
     q: "Does Baton read, analyze, or store my source code?",
-    a: "No. Absolutely never. Baton is configured with the strict least-privilege permissions needed for workflow orchestration: Pull requests (read/write for status comments), Issues (read/write for state labels), Checks (read-only), and Metadata. It never requests Contents access, so GitHub's security model strictly prevents Baton from reading files, ASTs, or diffs.",
+    a: "Baton does not store your source code. Workflow orchestration needs only Pull requests (read/write for status comments), Issues (read/write for state labels), Checks (read-only), and Metadata. Repository intelligence additionally reads your file tree, the package manifest, and CODEOWNERS so it can describe how a repository is built. Those reads are used to derive facts, cited back to their source, and are then discarded. Baton does not request Workflows or Secrets access, and it never retains file contents.",
   },
   {
     category: "Security & Permissions",

@@ -172,7 +172,7 @@ export async function MarketingFooter() {
             <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-ink-400">
               <span className="flex items-center gap-1.5 rounded-full border border-signal-500/20 bg-signal-500/10 px-2.5 py-1 font-mono text-[11px] text-signal-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-signal-500" />
-                Least-privilege metadata
+                Evidence-backed intelligence
               </span>
               <span className="rounded-full border border-white/[0.08] bg-ink-900 px-2.5 py-1 font-mono text-[11px] text-ink-400">
                 AGPL-3.0 Open Source

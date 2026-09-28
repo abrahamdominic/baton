@@ -4,7 +4,7 @@ Baton is deliberately small on permissions and explicit about data. This documen
 is the security model; it should stay in sync with the code and is worth reading
 before deploying.
 
-## GitHub App permissions (least privilege)
+## GitHub App permissions
 
 | Permission | Access | Why |
 | --- | --- | --- |
@@ -12,10 +12,15 @@ before deploying.
 | Issues | Read & write | Write state labels and comments in the PR thread. |
 | Checks | Read only | Detect failing/pending CI. |
 | Metadata | Read only | Repo visibility and identity (mandatory). |
+| Contents | Read only | Repository intelligence reads the file tree, `package.json`, and `CODEOWNERS`. |
 
-Baton requests **no Contents access**, and therefore cannot read your source
-code, diffs, or file contents. If a future feature needs a new permission, it
-must be documented here and added to the GitHub App manifest deliberately.
+**Contents is read-only, and nothing read is stored.** Repository intelligence
+uses those reads to derive facts about how a repository is built; each derived
+fact keeps a citation pointing at the path it came from. The raw file contents
+are not persisted, and no source file, AST, or diff is written to the database.
+Baton does not request **Workflows** or **Secrets** access. If a future feature
+needs a new permission, it must be documented here and added to the GitHub App
+manifest deliberately.
 
 ## Webhook integrity
 

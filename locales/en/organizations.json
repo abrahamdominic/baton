@@ -1,0 +1,21 @@
+{
+  "title": "Organizations",
+  "organization_settings": "Organization settings",
+  "members": "Members",
+  "roles": "Roles",
+  "invitations": "Invitations",
+  "ownership": "Ownership",
+  "management": "Management",
+  "no_orgs_title": "No organizations yet",
+  "no_orgs_description": "Create an organization to manage repositories at scale.",
+  "audit_log": "Audit log",
+  "organizations": "Organizations",
+  "orgs_require_plan": "Organization workspaces require the Organization plan",
+  "orgs_require_plan_hint": "Upgrade to manage repositories across every account, enforce review policies, and give admins a shared view of every stalled pull request.",
+  "upgrade_to_org": "Upgrade to Organization",
+  "create_org": "Create an organization",
+  "create_org_action": "Create organization",
+  "no_orgs_yet": "No organizations yet",
+  "no_orgs_yet_hint": "Create your first organization above, then connect GitHub installations to manage them centrally.",
+  "manage_plan": "Manage plan"
+}

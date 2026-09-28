@@ -100,6 +100,7 @@ export async function finishOAuthSignIn(
       avatarUrl: user.avatarUrl,
       role: user.role,
       suspendedAt: user.suspendedAt,
+      preferredLanguage: null,
     },
     token: session.token,
     expiresAt: session.expiresAt,

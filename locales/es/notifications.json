@@ -1,0 +1,8 @@
+{
+  "title": "Notificaciones",
+  "empty_title": "Estás al día",
+  "empty_description": "No tienes notificaciones sin leer.",
+  "mark_all_read": "Marcar todo como leído",
+  "unread_one": "{{count}} notificación sin leer",
+  "unread_other": "{{count}} notificaciones sin leer"
+}

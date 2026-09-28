@@ -21,6 +21,8 @@ const stamp = `ownflip${Date.now().toString(36)}`;
 const personalInstall = 9_100_000 + (Date.now() % 800_000);
 const orgInstall = 9_900_000 + (Date.now() % 80_000);
 const otherPersonalInstall = 9_600_000 + (Date.now() % 80_000);
+const teamInstall = 9_400_000 + (Date.now() % 80_000);
+const legacyStampedOrg = 9_300_000 + (Date.now() % 80_000);
 
 // Random base per run so a previous failed run's rows (whose cleanup is skipped
 // when beforeAll throws) cannot collide on the unique githubId. Kept well under
@@ -40,11 +42,13 @@ type TestUser = {
   avatarUrl: string | null;
   role: string;
   suspendedAt: Date | null;
+  preferredLanguage: string | null;
 };
 
 let adminA: TestUser;
 let adminB: TestUser;
 let orgId: string;
+let teamId: string;
 
 async function makeUser(login: string) {
   return prisma.user.create({
@@ -96,14 +100,49 @@ beforeAll(async () => {
   await prisma.organizationInstallation.create({
     data: { organizationId: orgId, installationId: orgRow.id, addedById: adminA.id },
   });
+
+  // A team-linked installation, to cover the team-membership visibility branch
+  // in `myInstallations`.
+  await prisma.appInstallation.create({
+    data: { installationId: teamInstall, accountLogin: `${stamp}-team`, accountType: "Organization", userId: null },
+  });
+  const teamInstallRow = await prisma.appInstallation.findUniqueOrThrow({
+    where: { installationId: teamInstall },
+    select: { id: true },
+  });
+  const team = await prisma.team.create({
+    data: { slug: `${stamp}-team`, name: "Flip Team", ownerId: adminA.id },
+    select: { id: true },
+  });
+  teamId = team.id;
+  await prisma.teamMember.create({ data: { teamId, userId: adminB.id, role: "member" } });
+  await prisma.teamInstallation.create({ data: { teamId, installationId: teamInstallRow.id } });
+
+  // An org installation left carrying a personal stamp by the historical bug,
+  // standing in for a row written before the fix. Migration 0005 clears these.
+  await prisma.appInstallation.create({
+    data: {
+      installationId: legacyStampedOrg,
+      accountLogin: `${stamp}-legacy`,
+      accountType: "Organization",
+      userId: adminA.id,
+    },
+  });
 });
 
 afterAll(async () => {
   await prisma.organizationInstallation.deleteMany({ where: { organizationId: orgId } });
   await prisma.organizationMember.deleteMany({ where: { organizationId: orgId } });
   await prisma.organization.deleteMany({ where: { id: orgId } });
+  await prisma.teamInstallation.deleteMany({ where: { teamId } });
+  await prisma.teamMember.deleteMany({ where: { teamId } });
+  await prisma.team.deleteMany({ where: { id: teamId } });
   await prisma.appInstallation.deleteMany({
-    where: { installationId: { in: [personalInstall, orgInstall, otherPersonalInstall] } },
+    where: {
+      installationId: {
+        in: [personalInstall, orgInstall, otherPersonalInstall, teamInstall, legacyStampedOrg],
+      },
+    },
   });
   await prisma.user.deleteMany({ where: { login: { startsWith: stamp } } });
 });
@@ -167,5 +206,47 @@ describe("installation ownership (real database)", () => {
   it("ignores invalid installation ids", async () => {
     const claimed = await claimUnownedInstallations([0, -1, Number.NaN, 1.5], adminA.id);
     expect(claimed).toEqual([]);
+  });
+
+  it("a team member sees a team-linked installation", async () => {
+    // adminB is a member of the team, not of the organization, and does not own
+    // the installation. It must still be visible.
+    const seen = await myInstallations(adminB);
+    expect(seen.map((i) => i.installationId)).toContain(teamInstall);
+  });
+
+  it("a non-member of the team cannot see a team-linked installation", async () => {
+    const outsider = await makeUser(`${stamp}-team-outsider`);
+    try {
+      const seen = await myInstallations(outsider);
+      expect(seen.map((i) => i.installationId)).not.toContain(teamInstall);
+    } finally {
+      await prisma.user.delete({ where: { id: outsider.id } });
+    }
+  });
+
+  it("still refuses to claim a team-linked Organization installation", async () => {
+    const claimed = await claimUnownedInstallations([teamInstall], adminB.id);
+    expect(claimed).not.toContain(teamInstall);
+  });
+
+  it("leaves a personal installation's owner untouched", async () => {
+    // The cleanup migration must not be able to orphan a genuine personal
+    // installation; only Organization rows are affected.
+    const row = await prisma.appInstallation.findUniqueOrThrow({
+      where: { installationId: otherPersonalInstall },
+    });
+    expect(row.userId).toBe(adminB.id);
+  });
+
+  it("migration 0005 would clear the stale stamp on an Organization row", async () => {
+    // The row models one written while the ownership-flip bug was live. The
+    // migration cannot run inside the SQLite mirror, so this asserts the exact
+    // predicate it uses: Organization rows with a stamp, and only those.
+    const stampedOrgs = await prisma.appInstallation.findMany({
+      where: { userId: { not: null }, accountType: { in: ["Organization", "organization"] } },
+      select: { installationId: true },
+    });
+    expect(stampedOrgs.map((r) => r.installationId)).toContain(legacyStampedOrg);
   });
 });

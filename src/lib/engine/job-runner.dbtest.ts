@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { jobLatency, recentJobFailures } from "@/lib/engine/queue-metrics";
 
 vi.mock("server-only", () => ({}));
 
@@ -34,6 +35,14 @@ vi.mock("@/lib/engine/runner", () => ({
   },
   processInstallRegister: async (installationId: number) => {
     processed.push({ kind: "install_register", payload: { installationId } });
+  },
+  // `processRepoIntel` is imported lazily inside the dispatcher, so it has to
+  // live on the same mocked module for the repo_intel branch to be reachable.
+  processRepoIntel: async (payload: unknown) => {
+    const p = payload as { owner: string; repo: string };
+    const key = `intel:${p.owner}/${p.repo}`;
+    if (failOn.has(key)) throw new Error("simulated collection failure");
+    processed.push({ kind: "repo_intel", payload });
   },
 }));
 
@@ -317,5 +326,139 @@ describe("worker queue (real database)", () => {
     expect(result.processed).toBe(2);
     expect(result.failed).toBe(0);
     expect(processed.map((p) => p.kind).sort()).toEqual(["install_register", "install_unregister"]);
+  });
+
+  it("dispatches a repo_intel job to the collection processor", async () => {
+    await enqueueJob({ kind: "repo_intel", installationId: 42, owner: "acme", repo: "widgets" });
+    const result = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+
+    expect(result.failed).toBe(0);
+    expect(processed).toEqual([
+      { kind: "repo_intel", payload: { kind: "repo_intel", installationId: 42, owner: "acme", repo: "widgets" } },
+    ]);
+  });
+
+  it("retries a failed collection and dead-letters it after the limit", async () => {
+    // Collection calls several GitHub endpoints, so a transient failure must be
+    // retried on the same backoff path as PR refreshes rather than dropped.
+    failOn.add("intel:acme/widgets");
+    await enqueueJob({ kind: "repo_intel", installationId: 42, owner: "acme", repo: "widgets" });
+
+    const first = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(first.failed).toBe(1);
+
+    const row = await prisma.job.findFirstOrThrow({ where: { kind: "repo_intel" } });
+    // A transient failure requeues with backoff rather than dropping the work.
+    expect(row.status).toBe("pending");
+    expect(row.attempts).toBe(1);
+    expect(row.nextAttemptAt).not.toBeNull();
+    expect(row.nextAttemptAt!.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("dead-letters a collection that keeps failing once attempts are exhausted", async () => {
+    failOn.add("intel:acme/widgets");
+    await prisma.job.create({
+      data: {
+        kind: "repo_intel",
+        maxAttempts: 1,
+        payloadJson: JSON.stringify({ kind: "repo_intel", installationId: 42, owner: "acme", repo: "widgets" }),
+      },
+    });
+    const result = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(result.failed).toBe(1);
+
+    const row = await prisma.job.findFirstOrThrow({ where: { kind: "repo_intel" } });
+    expect(row.status).toBe("failed");
+    expect(row.error).toContain("simulated collection failure");
+  });
+
+  it("rejects a repo_intel payload with a non-positive installation id", async () => {
+    // A malformed payload must dead-letter on first sight rather than being
+    // reclaimed and retried forever.
+    await prisma.job.create({
+      data: { kind: "repo_intel", payloadJson: JSON.stringify({ kind: "repo_intel", installationId: 0, owner: "a", repo: "b" }) },
+    });
+    const result = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(result.failed).toBe(1);
+    const row = await prisma.job.findFirstOrThrow({ where: { kind: "repo_intel" } });
+    expect(row.status).toBe("failed");
+    expect(row.error).toContain("malformed job payload");
+  });
+
+  it("rejects a repo_intel payload whose owner is an empty string", async () => {
+    await prisma.job.create({
+      data: { kind: "repo_intel", payloadJson: JSON.stringify({ kind: "repo_intel", installationId: 1, owner: "  ", repo: "b" }) },
+    });
+    const result = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(result.failed).toBe(1);
+    const row = await prisma.job.findFirstOrThrow({ where: { kind: "repo_intel" } });
+    expect(row.status).toBe("failed");
+    // The blank owner must be caught at the boundary, never dispatched.
+    expect(row.error).toContain("requires owner and repo");
+  });
+});
+
+describe("queue observability", () => {
+  // This block is top-level, so the enclosing suite's `beforeEach(clearJobs)`
+  // does not apply to it. Without its own reset, the latency fixtures from one
+  // test leak into the next and the assertions measure the wrong window.
+  beforeEach(async () => {
+    await clearJobs();
+  });
+
+  it("reports p50/p95 latency per job kind and separates it from other kinds", async () => {
+    const now = Date.now();
+    const make = (kind: string, i: number, ms: number) => ({
+      kind,
+      status: "done",
+      payloadJson: "{}",
+      startedAt: new Date(now - ms - 1000),
+      finishedAt: new Date(now - 1000),
+      attempts: 1,
+    });
+
+    // 10 fast "pr_refresh" jobs, 2 slow "repo_intel" jobs.
+    const jobs = [
+      ...Array.from({ length: 10 }, (_, i) => make("pr_refresh", i, 100 + i)),
+      ...Array.from({ length: 2 }, (_, i) => make("repo_intel", i, 9000 + i * 1000)),
+    ];
+    await prisma.job.createMany({ data: jobs });
+
+    const { overall, byKind } = await jobLatency();
+    expect(overall).not.toBeNull();
+    expect(overall!.samples).toBe(12);
+
+    const intel = byKind.find((l) => l.kind === "repo_intel");
+    const pr = byKind.find((l) => l.kind === "pr_refresh");
+    expect(intel!.p50Ms).toBeGreaterThan(5000);
+    expect(pr!.p95Ms).toBeLessThan(1000);
+    // Sorted by p95 descending, so the slow kind surfaces first.
+    expect(byKind[0]!.kind).toBe("repo_intel");
+  });
+
+  it("ignores a finished job that has no start time", async () => {
+    await prisma.job.create({
+      data: { kind: "pr_refresh", status: "done", payloadJson: "{}", finishedAt: new Date() },
+    });
+    const { overall } = await jobLatency();
+    // No start time means no measurable duration; it must not be counted as 0ms.
+    expect(overall?.samples ?? 0).toBe(0);
+  });
+
+  it("returns the terminal failures with their error text", async () => {
+    const err = await prisma.job.create({
+      data: { kind: "repo_intel", status: "failed", payloadJson: "{}", error: "boom", attempts: 5, maxAttempts: 5 },
+    });
+    const rows = await recentJobFailures();
+    const found = rows.find((r) => r.id === err.id);
+    expect(found).toMatchObject({ kind: "repo_intel", error: "boom", attempts: 5, maxAttempts: 5 });
+  });
+
+  it("truncates a very long error so the admin table stays readable", async () => {
+    await prisma.job.create({
+      data: { kind: "pr_refresh", status: "failed", payloadJson: "{}", error: "x".repeat(5000) },
+    });
+    const rows = await recentJobFailures();
+    expect(rows[0]!.error!.length).toBe(400);
   });
 });

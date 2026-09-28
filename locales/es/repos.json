@@ -1,0 +1,20 @@
+{
+  "tracked_repositories": "Repositorios rastreados",
+  "repos_description": "Configura la monitorización de Baton y los umbrales de recordatorios de revisión por repositorio.",
+  "no_repos_connected": "No hay repositorios conectados",
+  "no_repos_connected_hint": "Instala la aplicación de GitHub de Baton en tus cuentas de GitHub o sincroniza las instalaciones existentes para empezar a monitorizar.",
+  "install_baton_on_github": "Instalar Baton en GitHub",
+  "view_repo_on_github": "Ver repositorio en GitHub",
+  "repo_board": "Tablero del repositorio",
+  "pause": "Pausar",
+  "resume": "Reanudar",
+  "sweep_now": "Ejecutar un barrido completo inmediato de las solicitudes de extracción de este repositorio",
+  "active_thresholds": "Umbrales activos:",
+  "customize_thresholds": "Personalizar umbrales de inactividad (horas)",
+  "team_org_badge": "Equipo y organización",
+  "thresholds_require_plan": "Los umbrales personalizados requieren un plan de Equipo u Organización",
+  "thresholds_upgrade_body": "Este repositorio usa los valores predeterminados de Baton. Mejora tu plan para ajustar las horas por estado o configurar políticas de revisión para toda la organización.",
+  "default_first_response": "primera respuesta",
+  "default_re_review": "nueva revisión",
+  "default_changes_requested": "cambios solicitados"
+}

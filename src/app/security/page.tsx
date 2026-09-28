@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/security" },
-  title: "Security and Privacy: Least Privilege by Design",
+  title: "Security and Privacy: Exact Permissions, Nothing More",
   description:
-    "Baton's security architecture: least-privilege metadata access, signed webhooks with HMAC-SHA256, session encryption, and strict data isolation.",
+    "Baton's security architecture: explicitly scoped GitHub permissions, signed webhooks with HMAC-SHA256, session encryption, and strict data isolation.",
 };
 
 const PERMISSIONS_MATRIX = [
@@ -65,7 +65,7 @@ export default function SecurityPage() {
       <main className="container-page py-16 md:py-24">
         <div className="max-w-3xl">
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
-            Least privilege by design. No code read access.
+            Exact permissions. No stored source code.
           </h1>
           <p className="mt-4 text-sm sm:text-base text-ink-300 leading-relaxed">
             Baton is engineered so that even in the absolute worst-case scenario, the app holds no

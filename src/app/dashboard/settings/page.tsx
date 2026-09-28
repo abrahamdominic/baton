@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { currentUser, readSessionCookie, hashToken } from "@/lib/auth/session";
 import { myInstallations, userSessions } from "@/lib/queries/dashboard";
+import { currentUser, readSessionCookie, hashToken } from "@/lib/auth/session";
 import { config } from "@/lib/env-boot";
 import { isAppConfigured, isGitHubConfigured } from "@/lib/config";
 import { revokeSessionById, revokeOtherSessions } from "../actions";
 import { Badge, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   IconBranch,
   IconExternalLink,
   IconGitHub,
+  IconGlobe,
   IconLogOut,
   IconShield,
   IconMonitor,
@@ -17,8 +19,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** Sentinel label meaning "the user agent was not recorded". */
+const UNKNOWN_DEVICE = "__unknown_device__";
+
 function deviceLabel(userAgent: string | null): { label: string; isMobile: boolean } {
-  if (!userAgent) return { label: "Unknown device", isMobile: false };
+  // A null user agent yields a sentinel, not display text, so this pure helper
+  // stays independent of the active locale. The caller resolves it.
+  if (!userAgent) return { label: UNKNOWN_DEVICE, isMobile: false };
   let os = "Device";
   let isMobile = false;
   if (/windows/i.test(userAgent)) os = "Windows";
@@ -41,15 +48,11 @@ function deviceLabel(userAgent: string | null): { label: string; isMobile: boole
   return { label: browser ? `${os} · ${browser}` : os, isMobile };
 }
 
-function sessionStarts(s: { createdAt: Date }): string {
-  return s.createdAt.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+
 
 export default async function SettingsPage() {
+  const { t, formatDate } = await getTranslatorForRequest();
+
   const user = await currentUser();
   if (!user) return null;
 
@@ -68,19 +71,27 @@ export default async function SettingsPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        title="Settings &amp; Access"
+        title={`${t("settings:title")} & Access`}
         description="Manage your authenticated GitHub profile, connected repositories, and active browser sessions."
         actions={
-          <a
-            href={githubUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-ghost btn-sm"
-          >
-            <IconGitHub className="h-3.5 w-3.5" />
-            <span>GitHub Profile</span>
-            <IconExternalLink className="h-3 w-3" />
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            {/* lan.md §4: Settings -> Language, integrated into the existing
+                settings header rather than bolted on as a separate flow. */}
+            <Link href="/dashboard/settings/language" className="btn btn-ghost btn-sm">
+              <IconGlobe className="h-3.5 w-3.5" />
+              <span>{t("settings:language")}</span>
+            </Link>
+            <a
+              href={githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-ghost btn-sm"
+            >
+              <IconGitHub className="h-3.5 w-3.5" />
+              <span>{t("settings:github_profile")}</span>
+              <IconExternalLink className="h-3 w-3" />
+            </a>
+          </div>
         }
       />
 
@@ -114,7 +125,7 @@ export default async function SettingsPage() {
                 </p>
                 {user.role === "admin" ? (
                   <span className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
-                    Admin
+                    {t("settings:admin_badge")}
                   </span>
                 ) : null}
               </div>
@@ -122,7 +133,7 @@ export default async function SettingsPage() {
               {user.email ? (
                 <p className="mt-0.5 truncate text-xs text-ink-400">{user.email}</p>
               ) : null}
-              <p className="mt-0.5 font-mono text-[10px] text-ink-500">GitHub ID: {user.githubId}</p>
+              <p className="mt-0.5 font-mono text-[10px] text-ink-500">{t("settings:github_id", { id: user.githubId })}</p>
             </div>
           </div>
 
@@ -132,7 +143,7 @@ export default async function SettingsPage() {
               className="btn btn-ghost btn-sm text-ink-400 hover:text-white"
             >
               <IconLogOut className="h-3.5 w-3.5" />
-              <span>Sign out</span>
+              <span>{t("common:sign_out")}</span>
             </a>
           </div>
         </div>
@@ -144,16 +155,16 @@ export default async function SettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconGitHub className="h-4 w-4 text-ink-300" />
-              <span className="text-xs font-bold text-white">GitHub OAuth Authentication</span>
+              <span className="text-xs font-bold text-white">{t("settings:oauth_authentication")}</span>
             </div>
             <Badge tone={oauthConfigured ? "success" : "warn"}>
-              {oauthConfigured ? "configured" : "unconfigured"}
+              {oauthConfigured ? t("settings:status_configured") : t("settings:status_unconfigured")}
             </Badge>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-ink-400">
             {oauthConfigured
-              ? "OAuth client credentials are valid. You can safely sign in and authenticate with GitHub."
-              : "OAuth credentials are not configured on this deployment. Sign-in is restricted."}
+              ? t("settings:oauth_ok")
+              : t("settings:oauth_missing")}
           </p>
         </div>
 
@@ -161,10 +172,10 @@ export default async function SettingsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconShield className="h-4 w-4 text-ink-300" />
-              <span className="text-xs font-bold text-white">Baton GitHub App Engine</span>
+              <span className="text-xs font-bold text-white">{t("settings:app_engine")}</span>
             </div>
             <Badge tone={appConfigured ? "success" : "neutral"}>
-              {appConfigured ? "configured" : "unconfigured"}
+              {appConfigured ? t("settings:status_configured") : t("settings:status_unconfigured")}
             </Badge>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-ink-400">
@@ -196,10 +207,9 @@ export default async function SettingsPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-ink-900 text-brand-300">
               <IconBranch className="h-6 w-6" />
             </div>
-            <p className="text-sm font-bold text-white">No GitHub App installations connected</p>
+            <p className="text-sm font-bold text-white">{t("settings:no_installations")}</p>
             <p className="max-w-md text-xs leading-relaxed text-ink-400">
-              Install the Baton GitHub App to track repositories and configure automated pull request
-              nudges.
+              {t("settings:no_installations_body")}
             </p>
             <a
               href={installUrl}
@@ -208,7 +218,7 @@ export default async function SettingsPage() {
               className="btn btn-primary btn-sm mt-2"
             >
               <IconGitHub className="h-3.5 w-3.5" />
-              <span>Install on GitHub</span>
+              <span>{t("settings:install_on_github")}</span>
             </a>
           </div>
         ) : (
@@ -242,7 +252,7 @@ export default async function SettingsPage() {
                     rel="noopener noreferrer"
                     className="btn btn-ghost btn-sm"
                   >
-                    <span>Configure on GitHub</span>
+                    <span>{t("settings:configure_on_github")}</span>
                     <IconExternalLink className="h-3 w-3" />
                   </a>
                 </div>
@@ -266,7 +276,7 @@ export default async function SettingsPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-3 text-xs text-ink-500">No repositories selected in this installation.</p>
+                  <p className="mt-3 text-xs text-ink-500">{t("settings:no_repos_selected")}</p>
                 )}
               </li>
             ))}
@@ -288,14 +298,14 @@ export default async function SettingsPage() {
               }}
             >
               <button type="submit" className="btn btn-ghost btn-sm text-danger-300 hover:text-danger-200">
-                Sign out of all other sessions
+                {t("settings:sign_out_all_sessions")}
               </button>
             </form>
           ) : null}
         </div>
 
         {sessions.length === 0 ? (
-          <p className="px-5 py-8 text-center text-xs text-ink-500">No active sessions found.</p>
+          <p className="px-5 py-8 text-center text-xs text-ink-500">{t("settings:no_active_sessions")}</p>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
             {sessions.map((s) => {
@@ -316,14 +326,24 @@ export default async function SettingsPage() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-white">
-                          {s.isCurrent ? "This browser session" : dev.label}
+                          {s.isCurrent
+                            ? t("settings:this_browser_session")
+                            : dev.label === UNKNOWN_DEVICE
+                              ? t("settings:unknown_device")
+                              : dev.label}
                         </span>
-                        {s.isCurrent ? <Badge tone="info">current</Badge> : null}
+                        {s.isCurrent ? <Badge tone="info">{t("settings:current_badge")}</Badge> : null}
                       </div>
                       <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                        Started {sessionStarts(s)}
+                        {t("settings:started_on", {
+                          date: formatDate(s.createdAt, { month: "short", day: "numeric", year: "numeric" }),
+                        })}
                         {s.ip && s.ip !== "unknown" ? ` · ${s.ip}` : ""}
-                        {s.isCurrent ? "" : ` · last seen ${s.lastSeenAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`}
+                        {s.isCurrent
+                          ? ""
+                          : ` · ${t("settings:last_seen", {
+                              date: formatDate(s.lastSeenAt, { month: "short", day: "numeric" }),
+                            })}`}
                       </p>
                     </div>
                   </div>
@@ -331,7 +351,7 @@ export default async function SettingsPage() {
                   {s.isCurrent ? (
                     <a href="/auth/logout" className="btn btn-ghost btn-sm">
                       <IconLogOut className="h-3 w-3" />
-                      <span>Sign out</span>
+                      <span>{t("common:sign_out")}</span>
                     </a>
                   ) : (
                     <form
@@ -344,7 +364,7 @@ export default async function SettingsPage() {
                         type="submit"
                         className="btn btn-ghost btn-sm text-ink-400 hover:border-danger-500/30 hover:text-danger-300"
                       >
-                        Revoke
+                        {t("settings:revoke")}
                       </button>
                     </form>
                   )}

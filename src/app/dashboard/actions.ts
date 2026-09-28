@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { currentUser, readSessionCookie, hashToken } from "@/lib/auth/session";
@@ -181,4 +182,34 @@ export async function revokeOtherSessions(): Promise<{ revoked: number }> {
   logger.info("sessions-revoked-others", { actor: user.login, count: res.count });
   revalidatePath("/dashboard/settings");
   return { revoked: res.count };
+}
+/**
+ * Resume a preserved work context.
+ *
+ * The dashboard used to link straight to the stored `targetUrl`, which meant a
+ * context whose pull request had since been merged, closed, or moved out of the
+ * user's reach still navigated to a dead end, and `lastUsedAt` never moved so
+ * the "last touched" ordering was meaningless.
+ *
+ * Going through `restoreContext` re-authorizes the repository, re-reads the live
+ * pull request, and refreshes the timestamp, so the link is only followed when
+ * resuming it will actually work.
+ */
+export async function resumeContextAction(contextId: string): Promise<void> {
+  const { restoreContext } = await import("@/lib/intelligence/context");
+  const user = await currentUser();
+  if (!user) throw new Error("sign-in required");
+
+  const entitlement = await getEntitlement(user.id);
+  if (!hasFeature(entitlement, FEATURE_KEYS.workContext)) {
+    throw new Error("Saved work context is part of a paid plan.");
+  }
+
+  const restored = await restoreContext(user.id, contextId);
+  if (!restored) {
+    // The context no longer resolves to anything reachable. Say so rather than
+    // navigating the user to a stale URL.
+    throw new Error("That saved context can no longer be resumed.");
+  }
+  redirect(restored.context.targetUrl);
 }

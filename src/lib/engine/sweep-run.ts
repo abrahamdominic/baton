@@ -6,6 +6,7 @@ import { runBillingHousekeeping } from "@/lib/billing/subscriptions";
 export interface SweepResult {
   repos: number;
   prsEnqueued: number;
+  intelEnqueued: number;
   billing: Awaited<ReturnType<typeof runBillingHousekeeping>>;
 }
 

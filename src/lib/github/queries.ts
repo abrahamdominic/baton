@@ -28,8 +28,19 @@ fragment pullRequestNode on PullRequest {
   headRefOid
   mergeable
   reviewDecision
+  additions
+  deletions
+  changedFiles
   labels(first: 50) { nodes { name } }
   comments { totalCount }
+  # Authoritative issue linkage. Previously Baton inferred this from a regex
+  # over the title and branch name, which both over- and under-matched: a PR
+  # titled "fixes the #42 crash" is linked to 42 whether or not 42 exists, and a
+  # PR that genuinely closes an issue through the GitHub UI has no such keyword
+  # at all. GitHub already knows the real answer; this asks for it.
+  closingIssuesReferences(first: 10) {
+    nodes { number title url state }
+  }
   reviews(last: 20) {
     nodes {
       author { login }
@@ -49,11 +60,24 @@ fragment pullRequestNode on PullRequest {
   commits(last: 1) {
     nodes { commit { pushedDate } }
   }
+  files(first: 100) {
+    pageInfo { hasNextPage }
+    nodes {
+      path
+      additions
+      deletions
+      changeType
+    }
+  }
   latestCheckRuns(first: 50) {
     nodes {
       name
       status
       conclusion
+      detailsUrl
+      summary { state title text }
+      startedAt
+      completedAt
       checkSuite { app { slug name } }
     }
   }
@@ -77,6 +101,7 @@ interface GraphqlPullRequestNode {
   reviewDecision: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
   labels: { nodes: { name: string }[] };
   comments: { totalCount: number };
+  closingIssuesReferences?: { nodes: { number: number; title: string; url: string; state: string }[] };
   reviews: {
     nodes: {
       author: { login: string } | null;
@@ -90,11 +115,27 @@ interface GraphqlPullRequestNode {
     }[];
   };
   commits: { nodes: { commit: { pushedDate: string | null } }[] };
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  files: {
+    pageInfo: { hasNextPage: boolean };
+    nodes: {
+      path: string;
+      additions: number;
+      deletions: number;
+      changeType: string | null;
+    }[];
+  };
   latestCheckRuns: {
     nodes: {
       name: string;
       status: string;
       conclusion: string | null;
+      detailsUrl: string | null;
+      summary: { state: string | null; title: string | null; text: string | null } | null;
+      startedAt: string | null;
+      completedAt: string | null;
       checkSuite: { app: { slug: string | null; name: string | null } | null } | null;
     }[];
   };
@@ -169,7 +210,23 @@ export function toSnapshotInput(
     status: c.status,
     conclusion: c.conclusion,
     appSlug: c.checkSuite?.app?.slug ?? null,
+    detailsUrl: c.detailsUrl ?? null,
+    summary: [c.summary?.title, c.summary?.text].filter(Boolean).join(": ") || null,
+    startedAt: c.startedAt ?? null,
+    completedAt: c.completedAt ?? null,
   }));
+
+  // A pull request always has a file list on GitHub; `nodes` is empty only for a
+  // PR with no changes. Guard anyway so a malformed response degrades to
+  // "unknown" rather than to a confident zero.
+  const files = Array.isArray(pr.files?.nodes)
+    ? pr.files.nodes.map((f) => ({
+        path: f.path,
+        additions: f.additions ?? 0,
+        deletions: f.deletions ?? 0,
+        changeType: f.changeType ?? null,
+      }))
+    : null;
 
   return {
     prNumber: pr.number,
@@ -191,6 +248,17 @@ export function toSnapshotInput(
     requestedReviewerLogins: reviewerLogins,
     requestedTeamSlugs: teamSlugs,
     checks,
+    files,
+    additions: pr.additions ?? null,
+    deletions: pr.deletions ?? null,
+    linkedIssues:
+      pr.closingIssuesReferences?.nodes?.map((i) => ({
+        number: i.number,
+        title: i.title,
+        url: i.url,
+        state: i.state,
+      })) ?? null,
+    changedFiles: pr.changedFiles ?? null,
     now,
   };
 }

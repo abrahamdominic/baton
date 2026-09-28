@@ -5,6 +5,9 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BatonLogo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useI18n, type I18nContextValue } from "@/lib/i18n/provider";
+
+type CountFunction = I18nContextValue["tc"];
 import {
   IconActivity,
   IconBranch,
@@ -26,15 +29,17 @@ import {
 
 interface NavItem {
   href: string;
-  label: string;
+  /** Translation key. Stored as a key, never as display text, so a locale
+   *  switch relabels the whole navigation without any component changes. */
+  labelKey: string;
   icon: typeof IconGauge;
   badge?: string;
   exact?: boolean;
 }
 
 const ACCOUNT_NAV: NavItem[] = [
-  { href: "/dashboard/billing", label: "Billing & Plans", icon: IconShield },
-  { href: "/dashboard/settings", label: "Account & Integrations", icon: IconSettings },
+  { href: "/dashboard/billing", labelKey: "navigation:billing_and_plans", icon: IconShield },
+  { href: "/dashboard/settings", labelKey: "navigation:account_and_integrations", icon: IconSettings },
 ];
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -56,11 +61,18 @@ export interface PendingInviteCounts {
   organization: number;
 }
 
-function badgeText(count: number, label: string): string {
-  return `${count} pending ${label} invite${count === 1 ? "" : "s"}`;
+/**
+ * Badge text is pluralized through `tc`, never through a `count === 1 ?`
+ * ternary, so languages whose plural categories differ from English are correct.
+ */
+function badgeText(count: number, kind: "team" | "organization", tc: CountFunction): string {
+  return kind === "team"
+    ? tc("navigation:team_invite_pending", count)
+    : tc("navigation:org_invite_pending", count);
 }
 
 function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const active = isActive(pathname, item);
 
@@ -70,7 +82,7 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        title={item.badge ? `${item.label}: ${item.badge}` : undefined}
+        title={item.badge ? `${t(item.labelKey)}: ${item.badge}` : undefined}
         className={`group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-ink-950 ${
           active
             ? "bg-brand-500/10 text-white font-semibold shadow-sm"
@@ -83,7 +95,7 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
               active ? "text-brand-400" : "text-ink-500 group-hover:text-ink-300"
             }`}
           />
-          <span className="truncate">{item.label}</span>
+          <span className="truncate">{t(item.labelKey)}</span>
         </div>
         {item.badge ? (
           <span className="ml-2 shrink-0 rounded-full border border-brand-500/40 bg-brand-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-300">
@@ -112,40 +124,41 @@ function SidebarNav({
   unreadNotifications?: number;
   unreadMessages?: number;
 }) {
+  const { t, tc } = useI18n();
   const workspaceNav: NavItem[] = [
-    { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
-    { href: "/dashboard/repos", label: "Repositories", icon: IconBranch },
+    { href: "/dashboard", labelKey: "navigation:overview", icon: IconGauge, exact: true },
+    { href: "/dashboard/repos", labelKey: "navigation:repositories", icon: IconBranch },
     {
       href: "/dashboard/team",
-      label: "Teams",
+      labelKey: "navigation:teams",
       icon: IconUsers,
-      badge: pendingInvites?.team ? badgeText(pendingInvites.team, "team") : undefined,
+      badge: pendingInvites?.team ? badgeText(pendingInvites.team, "team", tc) : undefined,
     },
     {
       href: "/dashboard/organization",
-      label: "Organizations",
+      labelKey: "navigation:organizations",
       icon: IconBuilding,
-      badge: pendingInvites?.organization ? badgeText(pendingInvites.organization, "organization") : undefined,
+      badge: pendingInvites?.organization ? badgeText(pendingInvites.organization, "organization", tc) : undefined,
     },
-    { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
+    { href: "/dashboard/activity", labelKey: "navigation:activity_ledger", icon: IconActivity },
     {
       href: "/dashboard/messages",
-      label: "Messages",
+      labelKey: "navigation:messages",
       icon: IconMessageCircle,
-      badge: unreadMessages > 0 ? `${unreadMessages} unread` : undefined,
+      badge: unreadMessages > 0 ? tc("navigation:unread", unreadMessages) : undefined,
       exact: true,
     },
     {
       href: "/dashboard/notifications",
-      label: "Notifications",
+      labelKey: "navigation:notifications",
       icon: IconBell,
-      badge: unreadNotifications > 0 ? `${unreadNotifications} unread` : undefined,
+      badge: unreadNotifications > 0 ? tc("navigation:unread", unreadNotifications) : undefined,
       exact: true,
     },
   ];
 
   return (
-    <nav className="flex-1 space-y-6 overflow-y-auto px-3.5 py-4" aria-label="Dashboard navigation">
+    <nav className="flex-1 space-y-6 overflow-y-auto px-3.5 py-4" aria-label={t("navigation:dashboard_navigation")}>
       <div>
         <div className="flex items-center justify-between px-3 pb-2">
           <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-500">
@@ -186,7 +199,7 @@ function SidebarNav({
           >
             <div className="flex items-center gap-2.5">
               <IconTerminal className="h-4 w-4 text-brand-400" />
-              <span>Admin Console</span>
+              <span>{t("navigation:admin_console")}</span>
             </div>
             <span className="rounded bg-brand-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold text-brand-200">
               Admin
@@ -199,6 +212,7 @@ function SidebarNav({
 }
 
 function AccountFooter({ user, onNavigate }: { user: ShellUser; onNavigate?: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="border-t border-white/[0.07] p-3.5">
       <div className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-ink-900/60 p-2.5">
@@ -237,7 +251,7 @@ function AccountFooter({ user, onNavigate }: { user: ShellUser; onNavigate?: () 
         className="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-400 transition-colors hover:bg-danger-500/10 hover:text-danger-300"
       >
         <IconLogOut className="h-3.5 w-3.5 shrink-0" />
-        <span>Sign out</span>
+        <span>{t("common:sign_out")}</span>
       </a>
     </div>
   );
@@ -289,6 +303,7 @@ export function AppShell({
   unreadNotifications?: number;
   unreadMessages?: number;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -317,18 +332,18 @@ export function AppShell({
 
   // Derive current section label for breadcrumb
   const workspaceNav: NavItem[] = [
-    { href: "/dashboard", label: "Overview", icon: IconGauge, exact: true },
-    { href: "/dashboard/repos", label: "Repositories", icon: IconBranch },
-    { href: "/dashboard/team", label: "Teams", icon: IconUsers },
-    { href: "/dashboard/organization", label: "Organizations", icon: IconBuilding },
-    { href: "/dashboard/activity", label: "Activity Ledger", icon: IconActivity },
-    { href: "/dashboard/messages", label: "Messages", icon: IconMessageCircle, exact: true },
-    { href: "/dashboard/notifications", label: "Notifications", icon: IconBell, exact: true },
+    { href: "/dashboard", labelKey: "navigation:overview", icon: IconGauge, exact: true },
+    { href: "/dashboard/repos", labelKey: "navigation:repositories", icon: IconBranch },
+    { href: "/dashboard/team", labelKey: "navigation:teams", icon: IconUsers },
+    { href: "/dashboard/organization", labelKey: "navigation:organizations", icon: IconBuilding },
+    { href: "/dashboard/activity", labelKey: "navigation:activity_ledger", icon: IconActivity },
+    { href: "/dashboard/messages", labelKey: "navigation:messages", icon: IconMessageCircle, exact: true },
+    { href: "/dashboard/notifications", labelKey: "navigation:notifications", icon: IconBell, exact: true },
   ];
   const currentItem = [...workspaceNav, ...ACCOUNT_NAV].find((i) => isActive(pathname, i));
   const pageCategory = workspaceNav.some((i) => isActive(pathname, i))
-    ? "Workspace"
-    : "Account & Billing";
+    ? t("navigation:workspace_section")
+    : t("navigation:account_and_integrations");
 
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100 antialiased">
@@ -345,7 +360,7 @@ export function AppShell({
             <>
               <IconChevronRight className="h-3 w-3 text-ink-600" />
               <span className="truncate text-xs font-semibold text-ink-200">
-                {currentItem.label}
+                {t(currentItem.labelKey)}
               </span>
             </>
           ) : null}
@@ -436,7 +451,7 @@ export function AppShell({
             <span className="font-mono text-ink-500">{pageCategory}</span>
             <IconChevronRight className="h-3 w-3 text-ink-600" />
             <span className="font-semibold text-white">
-              {currentItem?.label ?? "Overview"}
+              {currentItem ? t(currentItem.labelKey) : t("navigation:overview")}
             </span>
           </div>
 
@@ -464,7 +479,7 @@ export function AppShell({
               className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
             >
               <IconGitHub className="h-3 w-3" />
-              <span>Repositories</span>
+              <span>{t("navigation:repositories")}</span>
             </Link>
 
             {user.role === "admin" ? (
@@ -473,7 +488,7 @@ export function AppShell({
                 className="inline-flex items-center gap-1.5 rounded-md border border-brand-500/30 bg-brand-500/10 px-2.5 py-1 text-xs font-medium text-brand-200 transition-colors hover:bg-brand-500/20"
               >
                 <IconTerminal className="h-3 w-3 text-brand-400" />
-                <span>Admin Console</span>
+                <span>{t("navigation:admin_console")}</span>
               </Link>
             ) : null}
           </div>

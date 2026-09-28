@@ -30,6 +30,7 @@ type TestUser = {
   avatarUrl: string | null;
   role: string;
   suspendedAt: Date | null;
+  preferredLanguage: string | null;
 };
 
 const ME: TestUser = {
@@ -41,6 +42,7 @@ const ME: TestUser = {
   avatarUrl: null,
   role: "user",
   suspendedAt: null,
+  preferredLanguage: null,
 };
 const COLLEAGUE: TestUser = { ...ME, githubId: 0, login: `${stamp}-them` };
 

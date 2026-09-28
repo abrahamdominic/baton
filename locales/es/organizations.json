@@ -1,0 +1,21 @@
+{
+  "title": "Organizaciones",
+  "organization_settings": "Ajustes de la organización",
+  "members": "Miembros",
+  "roles": "Roles",
+  "invitations": "Invitaciones",
+  "ownership": "Propiedad",
+  "management": "Gestión",
+  "no_orgs_title": "Aún no hay organizaciones",
+  "no_orgs_description": "Crea una organización para gestionar repositorios a gran escala.",
+  "audit_log": "Registro de auditoría",
+  "organizations": "Organizaciones",
+  "orgs_require_plan": "Los espacios de organización requieren el plan de Organización",
+  "orgs_require_plan_hint": "Mejora tu plan para gestionar repositorios de todas tus cuentas, aplicar políticas de revisión y dar a los administradores una vista compartida de cada solicitud de extracción detenida.",
+  "upgrade_to_org": "Mejorar a Organización",
+  "create_org": "Crear una organización",
+  "create_org_action": "Crear organización",
+  "no_orgs_yet": "Todavía no hay organizaciones",
+  "no_orgs_yet_hint": "Crea tu primera organización arriba y luego conecta instalaciones de GitHub para gestionarlas de forma centralizada.",
+  "manage_plan": "Gestionar plan"
+}

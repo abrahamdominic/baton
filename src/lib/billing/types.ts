@@ -171,6 +171,14 @@ export const FEATURE_KEYS = {
   orgPolicies: "organization_policies",
   /** Organization audit log export (CSV/JSON). */
   auditExport: "audit_export",
+  /** Evidence-backed repository intelligence profiles and grounded Q&A. */
+  repoIntelligence: "repo_intelligence",
+  /** Developer and review briefings generated from collected evidence. */
+  briefings: "briefings",
+  /** Saved and restored work context across sessions. */
+  workContext: "work_context",
+  /** CI failure investigation ("What Broke?") and change-impact analysis. */
+  changeImpact: "change_impact",
 } as const;
 export type FeatureKey = (typeof FEATURE_KEYS)[keyof typeof FEATURE_KEYS];
 export type FeatureMap = Partial<Record<FeatureKey, boolean>>;

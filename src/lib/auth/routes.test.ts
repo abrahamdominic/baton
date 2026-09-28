@@ -48,6 +48,7 @@ describe("GET /install", () => {
       avatarUrl: null,
       role: "user",
       suspendedAt: null,
+      preferredLanguage: null,
     });
 
     const req = new NextRequest("https://baton-xi.vercel.app/install");

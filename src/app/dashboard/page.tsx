@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
-import { getEntitlement } from "@/lib/billing/entitlement";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { getEntitlement, hasFeature } from "@/lib/billing/entitlement";
+import { FEATURE_KEYS } from "@/lib/billing/types";
+import { getCrossRepoIntelligence } from "@/lib/intelligence/cross-repo";
 import { getPlanById, getPlanBySlug } from "@/lib/billing/plans";
 import {
   yourMove,
@@ -10,6 +13,8 @@ import {
   type ActivityItem,
 } from "@/lib/queries/dashboard";
 import { config } from "@/lib/env-boot";
+import { recentContexts } from "@/lib/intelligence/context";
+import { resumeContextAction } from "./actions";
 import { Duration, EmptyState, StateBadge, Badge, StatCard, PageHeader } from "@/components/ui";
 import {
   IconArrowRight,
@@ -20,6 +25,9 @@ import {
   IconClock,
   IconExternalLink,
   IconGitHub,
+  IconBookmark,
+  IconLayers,
+  IconAlertCircle,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +80,10 @@ export default async function DashboardPage({
   const user = await currentUser();
   if (!user) return null;
 
+  // Server-rendered copy is translated on the server, so the first paint is
+  // already in the user's language instead of flashing English.
+  const { t, tc, formatNumber, formatDate } = await getTranslatorForRequest();
+
   const planParam = resolvedParams?.plan;
   const billing = resolvedParams?.billing === "annual" ? "annual" : "monthly";
   const activeView = resolvedParams?.view ?? "all";
@@ -90,12 +102,18 @@ export default async function DashboardPage({
     }
   }
 
-  const [items, installations, recent, entitlement] = await Promise.all([
+  const [items, installations, recent, entitlement, savedContexts] = await Promise.all([
     yourMove(user),
     myInstallations(user),
     recentActivity(user, 5),
     getEntitlement(user.id),
+    recentContexts(user.id, 4),
   ]);
+
+  // Portfolio-level view across every repository the user can see. Gated on
+  // repository intelligence for the same reason the per-repository page is.
+  const canSeePortfolio = hasFeature(entitlement, FEATURE_KEYS.repoIntelligence);
+  const portfolio = canSeePortfolio ? await getCrossRepoIntelligence(user) : null;
 
   const repoCount = installations.reduce((n, i) => n + i.repos.length, 0);
   const stalled = items.filter((p) => p.hoursInState >= 24).length;
@@ -124,10 +142,9 @@ export default async function DashboardPage({
         >
           <IconCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-signal-400" />
           <div className="flex-1">
-            <p className="font-semibold text-white">GitHub App connected successfully</p>
+            <p className="font-semibold text-white">{t("dashboard:github_app_connected")}</p>
             <p className="mt-0.5 text-signal-300/90 leading-relaxed">
-              Baton is now listening for pull request lifecycle events and synchronizing repository
-              state. Open pull requests will appear in your queue.
+              {t("dashboard:github_app_connected_body")}
             </p>
           </div>
         </div>
@@ -147,7 +164,7 @@ export default async function DashboardPage({
             </span>
             {entitlement.subscription.current_period_end ? (
               <span className="font-mono text-[11px] text-ink-500">
-                (Renews {new Date(entitlement.subscription.current_period_end).toLocaleDateString()})
+                ({t("dashboard:renews_on", { date: formatDate(entitlement.subscription.current_period_end) })})
               </span>
             ) : null}
           </div>
@@ -155,7 +172,7 @@ export default async function DashboardPage({
             href="/dashboard/billing"
             className="font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
           >
-            <span>Manage subscription</span>
+            <span>{t("dashboard:manage_subscription")}</span>
             <IconArrowRight className="h-3 w-3" />
           </Link>
         </div>
@@ -166,22 +183,25 @@ export default async function DashboardPage({
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/30 bg-signal-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-signal-400">
             <span className="h-1.5 w-1.5 rounded-full bg-signal-400" />
-            Live Sync
+            {t("dashboard:live_sync")}
           </span>
         }
-        title="Your Move Queue"
+        title={t("dashboard:move_queue")}
         description={
           installations.length === 0
-            ? "Connect your repositories via the Baton GitHub App to begin tracking blockers and stall durations."
+            ? t("dashboard:queue_empty_connect")
             : items.length === 0
-            ? "All clear. Every pull request across your tracked repositories is moving with zero blockers."
-            : `${items.length} pull request${items.length === 1 ? "" : "s"} awaiting action across ${repoCount} tracked repositor${repoCount === 1 ? "y" : "ies"}.`
+            ? t("dashboard:queue_empty_clear")
+            // Pluralized through the translator so non-English plural categories
+            // are correct. Building the sentence with a `count === 1` ternary
+            // would hardcode English grammar into every locale.
+            : tc("dashboard:queue_action_needed", items.length, { repos: repoCount })
         }
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
             <Link href="/dashboard/repos" className="btn btn-ghost btn-sm">
               <IconBranch className="h-3.5 w-3.5" />
-              <span>Repositories ({repoCount})</span>
+              <span>{tc("dashboard:repositories_count", repoCount)}</span>
             </Link>
             <a
               href={installUrl}
@@ -190,7 +210,7 @@ export default async function DashboardPage({
               rel="noreferrer"
             >
               <IconGitHub className="h-3.5 w-3.5" />
-              <span>+ Track Repository</span>
+              <span>{t("dashboard:track_repository")}</span>
             </a>
           </div>
         }
@@ -200,32 +220,144 @@ export default async function DashboardPage({
       {installations.length > 0 ? (
         <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
           <StatCard
-            label="Tracked Repositories"
-            value={repoCount}
-            detail={`${installations.length} GitHub account${installations.length === 1 ? "" : "s"}`}
+            label={t("dashboard:stat_tracked_repositories")}
+            value={formatNumber(repoCount)}
+            detail={tc("dashboard:stat_github_accounts", installations.length)}
             icon={IconBranch}
           />
           <StatCard
-            label="Waiting on You"
-            value={items.length}
-            detail="Needs your action"
+            label={t("dashboard:stat_waiting_on_you")}
+            value={formatNumber(items.length)}
+            detail={t("dashboard:stat_needs_action")}
             tone={items.length > 0 ? "brand" : "default"}
             icon={IconGitPullRequest}
           />
           <StatCard
-            label="Stalled (24h+)"
-            value={stalled}
-            detail={stalled > 0 ? "Sitting on you past a day" : "Nothing sitting"}
+            label={t("dashboard:stat_stalled")}
+            value={formatNumber(stalled)}
+            detail={stalled > 0 ? t("dashboard:stat_sitting_past_day") : t("dashboard:stat_nothing_sitting")}
             tone={stalled > 0 ? "warn" : "signal"}
             icon={IconClock}
           />
           <StatCard
-            label="Your Reviews"
-            value={waitingReviewers}
-            detail={`${waitingAuthor} of your PRs need fixes`}
+            label={t("dashboard:stat_your_reviews")}
+            value={formatNumber(waitingReviewers)}
+            detail={tc("dashboard:stat_need_fixes", waitingAuthor)}
             tone={waitingReviewers > 0 ? "brand" : "default"}
             icon={IconActivity}
           />
+        </section>
+      ) : null}
+
+      {/* Daily Developer Briefing */}
+      {installations.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+            <div className="flex items-center gap-2">
+              <IconLayers className="h-4 w-4 text-brand-300" />
+              <h2 className="text-sm font-semibold text-white">{t("dashboard:daily_briefing")}</h2>
+            </div>
+            <span className="font-mono text-[10px] text-ink-500">
+              {formatDate(new Date(), { weekday: "long", month: "short", day: "numeric" })}
+            </span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-white/[0.05] bg-ink-950/40 p-3">
+              <span className="text-[10px] font-mono uppercase text-ink-500">{t("dashboard:briefing_action_needed")}</span>
+              <p className="text-base font-bold text-white mt-0.5">{tc("dashboard:pr_count", items.length)}</p>
+              <p className="text-[11px] text-ink-400 mt-1 leading-normal">
+                {waitingReviewers} pending your review, {waitingAuthor} of your own PRs needing updates.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-white/[0.05] bg-ink-950/40 p-3">
+              <span className="text-[10px] font-mono uppercase text-ink-500">{t("dashboard:briefing_stalled_blockers")}</span>
+              <p className={`text-base font-bold mt-0.5 ${stalled > 0 ? "text-warn-300" : "text-signal-400"}`}>
+                {tc("dashboard:pr_count", stalled)}
+              </p>
+              <p className="text-[11px] text-ink-400 mt-1 leading-normal">
+                {stalled > 0 ? "PRs sitting in your court past 24 hours. Baton nudges sent." : "Zero stalled work in your court."}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-white/[0.05] bg-ink-950/40 p-3">
+              <span className="text-[10px] font-mono uppercase text-ink-500">{t("dashboard:briefing_tracked_repositories")}</span>
+              <p className="text-base font-bold text-brand-300 mt-0.5">{tc("dashboard:repo_count", repoCount)}</p>
+              <p className="text-[11px] text-ink-400 mt-1 leading-normal">
+                Connected repositories actively synchronized via GitHub App webhooks.
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Portfolio bottlenecks across every repository */}
+      {portfolio && portfolio.bottlenecks.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-signal-500/20 bg-signal-500/[0.03]">
+          <div className="flex items-center justify-between border-b border-signal-500/20 bg-signal-500/[0.08] px-5 py-3">
+            <div className="flex items-center gap-2">
+              <IconAlertCircle className="h-4 w-4 text-signal-300" />
+              <h2 className="text-sm font-semibold text-white">{t("dashboard:portfolio_bottlenecks")}</h2>
+            </div>
+            <span className="font-mono text-[10px] text-signal-300">
+              {portfolio.totalRepos} repos &middot; {portfolio.totalOpenPrs} open PRs
+            </span>
+          </div>
+          <ul className="divide-y divide-white/[0.05]">
+            {portfolio.bottlenecks.map((b) => (
+              <li key={`${b.repo}:${b.issue}`} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-white">
+                    <span className="font-mono text-signal-300">{b.repo}</span>
+                    <span className="mx-1.5 text-ink-600">&middot;</span>
+                    {b.issue}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink-400">{b.recommendation}</p>
+                </div>
+                <Badge tone={b.severity === "high" ? "danger" : "warn"}>{b.severity}</Badge>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Preserved Working Contexts */}
+      {savedContexts.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-brand-500/20 bg-brand-500/[0.03]">
+          <div className="flex items-center justify-between border-b border-brand-500/20 bg-brand-500/10 px-5 py-3">
+            <div className="flex items-center gap-2">
+              <IconBookmark className="h-4 w-4 text-brand-300" />
+              <h2 className="text-sm font-semibold text-white">{t("dashboard:preserved_contexts")}</h2>
+            </div>
+            <span className="font-mono text-[10px] text-brand-300">
+              {savedContexts.length} saved session{savedContexts.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
+            {savedContexts.map((ctx) => (
+              <div key={ctx.id} className="flex flex-col justify-between rounded-lg border border-white/[0.06] bg-ink-950/60 p-3.5 space-y-3">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Badge tone="neutral">{ctx.kind.toUpperCase()}</Badge>
+                    <span className="font-mono text-[10px] text-ink-500">
+                      <Duration hours={(Date.now() - ctx.lastUsedAt.getTime()) / 3_600_000} /> ago
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-white mt-2 truncate">{ctx.label}</p>
+                </div>
+                <form action={resumeContextAction.bind(null, ctx.id)}>
+                  <button
+                    type="submit"
+                    className="btn btn-ghost btn-sm w-full justify-center text-xs text-brand-300 hover:text-white"
+                  >
+                    <span>{t("dashboard:resume_working")}</span>
+                    <IconArrowRight className="h-3 w-3" />
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
         </section>
       ) : null}
 
@@ -256,7 +388,7 @@ export default async function DashboardPage({
                   className="btn btn-primary btn-sm"
                 >
                   <IconGitHub className="h-3.5 w-3.5" />
-                  <span>Install on GitHub</span>
+                  <span>{t("dashboard:install_on_github")}</span>
                   <IconArrowRight className="h-3 w-3" />
                 </a>
               </div>
@@ -274,7 +406,7 @@ export default async function DashboardPage({
               </p>
               <div className="pt-1">
                 <Link href="/dashboard/repos" className="btn btn-ghost btn-sm">
-                  <span>View Repositories</span>
+                  <span>{t("dashboard:view_repositories")}</span>
                   <IconArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -297,7 +429,7 @@ export default async function DashboardPage({
                     : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
                 }`}
               >
-                All PRs ({items.length})
+                {t("dashboard:all_prs", { count: items.length })}
               </Link>
               <Link
                 href="/dashboard?view=stalled"
@@ -307,7 +439,7 @@ export default async function DashboardPage({
                     : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
                 }`}
               >
-                Stalled 24h+ ({stalled})
+                {t("dashboard:stalled_24h", { count: stalled })}
               </Link>
               <Link
                 href="/dashboard?view=reviewers"
@@ -368,7 +500,7 @@ export default async function DashboardPage({
                   {filteredItems.length} Pull Request{filteredItems.length === 1 ? "" : "s"} Requiring Action
                 </span>
                 <span className="font-mono text-[11px] text-ink-500">
-                  {stalled} flagged stalled
+                  {tc("dashboard:flagged_stalled", stalled)}
                 </span>
               </div>
               <ul className="divide-y divide-white/[0.05]">
@@ -434,7 +566,7 @@ export default async function DashboardPage({
                             className="btn btn-ghost btn-sm"
                             title={`View ${p.owner}/${p.repo} Board`}
                           >
-                            <span>Repo Board</span>
+                            <span>{t("dashboard:repo_board")}</span>
                             <IconArrowRight className="h-3 w-3" />
                           </Link>
                           <a
@@ -468,7 +600,7 @@ export default async function DashboardPage({
               href="/dashboard/activity"
               className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
             >
-              <span>View complete ledger</span>
+              <span>{t("dashboard:view_complete_ledger")}</span>
               <IconArrowRight className="h-3 w-3" />
             </Link>
           </div>

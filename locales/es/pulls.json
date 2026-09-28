@@ -1,0 +1,23 @@
+{
+  "title": "Pull request n.º {{number}}",
+  "smart_context": "Contexto inteligente",
+  "facts": "Hechos",
+  "inferences": "Inferencias",
+  "high_confidence": "Confianza alta",
+  "medium_confidence": "Confianza media",
+  "low_confidence": "Confianza baja",
+  "basis": "Base",
+  "suggested_action": "Acción sugerida",
+  "evidence": "Evidencia",
+  "review_brief": "Informe de revisión",
+  "review_brief_description": "Qué comprobar antes de aprobar este pull request.",
+  "likely_owners": "Responsables probables",
+  "related_issues": "Issues relacionadas",
+  "unanswered_questions": "Preguntas sin responder",
+  "no_context": "Todavía no se ha recopilado contexto para este pull request.",
+  "checks": "Comprobaciones",
+  "checks_passed_one": "{{count}} comprobación superada",
+  "checks_passed_other": "{{count}} comprobaciones superadas",
+  "files_changed_one": "{{count}} archivo modificado",
+  "files_changed_other": "{{count}} archivos modificados"
+}

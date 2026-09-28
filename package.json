@@ -9,6 +9,8 @@
     "build": "prisma generate --schema prisma/schema.prisma && next build",
     "start": "next start",
     "lint": "eslint .",
+    "i18n:generate": "node scripts/generate-locale-loaders.mjs",
+    "i18n:hardcoded": "node scripts/find-hardcoded-strings.mjs",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
@@ -23,7 +25,8 @@
     "test:unit": "vitest run",
     "test:db": "node scripts/run-db-tests.mjs",
     "test:watch": "vitest",
-    "test:db:setup": "node scripts/gen-sqlite-schema.mjs && prisma generate --schema prisma/schema.sqlite.prisma"
+    "test:db:setup": "node scripts/gen-sqlite-schema.mjs && prisma generate --schema prisma/schema.sqlite.prisma",
+    "i18n:check": "npm run i18n:generate --silent && node scripts/validate-translations.mjs"
   },
   "dependencies": {
     "@octokit/auth-app": "^7.1.0",

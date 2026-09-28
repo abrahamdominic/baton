@@ -1,0 +1,11 @@
+{
+  "welcome_title": "Te damos la bienvenida a Baton",
+  "welcome_description": "Conecta GitHub y Baton controlará todos tus pull requests.",
+  "step_connect": "Conectar GitHub",
+  "step_install": "Instalar la app",
+  "step_choose": "Elegir un repositorio",
+  "step_done": "Todo listo",
+  "common_pitfalls": "Problemas habituales en este repositorio",
+  "no_pitfalls": "No se han detectado problemas habituales en este repositorio.",
+  "next_steps": "Próximos pasos"
+}

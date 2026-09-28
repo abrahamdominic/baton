@@ -1,0 +1,8 @@
+{
+  "title": "Notifications",
+  "empty_title": "You are all caught up",
+  "empty_description": "You have no unread notifications.",
+  "mark_all_read": "Mark all as read",
+  "unread_one": "{{count}} unread notification",
+  "unread_other": "{{count}} unread notifications"
+}

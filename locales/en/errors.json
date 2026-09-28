@@ -1,0 +1,15 @@
+{
+  "generic": "Something went wrong. Please try again.",
+  "network": "Network error. Check your connection and try again.",
+  "not_found": "We could not find what you were looking for.",
+  "unauthorized": "You do not have access to this.",
+  "forbidden": "You do not have permission to do that.",
+  "rate_limited": "Too many requests. Please wait a moment and try again.",
+  "server_error": "We hit a problem on our side. Please try again shortly.",
+  "validation": "Please check the highlighted fields and try again.",
+  "required_field": "This field is required.",
+  "invalid_email": "Enter a valid email address.",
+  "try_again": "Try again",
+  "contact_support": "Contact support",
+  "details": "Technical details"
+}

@@ -11,6 +11,7 @@ import {
   IconClock,
   IconCheckCircle,
   IconGitHub,
+  IconLayers,
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,19 @@ export default async function RepoPage({
           description={`${board.prs.length} open pull request${board.prs.length === 1 ? "" : "s"} tracked across review lifecycle states.`}
           actions={
             <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=onboarding`}
+                className="btn btn-ghost btn-sm"
+              >
+                <span>Onboarding Guide</span>
+              </Link>
+              <Link
+                href={`/dashboard/repos/${owner}/${repo}/intelligence`}
+                className="btn btn-ghost btn-sm"
+              >
+                <IconLayers className="h-3.5 w-3.5" />
+                <span>Intelligence</span>
+              </Link>
               <a
                 href={githubRepoUrl}
                 target="_blank"
@@ -67,7 +81,7 @@ export default async function RepoPage({
                 className="btn btn-ghost btn-sm"
               >
                 <IconGitHub className="h-3.5 w-3.5" />
-                <span>GitHub Repository</span>
+                <span>GitHub</span>
                 <IconExternalLink className="h-3 w-3" />
               </a>
             </div>
@@ -152,17 +166,24 @@ export default async function RepoPage({
 
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-baseline gap-2">
+                                <Link
+                                  href={`/dashboard/repos/${owner}/${repo}/pulls/${pr.number}`}
+                                  className="truncate text-sm font-semibold text-white transition-colors hover:text-brand-300"
+                                >
+                                  {pr.title}
+                                </Link>
+                                <span className="font-mono text-xs text-ink-500">
+                                  #{pr.number}
+                                </span>
                                 <a
                                   href={pr.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="truncate text-sm font-semibold text-white transition-colors hover:text-brand-300"
+                                  className="text-ink-500 hover:text-white transition-colors"
+                                  title="Open on GitHub"
                                 >
-                                  {pr.title}
+                                  <IconExternalLink className="h-3 w-3" />
                                 </a>
-                                <span className="font-mono text-xs text-ink-500">
-                                  #{pr.number}
-                                </span>
                               </div>
 
                               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-ink-400">

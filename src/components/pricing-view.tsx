@@ -196,7 +196,7 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
       { feature: "Live pinned status card in every PR", resolve: () => true },
       { feature: "Automatic baton:* state labels", resolve: () => true },
       { feature: "Whose-turn resolution (author vs reviewer)", resolve: () => true },
-      { feature: "Metadata-only operation, never reads your code", resolve: () => true },
+      { feature: "Never stores your source code", resolve: () => true },
     ],
   },
   {
@@ -228,6 +228,19 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
         feature: "Per-repo customizable thresholds & grace periods",
         resolve: hasGate("custom_thresholds"),
       },
+    ],
+  },
+  {
+    category: "Repository Intelligence",
+    intro:
+      "Facts collected from the GitHub API. Every claim links to the file or API response it came from, and anything that cannot be cited is reported as not covered rather than answered.",
+    rows: [
+      { feature: "Evidence-backed repository profiles", resolve: hasGate("repo_intelligence") },
+      { feature: "Search a repository's collected evidence", resolve: hasGate("repo_intelligence") },
+      { feature: "Developer briefings from recorded facts", resolve: hasGate("briefings") },
+      { feature: "Saved work context across sessions", resolve: hasGate("work_context") },
+      { feature: "What Broke? CI failure investigation", resolve: hasGate("change_impact") },
+      { feature: "Change impact analysis", resolve: hasGate("change_impact") },
     ],
   },
   {

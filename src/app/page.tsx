@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/" },
   title: "Baton: Know whose turn it is on every pull request",
   description:
-    "Deterministic GitHub App that tracks PR review state, surfaces the blocker in the thread, and nudges the right person when work stalls. Metadata-only permissions.",
+    "Deterministic GitHub App that tracks PR review state, surfaces the blocker in the thread, and nudges the right person when work stalls. Includes evidence-backed repository intelligence where every claim cites its source.",
 };
 
 const SITE_JSON_LD = {
@@ -35,7 +35,7 @@ const SITE_JSON_LD = {
       name: "Baton",
       url: config.SITE_URL,
       description:
-        "Know whose turn it is on every pull request. Baton tracks PR state, surfaces it in the PR, and nudges the right person.",
+        "Know whose turn it is on every pull request. Baton tracks PR state, surfaces it in the PR, nudges the right person, and builds evidence-backed repository intelligence where every claim cites its source.",
     },
     {
       "@type": "SoftwareApplication",
@@ -65,9 +65,9 @@ const STATS = [
     detail: "Context decays with every passing day",
   },
   {
-    value: "0 diffs",
-    label: "read, parsed, or stored by Baton",
-    detail: "Least-privilege GitHub App permissions only",
+    value: "0",
+    label: "source files stored by Baton",
+    detail: "Repository structure and manifests are read, never retained",
   },
   {
     value: "100%",
@@ -103,6 +103,11 @@ const FEATURES = [
     body: "A clean developer dashboard grouping PRs by who needs to act next. Your queue is front and center so you can unblock teammates first thing in the morning.",
   },
   {
+    icon: IconLayers,
+    title: "Evidence-backed repository intelligence",
+    body: "Facts collected from the GitHub API, with every claim linked to the file or response it came from. Asking a question the collected evidence cannot answer returns \"no evidence\" rather than a confident guess.",
+  },
+  {
     icon: IconShield,
     title: "No source code read access",
     body: "Baton requests only Pull requests and Issues read/write (for comments/labels), plus read-only Checks and Metadata. It never requests Contents, ASTs, or Secrets.",
@@ -130,7 +135,7 @@ const COMPARISONS = [
   },
   {
     dimension: "Source code access",
-    baton: "Metadata-only access (Pull requests and Checks metadata only)",
+    baton: "Scoped access (Pull requests, Checks, and read-only repository structure)",
     staleBot: "Usually requires broad repository access",
     slackPings: "N/A",
   },
@@ -543,15 +548,17 @@ export default async function LandingPage({
             <div>
               <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-signal-400">
                 <IconLock className="h-4 w-4" />
-                Metadata-Only Security Guarantee
+                Requested Permissions, And Nothing More
               </div>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
-                Baton never reads your repository code or diffs
+                Baton never stores your source code
               </h2>
               <p className="mt-3 text-xs leading-relaxed text-ink-300 max-w-2xl">
-                Baton works within GitHub least-privilege permission model. It does not request
-                repository Contents, Workflows, or Secrets. Write access is strictly limited to
-                posting PR comments and managing state labels.
+                Baton requests only the GitHub permissions it uses. Repository intelligence reads
+                the file tree, the package manifest, and CODEOWNERS so it can describe how a
+                repository is built; those reads are used to derive facts and are discarded, and no
+                file contents are retained. Baton does not request Workflows or Secrets. Write
+                access is strictly limited to posting PR comments and managing state labels.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
@@ -560,7 +567,9 @@ export default async function LandingPage({
                   "Issues (read/write for labels)",
                   "Checks (read-only)",
                   "Metadata (read-only)",
-                  "Contents: NO ACCESS",
+                  "Contents: read-only, never stored",
+                  "Workflows: NO ACCESS",
+                  "Secrets: NO ACCESS",
                 ].map((perm) => (
                   <span
                     key={perm}

@@ -1,0 +1,20 @@
+{
+  "tracked_repositories": "Tracked Repositories",
+  "repos_description": "Configure Baton monitoring and polite review stall nudge thresholds per repository.",
+  "no_repos_connected": "No repositories connected",
+  "no_repos_connected_hint": "Install the Baton GitHub App on your GitHub accounts or sync existing installations to begin monitoring.",
+  "install_baton_on_github": "Install Baton on GitHub",
+  "view_repo_on_github": "View repository on GitHub",
+  "repo_board": "Repo Board",
+  "pause": "Pause",
+  "resume": "Resume",
+  "sweep_now": "Trigger an immediate full sweep of this repo's pull requests",
+  "active_thresholds": "Active Thresholds:",
+  "customize_thresholds": "Customize Inactivity Thresholds (Hours)",
+  "team_org_badge": "Team & Org",
+  "thresholds_require_plan": "Custom thresholds require a Team or Organization plan",
+  "thresholds_upgrade_body": "This repository currently uses Baton's standard defaults. Upgrade your plan to adjust hours per state or configure organization-wide review policies.",
+  "default_first_response": "first response",
+  "default_re_review": "re-review",
+  "default_changes_requested": "changes requested"
+}

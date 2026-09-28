@@ -37,7 +37,23 @@ const genClient = run(
 );
 if (genClient !== 0) process.exit(genClient);
 
-// 3. Run the database-backed project.
+// 3. Push the schema into the throwaway SQLite file.
+//
+// This file (`prisma/dev.db`) exists only to back these suites; it holds no data
+// worth keeping, and it persists between runs. Without this step, adding a model
+// to the canonical schema leaves the suites failing with "table does not exist"
+// until a developer happens to run `db:sqlite:push` by hand — so a schema change
+// could not be committed with a green test run. `--force-reset` is safe here
+// precisely because this is a disposable test database, and it is NOT applied to
+// the production PostgreSQL database, which is only ever touched by migrations.
+const push = run(
+  npmCmd,
+  ["run", "--silent", "db:sqlite:push"],
+  "pushing schema to the disposable SQLite test database",
+);
+if (push !== 0) process.exit(push);
+
+// 4. Run the database-backed project.
 let status = 1;
 try {
   status = run(

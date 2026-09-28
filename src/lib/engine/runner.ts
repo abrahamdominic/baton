@@ -309,7 +309,110 @@ export async function processInstallRegister(installationId: number): Promise<{
 }> {
   const { registerInstallation } = await import("../github/install");
   const result = await registerInstallation(installationId);
+  // A newly registered installation has no intelligence, so queue a collection
+  // for each repository it brought in. A failure here must not fail the
+  // registration job: the repositories are already recorded, and the scheduled
+  // sweep would collect them anyway.
+  try {
+    await scheduleIntelForInstallation(installationId);
+  } catch (e) {
+    logger.error("repo-intel-schedule-after-register-failed", { installationId, error: String(e) });
+  }
   return { repos: result.repositories.length };
+}
+
+/**
+ * Queue intelligence collection for every enabled repository of an
+ * installation, most-stale first.
+ *
+ * Used after a new installation is registered and by the scheduled sweep. A
+ * per-installation cap bounds the work a single sweep can enqueue, so a large
+ * org cannot flood the queue ahead of real-time PR work.
+ */
+export async function scheduleIntelForInstallation(
+  installationId: number,
+  options: { limit?: number } = {},
+): Promise<number> {
+  const limit = Math.min(options.limit ?? 40, 200);
+  const { enqueueRepoIntel } = await import("./jobs");
+
+  const repos = await prisma.repo.findMany({
+    where: { enabled: true, installation: { installationId } },
+    select: {
+      owner: true,
+      name: true,
+      insight: { select: { collectedAt: true } },
+    },
+    // Repositories with no profile come first, then the least recently
+    // collected, so a sweep always attacks the stalest intelligence.
+    orderBy: { insight: { collectedAt: "asc" } },
+    take: limit,
+  });
+
+  let queued = 0;
+  for (const r of repos) {
+    try {
+      await enqueueRepoIntel(installationId, r.owner, r.name);
+      queued += 1;
+    } catch (e) {
+      // One unreachable repository must not abandon the rest of the sweep; the
+      // enqueue itself is awaited so a durable write failure is visible here
+      // rather than vanishing into an unhandled rejection.
+      logger.error("repo-intel-enqueue-failed", {
+        installationId,
+        owner: r.owner,
+        repo: r.name,
+        error: String(e),
+      });
+    }
+  }
+  logger.info("repo-intel-scheduled", { installationId, queued, considered: repos.length });
+  return queued;
+}
+
+/**
+ * Process a repository-intelligence collection job.
+ *
+ * The repository is resolved by `owner/name` under the given installation and
+ * the existing `Repo` row is required: intelligence is attached to a repository
+ * Baton already tracks, so a job for an unknown repository is a no-op rather
+ * than something that creates rows from a job payload.
+ *
+ * Failures propagate so the queue's retry and backoff apply. Collecting the same
+ * repository twice is safe, because persistence is an upsert keyed on `repoId`.
+ */
+export async function processRepoIntel(input: {
+  installationId: number;
+  owner: string;
+  repo: string;
+}): Promise<{ insightId: string; changed: boolean } | null> {
+  const { collectRepositoryIntelligence, saveRepositoryIntelligence } = await import(
+    "../intelligence/collect"
+  );
+
+  const row = await prisma.repo.findFirst({
+    where: {
+      owner: input.owner,
+      name: input.repo,
+      installation: { installationId: input.installationId },
+    },
+    select: { id: true, enabled: true },
+  });
+  if (!row) {
+    logger.info("repo-intel-skipped-unknown-repo", {
+      installationId: input.installationId,
+      owner: input.owner,
+      repo: input.repo,
+    });
+    return null;
+  }
+  if (!row.enabled) {
+    logger.info("repo-intel-skipped-disabled-repo", { repoRowId: row.id });
+    return null;
+  }
+
+  const collected = await collectRepositoryIntelligence(input.installationId, input.owner, input.repo);
+  return saveRepositoryIntelligence(row.id, collected);
 }
 
 function actorList(

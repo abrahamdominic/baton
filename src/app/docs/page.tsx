@@ -110,7 +110,7 @@ export default function DocsPage() {
           </h1>
           <p className="mt-4 text-sm sm:text-base text-ink-300 leading-relaxed">
             Everything you need to know about Baton&apos;s deterministic classification engine,
-            least-privilege security model, and self-hosting options.
+            explicit permission model, and self-hosting options.
           </p>
         </div>
 

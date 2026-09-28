@@ -17,7 +17,8 @@ status comment and a state label on the PR itself, and sends a polite, targeted
 - **Authenticated app**: GitHub OAuth sign-in behind a protected dashboard
   (overview, repositories, activity ledger, account & sessions admin) with
   sign-out and anti-indexing on every private page. See `DASHBOARD.md`.
-- **Least privilege**: no contents access. Baton never reads your code.
+- **Scoped permissions**: contents is read-only and never stored; workflows and
+  secrets are never requested.
 
 ## Why
 
@@ -54,7 +55,10 @@ Baton needs two things from GitHub, both free to create:
 
 1. **A GitHub App** (installation, repo access, tokens, webhooks):
    - Webhook URL `{APP_URL}/api/webhooks`, permissions *Pull requests: Read &
-     write*, *Issues: Read & write*, *Checks: Read only*, *Metadata: Read only*.
+     write*, *Issues: Read & write*, *Checks: Read only*, *Metadata: Read only*,
+     *Contents: Read only*. Contents is read-only and is required by repository
+     intelligence (the file tree, `package.json`, and `CODEOWNERS`); no file
+     contents are stored.
      Subscribe to *Pull request*, *Pull request review*, *Pull request review
      comment*, *Check run*, *Check suite*, *Installation*.
    - Setup URL `{APP_URL}/auth/install/callback`. If you enable **Request user

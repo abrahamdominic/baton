@@ -21,49 +21,52 @@ import {
   IconArrowLeft,
   IconChevronRight,
 } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/provider";
 
 export interface AdminNavItem {
   href: string;
-  label: string;
+  /** Translation key rather than display text, so a locale change relabels the
+   *  entire admin navigation with no component edit. */
+  labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
   exact?: boolean;
 }
 
 export interface AdminNavGroup {
-  title: string;
+  titleKey: string;
   items: AdminNavItem[];
 }
 
 const NAV_GROUPS: AdminNavGroup[] = [
   {
-    title: "Overview",
+    titleKey: "admin:group_overview",
     items: [
-      { href: "/admin", label: "Control Panel", icon: IconGauge, exact: true },
-      { href: "/admin/analytics", label: "Analytics & Funnels", icon: IconActivity },
+      { href: "/admin", labelKey: "admin:control_panel", icon: IconGauge, exact: true },
+      { href: "/admin/analytics", labelKey: "admin:analytics_and_funnels", icon: IconActivity },
     ],
   },
   {
-    title: "Access & Security",
+    titleKey: "admin:group_access_security",
     items: [
-      { href: "/admin/users", label: "Users & Roles", icon: IconUser },
-      { href: "/admin/audit", label: "Audit Log", icon: IconLock },
+      { href: "/admin/users", labelKey: "admin:users_and_roles", icon: IconUser },
+      { href: "/admin/audit", labelKey: "admin:audit_log", icon: IconLock },
     ],
   },
   {
-    title: "Billing & Plans",
+    titleKey: "admin:group_billing_plans",
     items: [
-      { href: "/admin/subscriptions", label: "Subscriptions", icon: IconLayers },
-      { href: "/admin/plans", label: "Plan Catalog", icon: IconLayers },
-      { href: "/admin/payments", label: "Crypto Payments", icon: IconShield },
-      { href: "/admin/gifts", label: "Gift Plans", icon: IconGift },
+      { href: "/admin/subscriptions", labelKey: "navigation:subscriptions", icon: IconLayers },
+      { href: "/admin/plans", labelKey: "admin:plan_catalog", icon: IconLayers },
+      { href: "/admin/payments", labelKey: "admin:crypto_payments", icon: IconShield },
+      { href: "/admin/gifts", labelKey: "admin:gift_plans", icon: IconGift },
     ],
   },
   {
-    title: "Operations & Health",
+    titleKey: "admin:group_operations_health",
     items: [
-      { href: "/admin/github", label: "GitHub Integrations", icon: IconGitHub },
-      { href: "/admin/health", label: "System Health", icon: IconGauge },
-      { href: "/admin/settings", label: "Environment & Config", icon: IconSettings },
+      { href: "/admin/github", labelKey: "admin:github_integrations", icon: IconGitHub },
+      { href: "/admin/health", labelKey: "admin:system_health", icon: IconGauge },
+      { href: "/admin/settings", labelKey: "admin:environment_and_config", icon: IconSettings },
     ],
   },
 ];
@@ -89,6 +92,7 @@ function AdminNavLink({
   item: AdminNavItem;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const active = isActive(pathname, item);
 
@@ -110,7 +114,7 @@ function AdminNavLink({
               active ? "text-brand-400" : "text-ink-500 group-hover:text-ink-300"
             }`}
           />
-          <span className="truncate">{item.label}</span>
+          <span className="truncate">{t(item.labelKey)}</span>
         </div>
         {active ? (
           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400 ring-2 ring-brand-400/20" />
@@ -127,6 +131,7 @@ function AdminSidebarContent({
   admin: AdminInfo;
   onNavigate?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="flex h-full flex-col">
       {/* Brand & Badge */}
@@ -151,18 +156,18 @@ function AdminSidebarContent({
         >
           <div className="flex items-center gap-2">
             <IconArrowLeft className="h-3.5 w-3.5 text-ink-400" />
-            <span>User Dashboard</span>
+            <span>{t("admin:user_dashboard")}</span>
           </div>
           <span className="font-mono text-[10px] text-ink-500">/dashboard</span>
         </Link>
       </div>
 
       {/* Navigation Groups */}
-      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-3" aria-label="Admin navigation">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-3" aria-label={t("admin:admin_navigation")}>
         {NAV_GROUPS.map((group) => (
-          <div key={group.title}>
+          <div key={group.titleKey}>
             <p className="px-3 pb-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-500">
-              {group.title}
+              {t(group.titleKey)}
             </p>
             <ul className="space-y-0.5">
               {group.items.map((item) => (
@@ -192,14 +197,14 @@ function AdminSidebarContent({
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-semibold text-white">@{admin.login}</p>
-            <p className="truncate font-mono text-[10px] text-brand-300">Administrator</p>
+            <p className="truncate font-mono text-[10px] text-brand-300">{t("admin:administrator")}</p>
           </div>
           <a
             href={admin.githubUrl}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={`View @${admin.login} on GitHub`}
-            title="View GitHub profile"
+            title={t("admin:view_github_profile")}
             className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-white/[0.06] hover:text-white"
           >
             <IconExternalLink className="h-3.5 w-3.5" />
@@ -211,7 +216,7 @@ function AdminSidebarContent({
           className="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-400 transition-colors hover:bg-danger-500/10 hover:text-danger-300"
         >
           <IconLogOut className="h-3.5 w-3.5 shrink-0" />
-          <span>Sign out</span>
+          <span>{t("common:sign_out")}</span>
         </a>
       </div>
     </div>
@@ -225,6 +230,7 @@ export function AdminShell({
   admin: AdminInfo;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -264,7 +270,7 @@ export function AdminShell({
             <>
               <IconChevronRight className="h-3 w-3 text-ink-600" />
               <span className="truncate text-xs font-semibold text-ink-200">
-                {currentItem.label}
+                {t(currentItem.labelKey)}
               </span>
             </>
           ) : null}
@@ -280,7 +286,7 @@ export function AdminShell({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Open admin navigation menu"
+            aria-label={t("admin:open_admin_navigation_menu")}
             aria-expanded={open}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-200 transition-colors hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
           >
@@ -300,7 +306,7 @@ export function AdminShell({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Admin control panel navigation"
+            aria-label={t("admin:admin_control_panel_navigation")}
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-white/[0.1] bg-ink-950 shadow-2xl transition-transform"
           >
             <div className="flex h-14 items-center justify-between border-b border-white/[0.07] px-4">
@@ -313,7 +319,7 @@ export function AdminShell({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close admin menu"
+                aria-label={t("admin:close_admin_menu")}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-300 transition-colors hover:bg-ink-850 hover:text-white"
               >
                 <IconX className="h-4 w-4" />
@@ -329,23 +335,23 @@ export function AdminShell({
         {/* Desktop Topbar Breadcrumbs & Switcher */}
         <div className="hidden h-14 items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-6 backdrop-blur-sm lg:flex">
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-mono text-ink-500">Admin</span>
+            <span className="font-mono text-ink-500">{t("navigation:admin")}</span>
             {currentGroup ? (
               <>
                 <IconChevronRight className="h-3 w-3 text-ink-600" />
-                <span className="font-mono text-ink-400">{currentGroup.title}</span>
+                <span className="font-mono text-ink-400">{t(currentGroup.titleKey)}</span>
               </>
             ) : null}
             <IconChevronRight className="h-3 w-3 text-ink-600" />
             <span className="font-semibold text-white">
-              {currentItem?.label ?? "Control Panel"}
+              {currentItem ? t(currentItem.labelKey) : t("admin:control_panel")}
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-ink-900/60 px-2.5 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-signal-400 ring-2 ring-signal-400/20" />
-              <span className="font-mono text-[10px] font-medium text-signal-400">Admin Mode Active</span>
+              <span className="font-mono text-[10px] font-medium text-signal-400">{t("admin:admin_mode_active")}</span>
             </div>
 
             <Link
@@ -353,7 +359,7 @@ export function AdminShell({
               className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
             >
               <IconArrowLeft className="h-3 w-3" />
-              <span>Exit to User App</span>
+              <span>{t("admin:exit_to_user_app")}</span>
             </Link>
           </div>
         </div>

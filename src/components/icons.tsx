@@ -61,6 +61,16 @@ export function IconBranch(props: P) {
   );
 }
 
+export function IconGlobe(props: P) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
 export function IconCheck(props: P) {
   return (
     <svg {...base(props)}>
@@ -504,6 +514,14 @@ export function IconPlus(props: P) {
     <svg {...base(props)}>
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+export function IconBookmark(props: P) {
+  return (
+    <svg {...base(props)}>
+      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

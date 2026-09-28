@@ -12,6 +12,25 @@ export interface CheckRunInfo {
   status: string; // QUEUED | IN_PROGRESS | COMPLETED
   conclusion: string | null; // SUCCESS | FAILURE | CANCELLED | TIMED_OUT | NEUTRAL | SKIPPED | ...
   appSlug: string | null;
+  /**
+   * Deep link to the run's log output. GitHub supplies this for essentially
+   * every check run, and "View build log" is the only actionable thing a
+   * developer can do about a red check — so it is captured and persisted
+   * rather than left out and rendered as a dead button.
+   */
+  detailsUrl?: string | null;
+  /** The run's own failure summary, when GitHub has one. */
+  summary?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+/** One entry of a pull request's changed-file list. */
+export interface PrFileInfo {
+  path: string;
+  additions: number;
+  deletions: number;
+  changeType: string | null; // ADDED | MODIFIED | REMOVED | RENAMED | COPIED | ...
 }
 
 export interface SnapshotInput {
@@ -34,6 +53,22 @@ export interface SnapshotInput {
   requestedReviewerLogins: string[];
   requestedTeamSlugs: string[];
   checks: CheckRunInfo[];
+  /**
+   * Changed files for this pull request. `null` means "not collected", which is
+   * different from `[]` ("this pull request genuinely changes nothing") and is
+   * never rendered as a zero.
+   */
+  files?: PrFileInfo[] | null;
+  additions?: number | null;
+  deletions?: number | null;
+  changedFiles?: number | null;
+  /**
+   * Issues GitHub itself reports this pull request as closing. Authoritative:
+   * this is the connection GitHub populates when a change is linked through the
+   * UI, and the "Fixes #1" keyword form. Absent on snapshots taken before the
+   * field existed, so consumers must treat undefined as "not collected".
+   */
+  linkedIssues?: { number: number; title: string; url: string; state: string }[] | null;
   now: Date;
 }
 

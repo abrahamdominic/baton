@@ -1,0 +1,23 @@
+{
+  "title": "Pull request #{{number}}",
+  "smart_context": "Smart context",
+  "facts": "Facts",
+  "inferences": "Inferences",
+  "high_confidence": "High confidence",
+  "medium_confidence": "Medium confidence",
+  "low_confidence": "Low confidence",
+  "basis": "Basis",
+  "suggested_action": "Suggested action",
+  "evidence": "Evidence",
+  "review_brief": "Review brief",
+  "review_brief_description": "What to check before approving this pull request.",
+  "likely_owners": "Likely owners",
+  "related_issues": "Related issues",
+  "unanswered_questions": "Unanswered questions",
+  "no_context": "No context collected for this pull request yet.",
+  "checks": "Checks",
+  "checks_passed_one": "{{count}} check passed",
+  "checks_passed_other": "{{count}} checks passed",
+  "files_changed_one": "{{count}} file changed",
+  "files_changed_other": "{{count}} files changed"
+}

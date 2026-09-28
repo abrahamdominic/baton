@@ -254,5 +254,6 @@ async function upsertBatonUser(gh: GitHubUser): Promise<SessionUser> {
     avatarUrl: row.avatarUrl,
     role: row.role,
     suspendedAt: row.suspendedAt,
+    preferredLanguage: row.preferredLanguage,
   };
 }

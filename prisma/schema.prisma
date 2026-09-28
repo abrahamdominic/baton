@@ -16,35 +16,44 @@ datasource db {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  githubId       Int              @unique
-  login          String
-  name           String?
-  email          String?
-  avatarUrl      String?
+  id                      String                     @id @default(cuid())
+  githubId                Int                        @unique
+  login                   String
+  name                    String?
+  email                   String?
+  avatarUrl               String?
   // Account role: "user" (default) or "admin". Admin authorization is enforced
   // server-side in every admin route/action; never trust a client-supplied flag.
-  role           String           @default("user")
-  suspendedAt    DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  sessions       Session[]
-  audits         AuditLog[]
-  installations  AppInstallation[]
-  ownedTeams     Team[]               @relation("TeamOwner")
-  teamMemberships TeamMember[]        @relation("TeamMembership")
-  teamInvitesSent TeamInvite[]        @relation("TeamInviter")
-  teamSharesAdded TeamInstallation[]  @relation("TeamInstaller")
-  ownedOrganizations Organization[]   @relation("OrgOwner")
-  organizationMembers OrganizationMember[]
-  organizationInvites OrganizationInvite[] @relation("OrgInviter")
+  role                    String                     @default("user")
+  // BCP-47 language tag the user explicitly chose. Nullable on purpose: null
+  // means "never chose", which is different from "chose English" and is what
+  // lets browser detection run for a brand-new visitor instead of silently
+  // pinning them to the default. Existing rows stay null, so the migration
+  // needs no backfill and no default (lan.md §26).
+  preferredLanguage       String?
+  suspendedAt             DateTime?
+  createdAt               DateTime                   @default(now())
+  updatedAt               DateTime                   @updatedAt
+  sessions                Session[]
+  audits                  AuditLog[]
+  installations           AppInstallation[]
+  ownedTeams              Team[]                     @relation("TeamOwner")
+  teamMemberships         TeamMember[]               @relation("TeamMembership")
+  teamInvitesSent         TeamInvite[]               @relation("TeamInviter")
+  teamSharesAdded         TeamInstallation[]         @relation("TeamInstaller")
+  ownedOrganizations      Organization[]             @relation("OrgOwner")
+  organizationMembers     OrganizationMember[]
+  organizationInvites     OrganizationInvite[]       @relation("OrgInviter")
   organizationSharesAdded OrganizationInstallation[] @relation("OrgInstaller")
-  conversationsCreated Conversation[]         @relation("ConversationCreator")
-  conversationMembers  ConversationMember[]
-  messagesSent         Message[]              @relation("MessageSender")
-  devicePublicKeys     DevicePublicKey[]      @relation("DeviceOwner")
-  notificationsReceived Notification[]        @relation("NotificationRecipient")
-  notificationsAuthored Notification[]        @relation("NotificationActor")
+  conversationsCreated    Conversation[]             @relation("ConversationCreator")
+  conversationMembers     ConversationMember[]
+  messagesSent            Message[]                  @relation("MessageSender")
+  devicePublicKeys        DevicePublicKey[]          @relation("DeviceOwner")
+  notificationsReceived   Notification[]             @relation("NotificationRecipient")
+  notificationsAuthored   Notification[]             @relation("NotificationActor")
+  workContexts            WorkContext[]
+  insightDigests          InsightDigest[]
+  insightQuestions        InsightQuestion[]
 
   @@index([login])
   @@index([role])
@@ -66,38 +75,40 @@ model Session {
 }
 
 model AppInstallation {
-  id              String    @id @default(cuid())
-  installationId  Int       @unique
-  accountLogin    String
-  accountType     String // "User" | "Organization"
-  userId          String?
-  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  uninstalledAt   DateTime?
-  repos           Repo[]
-  teamLinks       TeamInstallation[]
+  id                String                     @id @default(cuid())
+  installationId    Int                        @unique
+  accountLogin      String
+  accountType       String // "User" | "Organization"
+  userId            String?
+  user              User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  uninstalledAt     DateTime?
+  repos             Repo[]
+  teamLinks         TeamInstallation[]
   organizationLinks OrganizationInstallation[]
 
   @@index([accountLogin])
 }
 
 model Repo {
-  id               String          @id @default(cuid())
-  installationId   String
-  installation     AppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
-  repoId           BigInt          @unique
-  owner            String
-  name             String
-  fullName         String          @unique
-  defaultBranch    String
-  isPrivate        Boolean         @default(false)
-  enabled          Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  setting          RepoSetting?
-  pullRequests     PullRequest[]
-  actions          Action[]
+  id             String             @id @default(cuid())
+  installationId String
+  installation   AppInstallation    @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  repoId         BigInt             @unique
+  owner          String
+  name           String
+  fullName       String             @unique
+  defaultBranch  String
+  isPrivate      Boolean            @default(false)
+  enabled        Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  setting        RepoSetting?
+  pullRequests   PullRequest[]
+  actions        Action[]
+  insight        RepositoryInsight?
+  workContexts   WorkContext[]
 
   @@index([installationId])
   @@index([owner, name])
@@ -105,28 +116,28 @@ model Repo {
 }
 
 model RepoSetting {
-  id                    String  @id @default(cuid())
-  repoId                String  @unique
-  repo                  Repo    @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  statusCommentEnabled  Boolean @default(true)
-  labelsEnabled         Boolean @default(true)
-  nudgesEnabled         Boolean @default(true)
+  id                   String   @id @default(cuid())
+  repoId               String   @unique
+  repo                 Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  statusCommentEnabled Boolean  @default(true)
+  labelsEnabled        Boolean  @default(true)
+  nudgesEnabled        Boolean  @default(true)
   // Hours before a first-response nudge is fired on a PR with no human reply.
-  firstResponseHours    Int     @default(24)
+  firstResponseHours   Int      @default(24)
   // Hours before we nudge a reviewer who has not re-reviewed after the author pushed fixes.
-  reviewFollowUpHours   Int     @default(36)
+  reviewFollowUpHours  Int      @default(36)
   // Hours before we nudge an author who has not responded to requested changes.
-  changesRequiredHours  Int     @default(72)
+  changesRequiredHours Int      @default(72)
   // Hours of failing CI before the author is nudged.
-  ciFailHours           Int     @default(24)
+  ciFailHours          Int      @default(24)
   // Hours of a merge conflict before the author is nudged.
-  conflictHours         Int     @default(12)
+  conflictHours        Int      @default(12)
   // Hours an approved, green PR sits unmerged before the merger is nudged.
-  readyToMergeHours     Int     @default(48)
+  readyToMergeHours    Int      @default(48)
   // Max nudges we will ever send for one state on one PR.
-  maxNudgesPerState     Int     @default(1)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  maxNudgesPerState    Int      @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model PullRequest {
@@ -168,43 +179,43 @@ model PullRequest {
 }
 
 model WebhookEvent {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   deliveryId  String
   eventType   String
   rawJson     String
-  receivedAt  DateTime @default(now())
+  receivedAt  DateTime  @default(now())
   processedAt DateTime?
 
   @@unique([deliveryId, eventType])
 }
 
 model Job {
-  id           String    @id @default(cuid())
-  kind         String
-  status       String    @default("pending") // pending | processing | done | failed | stale
-  attempts     Int       @default(0)
-  maxAttempts  Int       @default(5)
-  payloadJson  String
-  error        String?
+  id            String    @id @default(cuid())
+  kind          String
+  status        String    @default("pending") // pending | processing | done | failed | stale
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(5)
+  payloadJson   String
+  error         String?
   nextAttemptAt DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  startedAt    DateTime?
-  finishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  startedAt     DateTime?
+  finishedAt    DateTime?
 
   @@index([status, createdAt])
 }
 
 model Action {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   repoId      String?
-  repo        Repo?    @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repo        Repo?        @relation(fields: [repoId], references: [id], onDelete: Cascade)
   prId        String?
   pr          PullRequest? @relation(fields: [prId], references: [id], onDelete: Cascade)
   type        String // status_comment | label | unlabel | nudge | comment | pr_snapshot
   targetJson  String?
   ghReference String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime     @default(now())
 
   @@index([repoId, createdAt])
   @@index([prId])
@@ -239,18 +250,17 @@ model AuditLog {
 // ---------------------------------------------------------------------------
 
 model Team {
-  id           String             @id @default(cuid())
-  slug         String             @unique
-  name         String
-  ownerId      String
-  owner        User               @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  members      TeamMember[]
-  invites      TeamInvite[]
+  id            String             @id @default(cuid())
+  slug          String             @unique
+  name          String
+  ownerId       String
+  owner         User               @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  members       TeamMember[]
+  invites       TeamInvite[]
   installations TeamInstallation[]
-  conversations Conversation[] @relation("TeamConversation")
-
+  conversations Conversation[]     @relation("TeamConversation")
 
   @@index([ownerId])
 }
@@ -269,48 +279,48 @@ model TeamMember {
 }
 
 model TeamInvite {
-  id                String   @id @default(cuid())
-  teamId            String
-  team              Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  githubLogin       String
-  email             String?
-  role              String   @default("member") // owner | admin | member
-  token             String   @unique
-  invitedById       String
-  invitedBy         User     @relation("TeamInviter", fields: [invitedById], references: [id], onDelete: Cascade)
-  status            String   @default("pending") // pending | accepted | revoked | expired
-  expiresAt         DateTime
-  acceptedByUserId  String?
-  createdAt         DateTime @default(now())
+  id               String   @id @default(cuid())
+  teamId           String
+  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  githubLogin      String
+  email            String?
+  role             String   @default("member") // owner | admin | member
+  token            String   @unique
+  invitedById      String
+  invitedBy        User     @relation("TeamInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  status           String   @default("pending") // pending | accepted | revoked | expired
+  expiresAt        DateTime
+  acceptedByUserId String?
+  createdAt        DateTime @default(now())
 
   @@unique([teamId, githubLogin])
   @@index([status, expiresAt])
 }
 
 model TeamInstallation {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   teamId         String
-  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  installationId String         @unique
+  team           Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  installationId String          @unique
   installation   AppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
   addedById      String?
-  addedBy        User?          @relation("TeamInstaller", fields: [addedById], references: [id], onDelete: SetNull)
-  createdAt      DateTime       @default(now())
+  addedBy        User?           @relation("TeamInstaller", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
 }
 
 model Organization {
-  id            String                @id @default(cuid())
-  slug          String                @unique
+  id            String                     @id @default(cuid())
+  slug          String                     @unique
   name          String
   ownerId       String
-  owner         User                  @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
+  owner         User                       @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime                   @default(now())
+  updatedAt     DateTime                   @updatedAt
   members       OrganizationMember[]
   invites       OrganizationInvite[]
   installations OrganizationInstallation[]
   policy        OrganizationPolicy?
-  conversations Conversation[]           @relation("OrgConversation")
+  conversations Conversation[]             @relation("OrgConversation")
 
   @@index([ownerId])
 }
@@ -329,33 +339,33 @@ model OrganizationMember {
 }
 
 model OrganizationInvite {
-  id                String       @id @default(cuid())
-  organizationId    String
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  githubLogin       String
-  email             String?
-  role              String       @default("member") // owner | admin | member
-  token             String       @unique
-  invitedById       String
-  invitedBy         User         @relation("OrgInviter", fields: [invitedById], references: [id], onDelete: Cascade)
-  status            String       @default("pending") // pending | accepted | revoked | expired
-  expiresAt         DateTime
-  acceptedByUserId  String?
-  createdAt         DateTime     @default(now())
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  githubLogin      String
+  email            String?
+  role             String       @default("member") // owner | admin | member
+  token            String       @unique
+  invitedById      String
+  invitedBy        User         @relation("OrgInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+  status           String       @default("pending") // pending | accepted | revoked | expired
+  expiresAt        DateTime
+  acceptedByUserId String?
+  createdAt        DateTime     @default(now())
 
   @@unique([organizationId, githubLogin])
   @@index([status, expiresAt])
 }
 
 model OrganizationInstallation {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  installationId String         @unique
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  installationId String          @unique
   installation   AppInstallation @relation(fields: [installationId], references: [id], onDelete: Cascade)
   addedById      String?
-  addedBy        User?          @relation("OrgInstaller", fields: [addedById], references: [id], onDelete: SetNull)
-  createdAt      DateTime       @default(now())
+  addedBy        User?           @relation("OrgInstaller", fields: [addedById], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
 }
 
 model OrganizationPolicy {
@@ -405,13 +415,13 @@ model Conversation {
 }
 
 model ConversationMember {
-  id             String               @id @default(cuid())
+  id             String                @id @default(cuid())
   conversationId String
-  conversation   Conversation         @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   userId         String
-  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role           String               @default("member") // owner | admin | member
-  joinedAt       DateTime             @default(now())
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String                @default("member") // owner | admin | member
+  joinedAt       DateTime              @default(now())
   lastReadAt     DateTime?
   lastReadMsgId  String?
   keyWraps       ConversationKeyWrap[]
@@ -425,12 +435,12 @@ model ConversationMember {
 // The epoch is bumped when membership changes so removed members lose access and
 // newly added members receive an independent wrap for the same or next key.
 model ConversationThreadKey {
-  id             String                  @id @default(cuid())
+  id             String                @id @default(cuid())
   conversationId String
-  conversation   Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation   Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   epoch          Int
-  active         Boolean                 @default(true)
-  createdAt      DateTime                @default(now())
+  active         Boolean               @default(true)
+  createdAt      DateTime              @default(now())
   wraps          ConversationKeyWrap[]
   messages       Message[]
 
@@ -441,43 +451,43 @@ model ConversationThreadKey {
 // One wrap of a thread key for one member, encrypted under that member's
 // device public key (ECDH P-256 => AES-256-GCM). Holds no plaintext.
 model ConversationKeyWrap {
-  id              String               @id @default(cuid())
-  threadKeyId     String
-  threadKey       ConversationThreadKey @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
-  memberId        String
-  member          ConversationMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
-  publicKeyId     String
-  publicKey       DevicePublicKey       @relation(fields: [publicKeyId], references: [id], onDelete: Cascade)
+  id                 String                @id @default(cuid())
+  threadKeyId        String
+  threadKey          ConversationThreadKey @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
+  memberId           String
+  member             ConversationMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  publicKeyId        String
+  publicKey          DevicePublicKey       @relation(fields: [publicKeyId], references: [id], onDelete: Cascade)
   // The device public key of the *issuer* (the member who wrapped the thread
   // key under ECDH). Recipients need it to unwrap: ECDH(recipientPrivate,
   // issuerPublic) reconstructs the wrap key. Self-describing per wrap.
   issuerPublicKeyB64 String
-  wrappedKeyB64   String
-  createdAt       DateTime              @default(now())
+  wrappedKeyB64      String
+  createdAt          DateTime              @default(now())
 
   @@unique([threadKeyId, memberId, publicKeyId])
   @@index([memberId])
 }
 
 model Message {
-  id             String                 @id @default(cuid())
-  conversationId String
-  conversation   Conversation           @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  senderId       String
-  sender         User                   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  threadKeyId    String
-  threadKey      ConversationThreadKey  @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
+  id              String                @id @default(cuid())
+  conversationId  String
+  conversation    Conversation          @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User                  @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  threadKeyId     String
+  threadKey       ConversationThreadKey @relation(fields: [threadKeyId], references: [id], onDelete: Cascade)
   // AES-256-GCM payload: base64(iv(12) | ciphertext+tag(16)). Never plaintext.
-  ciphertext     String
+  ciphertext      String
   // Protocol version tag for the client-side encryption scheme that produced
   // this payload (e.g. "v1" = ECDH P-256 + HKDF-SHA-256 + AES-256-GCM). Lets
   // the client reject unknown schemes and migrate to a ratified protocol later.
   protocolVersion String                @default("v1")
-  nonce          String                 @default("")
+  nonce           String                @default("")
   clientMessageId String
-  editedAt       DateTime?
-  deletedAt      DateTime?
-  createdAt      DateTime               @default(now())
+  editedAt        DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime              @default(now())
 
   @@unique([senderId, clientMessageId])
   @@index([conversationId, createdAt])
@@ -487,13 +497,13 @@ model Message {
 // Device-scoped ECDH public keys. The private key is generated client-side and
 // never leaves the user's device/app. publicKeyB64 is the imported SPKI blob.
 model DevicePublicKey {
-  id           String   @id @default(cuid())
+  id           String                @id @default(cuid())
   userId       String
-  user         User     @relation("DeviceOwner", fields: [userId], references: [id], onDelete: Cascade)
-  label        String   @default("Baton device")
+  user         User                  @relation("DeviceOwner", fields: [userId], references: [id], onDelete: Cascade)
+  label        String                @default("Baton device")
   publicKeyB64 String
   fingerprint  String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime              @default(now())
   revokedAt    DateTime?
   wraps        ConversationKeyWrap[]
 
@@ -505,19 +515,175 @@ model DevicePublicKey {
 // is per-row so each user's unread badge is derived exactly from the inbox.
 // Payload carries only type + resource identifiers (never message plaintext).
 model Notification {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
-  user         User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
   type         String // "message" | "mention" | "review" | "invite" | "system"
   resourceType String // "message" | "conversation" | "pr" | "team_invite" | "org_invite" | "billing"
   resourceId   String
   actorId      String?
-  actor        User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
-  contextJson  String   @default("{}") // ids/keys only, no plaintext content
+  actor        User?     @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  contextJson  String    @default("{}") // ids/keys only, no plaintext content
   readAt       DateTime?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
 
   @@index([userId, readAt, createdAt])
   @@index([userId, type, resourceId])
   @@index([resourceType, resourceId])
+}
+
+// ---------------------------------------------------------------------------
+// Repository intelligence
+//
+// Every claim Baton makes about a repository is backed by a `RepoEvidence` row
+// that records where the fact came from (a file path at a ref, a PR, a release,
+// a check run) and when it was observed. Nothing here is generated prose that
+// cannot be traced back to a source, and no evidence row is ever copied between
+// repositories, so a citation cannot silently point at the wrong project.
+// ---------------------------------------------------------------------------
+
+model RepositoryInsight {
+  id                String    @id @default(cuid())
+  repoId            String    @unique
+  repo              Repo      @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  description       String?
+  homepage          String?
+  topics            String    @default("[]")
+  languages         String    @default("[]") // [{ name, bytes, percent }]
+  // Structural facts discovered in the tree, each independently evidenced.
+  hasReadme         Boolean   @default(false)
+  hasCodeowners     Boolean   @default(false)
+  hasContributing   Boolean   @default(false)
+  hasCiWorkflows    Boolean   @default(false)
+  hasSecurityPolicy Boolean   @default(false)
+  hasLicense        Boolean   @default(false)
+  defaultBranch     String?
+  // Cadence, computed from observed history rather than guessed.
+  openPullRequests  Int       @default(0)
+  openIssues        Int       @default(0)
+  // Null means "GitHub did not tell us", which is a real and common outcome:
+  // the search API does not reliably cover private repositories, and a failure
+  // there must not be recorded as an observed zero. `briefing` and `answer`
+  // omit the throughput claim entirely when this is null.
+  mergedLast30Days  Int?
+  contributorCount  Int       @default(0)
+  topContributors   String    @default("[]") // [{ login, commits }]
+  lastReleaseTag    String?
+  lastReleaseAt     DateTime?
+  // Free-form counters that do not deserve a migration each (workflow names,
+  // directory listing of the trunk, etc). Always JSON, never prose.
+  structure         String    @default("{}")
+  // Incremented whenever a collection run finds facts different from the
+  // previous one, so the UI can say "changed since you last looked".
+  revision          Int       @default(1)
+  collectedAt       DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  evidence  RepoEvidence[]
+  contexts  WorkContext[]
+  digests   InsightDigest[]
+  questions InsightQuestion[]
+
+  @@index([collectedAt])
+}
+
+model RepoEvidence {
+  id         String            @id @default(cuid())
+  insightId  String
+  insight    RepositoryInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  repoId     String
+  // What kind of source this is: "file" | "readme" | "codeowners" | "workflow"
+  // | "pr" | "release" | "commit" | "contributors" | "languages" | "check".
+  kind       String
+  // Human label for the citation, e.g. "CODEOWNERS @ main".
+  label      String
+  // Repository-relative path at a ref, when the source is a file.
+  path       String?
+  ref        String?
+  // Verbatim excerpt. Never a paraphrase, so a citation cannot misrepresent
+  // the source.
+  excerpt    String?
+  // Link a developer can open to verify the claim themselves.
+  url        String?
+  // Sort weight for deterministic ranking: lower ranks first.
+  rank       Int               @default(100)
+  observedAt DateTime          @default(now())
+  createdAt  DateTime          @default(now())
+
+  @@index([repoId, kind])
+  @@index([insightId, rank])
+  @@index([observedAt])
+}
+
+// A saved, restorable working context: where someone was, what they were doing,
+// and what they were waiting on. Deliberately stores identifiers and URLs, not
+// copied page contents, so restoring is always a fresh read.
+model WorkContext {
+  id             String             @id @default(cuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repoId         String
+  repo           Repo               @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  insightId      String?
+  insight        RepositoryInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
+  label          String
+  // "pr" | "repo" | "repository" | "digest" | "question"
+  kind           String             @default("pr")
+  targetUrl      String
+  // Small, non-sensitive summary: pr number, state, branch, open threads.
+  payload        String             @default("{}")
+  // Set when this context was produced by restoring an earlier one.
+  restoredFromId String?
+  createdAt      DateTime           @default(now())
+  lastUsedAt     DateTime           @default(now())
+
+  @@index([userId, lastUsedAt])
+  @@index([repoId])
+}
+
+// A generated briefing. `body` is an array of typed sections, each of which
+// carries the evidence ids it was built from, so every line in a briefing is
+// traceable and a stale line can be explained.
+model InsightDigest {
+  id        String             @id @default(cuid())
+  userId    String?
+  user      User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repoId    String?
+  insightId String?
+  insight   RepositoryInsight? @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  // "developer" | "review" | "onboarding" | "impact"
+  kind      String
+  // Stable key for the same digest slot, e.g. "developer:2026-09-27".
+  slot      String
+  title     String
+  body      String             @default("[]")
+  evidence  String             @default("[]")
+  // Bumped when a previously generated digest's content changes, so the UI can
+  // mark a briefing as updated rather than silently swapping it.
+  revision  Int                @default(1)
+  readAt    DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([userId, kind, slot])
+  @@index([repoId, kind])
+}
+
+// A grounded question and its cited answer. The answer is a structured object
+// (not free text) whose claims each reference `evidence` ids, so an answer can
+// only ever assert what was actually observed.
+model InsightQuestion {
+  id        String            @id @default(cuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  insightId String
+  insight   RepositoryInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  question  String
+  // { answer, claims: [{ text, evidenceIds }], answered: boolean, searched }
+  answer    String            @default("{}")
+  createdAt DateTime          @default(now())
+
+  @@index([insightId, createdAt])
+  @@index([userId, createdAt])
 }

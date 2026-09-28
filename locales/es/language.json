@@ -1,0 +1,17 @@
+{
+  "title": "Idioma",
+  "description": "Elige el idioma que quieres que use Baton.",
+  "search_placeholder": "Buscar idiomas…",
+  "search_label": "Buscar idiomas",
+  "no_results": "Ningún idioma coincide con tu búsqueda.",
+  "clear_search": "Limpiar búsqueda",
+  "current": "Idioma actual",
+  "selected": "Seleccionado",
+  "select": "Seleccionar {{name}}",
+  "changed": "Idioma cambiado a {{name}}",
+  "changed_description": "Baton ahora se muestra en {{name}}.",
+  "save_failed": "El idioma se ha cambiado en este dispositivo, pero no se ha podido guardar en tu cuenta. Se sincronizará más tarde.",
+  "language_list": "Idiomas disponibles",
+  "results_one": "{{count}} idioma",
+  "results_other": "{{count}} idiomas"
+}

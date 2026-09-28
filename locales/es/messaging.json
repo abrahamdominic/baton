@@ -1,0 +1,11 @@
+{
+  "title": "Mensajes",
+  "conversations": "Conversaciones",
+  "new_conversation": "Nueva conversación",
+  "send_message": "Enviar mensaje",
+  "message_placeholder": "Escribe un mensaje…",
+  "empty_title": "No hay conversaciones",
+  "empty_description": "Inicia una conversación para hablar de un pull request con tu equipo.",
+  "message_failed": "No se ha podido enviar el mensaje.",
+  "mentioned": "Te ha mencionado"
+}

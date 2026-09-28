@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { recentSystemEvents } from "@/lib/billing/system-events";
-import { queueSnapshot } from "@/lib/engine/queue-metrics";
+import { queueSnapshot, jobLatency, recentJobFailures } from "@/lib/engine/queue-metrics";
+import { recentSlowQueries } from "@/lib/db-slow-queries";
 import { StatCard, PageHeader } from "@/components/ui";
 import {
   IconAlertCircle,
@@ -24,9 +25,12 @@ export default async function AdminHealthPage({
   const params = searchParams ? await searchParams : undefined;
   const severityFilter = params?.severity ?? "all";
 
-  const [events, queue] = await Promise.all([
+  const [events, queue, latency, failures, slowQueries] = await Promise.all([
     recentSystemEvents(100),
     queueSnapshot(),
+    jobLatency(),
+    recentJobFailures(),
+    Promise.resolve(recentSlowQueries()),
   ]);
 
   const errorCount = events.filter((e) => e.severity === "error").length;
@@ -162,6 +166,138 @@ export default async function AdminHealthPage({
             })}
           </div>
         </div>
+      </section>
+
+      {/* Job latency (aa.md §26) */}
+      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
+            Job Latency &middot; last 24h
+          </span>
+          {latency.overall ? (
+            <span className="font-mono text-[10px] text-ink-500">
+              {latency.overall.samples} completed &middot; p50{" "}
+              {latency.overall.p50Ms === null ? "—" : `${latency.overall.p50Ms}ms`} &middot; p95{" "}
+              {latency.overall.p95Ms === null ? "—" : `${latency.overall.p95Ms}ms`}
+            </span>
+          ) : null}
+        </div>
+        {latency.byKind.length === 0 ? (
+          <p className="px-5 py-4 text-xs text-ink-500">
+            No jobs completed in the last 24 hours, so there is no latency to report.
+          </p>
+        ) : (
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-white/[0.05] text-ink-500">
+              <tr>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Kind</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Samples</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">p50</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">p95</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">max</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              {latency.byKind.map((l) => (
+                <tr key={l.kind}>
+                  <td className="px-5 py-2 font-mono text-brand-300">{l.kind}</td>
+                  <td className="px-5 py-2 font-mono tabular-nums text-ink-300">{l.samples}</td>
+                  <td className="px-5 py-2 font-mono tabular-nums text-ink-300">
+                    {l.p50Ms === null ? "—" : `${l.p50Ms}ms`}
+                  </td>
+                  <td
+                    className={`px-5 py-2 font-mono tabular-nums ${
+                      (l.p95Ms ?? 0) > 10_000 ? "text-danger-400" : "text-ink-300"
+                    }`}
+                  >
+                    {l.p95Ms === null ? "—" : `${l.p95Ms}ms`}
+                  </td>
+                  <td className="px-5 py-2 font-mono tabular-nums text-ink-400">
+                    {l.maxMs === null ? "—" : `${l.maxMs}ms`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      {/* Why jobs failed, not just how many */}
+      {failures.length > 0 ? (
+        <section className="overflow-hidden rounded-xl border border-danger-500/20 bg-danger-500/[0.03]">
+          <div className="flex items-center gap-2 border-b border-danger-500/20 bg-danger-500/[0.08] px-5 py-3">
+            <IconAlertCircle className="h-4 w-4 text-danger-300" />
+            <span className="font-mono text-[11px] uppercase tracking-wider text-danger-300">
+              Most Recent Job Failures
+            </span>
+          </div>
+          <ul className="divide-y divide-white/[0.05]">
+            {failures.map((f) => (
+              <li key={f.id} className="px-5 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs font-semibold text-danger-300">{f.kind}</span>
+                  <span className="font-mono text-[10px] text-ink-500">
+                    {f.attempts}/{f.maxAttempts} attempts
+                  </span>
+                  <span className="font-mono text-[10px] text-ink-500">
+                    {f.updatedAt.toISOString().replace("T", " ").slice(0, 19)}Z
+                  </span>
+                </div>
+                {f.error ? (
+                  <pre className="mt-1.5 overflow-x-auto whitespace-pre-wrap break-words rounded border border-white/[0.06] bg-ink-950/70 px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-ink-300">
+                    {f.error}
+                  </pre>
+                ) : (
+                  <p className="mt-1 text-[10px] text-ink-500">No error message was recorded.</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Slow queries */}
+      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
+        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+          <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
+            Slow Queries &middot; this instance
+          </span>
+          <p className="mt-0.5 text-[11px] text-ink-500">
+            Operations over 500ms seen by this server instance. The structured{" "}
+            <code className="font-mono text-ink-400">db-slow-query</code> log line is the durable
+            record across all instances.
+          </p>
+        </div>
+        {slowQueries.length === 0 ? (
+          <p className="px-5 py-4 text-xs text-ink-500">
+            No query over 500ms has been recorded on this instance since it started.
+          </p>
+        ) : (
+          <table className="w-full text-left text-xs">
+            <thead className="border-b border-white/[0.05] text-ink-500">
+              <tr>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Model</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Operation</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Duration</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              {slowQueries.slice(0, 15).map((q, i) => (
+                <tr key={`${q.at}-${i}`}>
+                  <td className="px-5 py-2 font-mono text-ink-300">{q.model ?? "raw"}</td>
+                  <td className="px-5 py-2 font-mono text-ink-300">{q.operation}</td>
+                  <td
+                    className={`px-5 py-2 font-mono tabular-nums ${
+                      q.durationMs > 5000 ? "text-danger-400" : "text-warn-300"
+                    }`}
+                  >
+                    {q.durationMs}ms
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       {/* System Events Table */}

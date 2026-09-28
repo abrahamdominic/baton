@@ -1,0 +1,15 @@
+{
+  "generic": "Algo ha salido mal. Inténtalo de nuevo.",
+  "network": "Error de red. Comprueba tu conexión e inténtalo de nuevo.",
+  "not_found": "No hemos encontrado lo que buscabas.",
+  "unauthorized": "No tienes acceso a esto.",
+  "forbidden": "No tienes permiso para hacer eso.",
+  "rate_limited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
+  "server_error": "Hemos tenido un problema por nuestra parte. Inténtalo de nuevo en un momento.",
+  "validation": "Revisa los campos marcados e inténtalo de nuevo.",
+  "required_field": "Este campo es obligatorio.",
+  "invalid_email": "Introduce una dirección de correo válida.",
+  "try_again": "Reintentar",
+  "contact_support": "Contactar con soporte",
+  "details": "Detalles técnicos"
+}
