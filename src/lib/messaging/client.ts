@@ -52,6 +52,36 @@ function saveDevice(userId: string, device: ClientDevice): void {
 }
 
 /**
+ * Drop every device key stored for one account, or for all accounts when
+ * `userId` is omitted.
+ *
+ * The ECDH private key lives only in this browser, so it is the only thing that
+ * can unwrap this profile's thread keys. Signing out must clear it: on a
+ * shared or kiosk machine the next person could otherwise pair the still
+ * registered public key with the leftover private key and read every
+ * conversation that device was ever given a wrap for.
+ */
+export function forgetDevice(userId?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (userId) {
+      window.localStorage.removeItem(storageKey(userId));
+      return;
+    }
+    // Sweep every account's key when the signed-out identity is unknown.
+    const doomed: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(`${STORAGE_PREFIX}:`)) doomed.push(key);
+    }
+    for (const key of doomed) window.localStorage.removeItem(key);
+  } catch {
+    // Storage can be unavailable (private mode, quota). A failed clear must not
+    // block sign-out; the server session is already revoked either way.
+  }
+}
+
+/**
  * Return the device for this browser profile, generating + registering one the
  * first time. The private key stays local; only the public key is ever sent to
  * the server.
@@ -132,3 +162,4 @@ export async function buildConversationWraps(input: {
 }
 
 export { decryptMessage, encryptMessage };
+export type { MessageContext, ProtocolVersion } from "./crypto";

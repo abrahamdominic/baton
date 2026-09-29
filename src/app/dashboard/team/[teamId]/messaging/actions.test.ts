@@ -94,10 +94,19 @@ const { db, auth, prisma } = vi.hoisted(() => {
         if (!conv) throw new Error("Conversation not found");
         return conv;
       },
-      findUnique: async ({ where }: { where: Row }) => {
+      findUnique: async ({ where, select }: { where: Row; select?: Row }) => {
         const conv = db.conversations.find((c) => c.id === where.id);
         if (!conv) return null;
-        return { ...conv, members: db.members.filter((m) => m.conversationId === conv.id) };
+        // Honor a filtered nested relation. The actions rely on
+        // `members: { where: { userId } }` to answer "is this person in this
+        // conversation", so an unfiltered stub would silently authorize.
+        const memberFilter = select ? nested(select, "members.where.userId") : undefined;
+        const members = db.members.filter(
+          (m) =>
+            m.conversationId === conv.id &&
+            (memberFilter ? m.userId === memberFilter : true),
+        );
+        return { ...conv, members };
       },
       findMany: async ({ where, include }: { where: Row; include?: Row }) => {
         const withUser = Boolean(nested(include, "members.include"));
@@ -279,6 +288,18 @@ vi.mock("@/lib/workspaces", () => ({
     const ok = db.orgMembers.some((m) => m.organizationId === orgId && m.userId === userId);
     if (!ok) throw new Error("Not an organization member");
   },
+  // Live workspace membership, re-checked on every conversation action so a
+  // member removed from the team/org loses access even if a conversation
+  // membership row outlives the removal. Backed by the same fixtures.
+  isStillWorkspaceMember: async (
+    kind: "team" | "organization",
+    workspaceId: string,
+    userId: string,
+  ) =>
+    kind === "team"
+      ? db.teamMembers.some((m) => m.teamId === workspaceId && m.userId === userId)
+      : db.orgMembers.some((m) => m.organizationId === workspaceId && m.userId === userId),
+  revokeWorkspaceConversations: async () => 0,
 }));
 
 vi.mock("@/lib/messaging/crypto", () => ({
@@ -330,9 +351,18 @@ import {
 } from "./actions";
 
 /** A well-formed request: creator's own device plus one wrap per participant. */
-function conversationInput(overrides: Record<string, unknown> = {}) {
-  const memberIds = (overrides.memberIds as string[] | undefined) ?? ["user-alice"];
-  const entries = [
+type WrapEntry = { userId: string; publicKeyId: string; wrappedKeyB64: string };
+
+function conversationInput(
+  overrides: {
+    memberIds?: string[];
+    teamId?: string;
+    orgId?: string;
+    wrap?: { issuerPublicKeyB64: string; entries: WrapEntry[] };
+  } = {},
+) {
+  const memberIds = overrides.memberIds ?? ["user-alice"];
+  const entries: WrapEntry[] = [
     { userId: "user-me", publicKeyId: "dev-me", wrappedKeyB64: "WME" },
     ...memberIds
       .filter((id) => id !== "user-me")
@@ -346,7 +376,9 @@ function conversationInput(overrides: Record<string, unknown> = {}) {
     teamId: "team-1",
     memberIds,
     ...overrides,
-    wrap: { issuerPublicKeyB64: "KME", entries },
+    // `wrap` is resolved after the spread so a test can override it wholesale
+    // while still getting a well-typed default.
+    wrap: overrides.wrap ?? { issuerPublicKeyB64: "KME", entries },
   };
 }
 
@@ -630,5 +662,182 @@ describe("malformed conversation requests", () => {
     });
     expect(r.ok).toBe(false);
     expect(r.ok === false && r.error).toMatch(/No active thread key/);
+  });
+});
+
+describe("conversation scope and key validation are fail-closed", () => {
+  it("refuses a conversation that names both a team and an organization", async () => {
+    // The authorization branch checks the team first, so accepting both scopes
+    // let a team-only member attach a thread to an organization they were never
+    // a member of. Exactly one scope is required.
+    const r = await createConversationAction(
+      conversationInput({ teamId: "team-1", orgId: "org-1" }),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.error).toMatch(/exactly one workspace/);
+    expect(db.conversations).toHaveLength(0);
+  });
+
+  it("rejects a roster larger than the member cap", async () => {
+    const tooMany = Array.from({ length: 101 }, (_, i) => `user-${i}`);
+    const r = await createConversationAction(
+      conversationInput({ memberIds: tooMany, wrap: undefined }),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.error).toMatch(/more than 100 members/);
+    expect(db.conversations).toHaveLength(0);
+  });
+
+  it("rejects an oversized wrapped thread key", async () => {
+    const r = await createConversationAction(
+      conversationInput({
+        memberIds: ["user-alice"],
+        wrap: {
+          issuerPublicKeyB64: "KME",
+          entries: [
+            { userId: "user-me", publicKeyId: "dev-me", wrappedKeyB64: "W".repeat(257) },
+            { userId: "user-alice", publicKeyId: "dev-alice", wrappedKeyB64: "W" },
+          ],
+        },
+      }),
+    );
+    expect(r.ok).toBe(false);
+    expect(db.conversations).toHaveLength(0);
+  });
+
+  it("rejects an oversized issuer device key", async () => {
+    // Valid entries so the length cap is the only thing that can reject this.
+    const r = await createConversationAction(
+      conversationInput({
+        memberIds: ["user-alice"],
+        wrap: {
+          issuerPublicKeyB64: "K".repeat(513),
+          entries: [
+            { userId: "user-me", publicKeyId: "dev-me", wrappedKeyB64: "WME" },
+            { userId: "user-alice", publicKeyId: "dev-alice", wrappedKeyB64: "W-ALICE" },
+          ],
+        },
+      }),
+    );
+    expect(r.ok).toBe(false);
+    // Assert the length cap specifically. Without the cap this input is still
+    // rejected later by the issuer-ownership check, so `ok === false` alone
+    // would pass even with the cap removed.
+    expect(r.ok === false && r.error).toMatch(/at most 512 character/);
+    expect(db.conversations).toHaveLength(0);
+  });
+
+  it("rejects an issuer device key that is not the creator's own", async () => {
+    // Otherwise a creator could name an arbitrary key (e.g. a victim's) as the
+    // issuer, permanently breaking unwrapping for every participant without
+    // any error being raised at creation time.
+    const r = await createConversationAction(
+      conversationInput({
+        memberIds: ["user-alice"],
+        wrap: {
+          issuerPublicKeyB64: "K-ALICE-KEY",
+          entries: [
+            { userId: "user-me", publicKeyId: "dev-me", wrappedKeyB64: "WME" },
+            { userId: "user-alice", publicKeyId: "dev-alice", wrappedKeyB64: "W-ALICE" },
+          ],
+        },
+      }),
+    );
+    expect(r.ok).toBe(false);
+    expect(r.ok === false && r.error).toMatch(/creator's own registered device/);
+    expect(db.conversations).toHaveLength(0);
+  });
+});
+
+describe("message input bounds are enforced server-side", () => {
+  it("rejects an oversized ciphertext", async () => {
+    const created = await createConversationAction(conversationInput({ memberIds: ["user-alice"] }));
+    if (!created.ok) throw new Error("setup failed");
+    const r = await sendMessageAction({
+      conversationId: created.conversationId,
+      ciphertext: "c".repeat(64 * 1024 + 1),
+      clientMessageId: "cm-big",
+    });
+    expect(r.ok).toBe(false);
+    expect(db.messages).toHaveLength(0);
+  });
+
+  it("rejects an oversized clientMessageId", async () => {
+    const created = await createConversationAction(conversationInput({ memberIds: ["user-alice"] }));
+    if (!created.ok) throw new Error("setup failed");
+    const r = await sendMessageAction({
+      conversationId: created.conversationId,
+      ciphertext: "x",
+      clientMessageId: "c".repeat(65),
+    });
+    expect(r.ok).toBe(false);
+    expect(db.messages).toHaveLength(0);
+  });
+
+  it("ignores a future client-supplied lastReadAt instead of trusting it", async () => {
+    const created = await createConversationAction(conversationInput({ memberIds: ["user-alice"] }));
+    if (!created.ok) throw new Error("setup failed");
+    const r = await markConversationReadAction({
+      conversationId: created.conversationId,
+      lastReadAt: new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000),
+    });
+    expect(r.ok).toBe(false);
+    const row = db.members.find(
+      (m) => m.conversationId === created.conversationId && m.userId === "user-me",
+    );
+    expect(row?.lastReadAt).toBeFalsy();
+  });
+});
+
+describe("workspace membership is re-checked on every conversation action", () => {
+  it("revokes access to a team conversation when the reader is removed from the team", async () => {
+    const created = await createConversationAction(conversationInput({ memberIds: ["user-alice"] }));
+    if (!created.ok) throw new Error("setup failed");
+
+    // The conversation membership row survives, but the person is no longer on
+    // the team, so their thread key wraps must no longer be readable.
+    db.teamMembers = db.teamMembers.filter((m) => m.userId !== "user-me");
+
+    for (const result of [
+      await getThreadKeyAction({ conversationId: created.conversationId }),
+      await listMessagesAction({ conversationId: created.conversationId, limit: 30 }),
+      await sendMessageAction({
+        conversationId: created.conversationId,
+        ciphertext: "x",
+        clientMessageId: "cm-gone",
+      }),
+      await markConversationReadAction({ conversationId: created.conversationId }),
+    ]) {
+      expect(result.ok).toBe(false);
+    }
+    expect(db.messages).toHaveLength(0);
+  });
+
+  it("revokes access to an organization conversation when the reader leaves the org", async () => {
+    db.orgMembers = [
+      { organizationId: "org-1", userId: "user-me" },
+      { organizationId: "org-1", userId: "user-alice" },
+    ];
+    const created = await createConversationAction(
+      conversationInput({ teamId: undefined, orgId: "org-1", memberIds: ["user-alice"] }),
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    // Still a conversation participant, but no longer in the owning workspace.
+    db.orgMembers = db.orgMembers.filter((m) => m.userId !== "user-me");
+
+    for (const result of [
+      await getThreadKeyAction({ conversationId: created.conversationId }),
+      await listMessagesAction({ conversationId: created.conversationId, limit: 30 }),
+      await sendMessageAction({
+        conversationId: created.conversationId,
+        ciphertext: "x",
+        clientMessageId: "cm-left-org",
+      }),
+    ]) {
+      expect(result.ok).toBe(false);
+    }
+    expect(db.messages).toHaveLength(0);
   });
 });

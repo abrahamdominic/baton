@@ -21,4 +21,11 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  // Next compiles JSX with the automatic runtime, so components are not
+  // required to `import React`. Vitest must match, otherwise any component
+  // that relies on that (rather than the legacy global `React` import) throws
+  // "React is not defined" at render time.
+  esbuild: {
+    jsx: "automatic",
+  },
 });

@@ -171,36 +171,91 @@ export async function generateThreadKey(): Promise<string> {
   return bufToB64(new Uint8Array(raw));
 }
 
-/** Encrypt a plaintext message with the thread key. Never persists plaintext. */
+/**
+ * Identity fields bound into a message ciphertext via GCM additional
+ * authenticated data.
+ *
+ * Without AAD the tag only proves "someone holding the thread key produced
+ * this plaintext". Within one thread every member holds the same thread key,
+ * so any member could copy a ciphertext blob out of conversation A, relabel it
+ * as their own message in conversation B, or replay it under a new
+ * `clientMessageId` to defeat the idempotency check and the ordering
+ * guarantees. Binding the identity fields makes the tag fail if any of them
+ * are altered.
+ *
+ * The version prefix is part of the AAD, not the ciphertext, so a future scheme
+ * can be distinguished without ambiguity.
+ */
+export interface MessageContext {
+  conversationId: string;
+  senderId: string;
+  clientMessageId: string;
+  epoch: number;
+}
+
+/** Current message scheme. `v1` omits AAD entirely; see `encryptMessage`. */
+export type ProtocolVersion = "v1" | "v2";
+
+/** AAD is a canonical encoding, so field order is fixed, never interpolated. */
+function aadBytes(context: MessageContext): Uint8Array {
+  const parts = [
+    "baton-message-v2",
+    context.conversationId,
+    context.senderId,
+    context.clientMessageId,
+    String(context.epoch),
+  ];
+  // Length-prefix each field so no combination of ids can collide with a
+  // different set (e.g. conversation "a|b" vs "a" + "b").
+  const encoded = parts.map((p) => {
+    const b = textEnc.encode(p);
+    const len = new Uint8Array(2);
+    new DataView(len.buffer).setUint16(0, b.length, false);
+    return concatBytes(len, b);
+  });
+  return concatBytes(...encoded);
+}
+
 export async function encryptMessage(
   plaintext: string,
   threadKeyB64: string,
-): Promise<WrappedMessage> {
-  const key = await importThreadKey(threadKeyB64);
+  context?: MessageContext,
+): Promise<WrappedMessage> {  const key = await importThreadKey(threadKeyB64);
   const iv = subtleIv();
+  // Omitting `context` reproduces the legacy v1 blob exactly, so an older
+  // client can still read what it wrote.
+  const additionalData = context ? aadBytes(context) : undefined;
   const ct = await subtle.encrypt(
-    { name: "AES-GCM", iv, tagLength: 128 },
+    { name: "AES-GCM", iv, tagLength: 128, ...(additionalData ? { additionalData } : {}) },
     key,
     textEnc.encode(plaintext),
   );
   return {
     ct: bufToB64(concatBytes(iv, new Uint8Array(ct))),
-    epoch: CORRUPT_EPOCH,
+    epoch: context?.epoch ?? CORRUPT_EPOCH,
     publicKeyB64: "",
   };
 }
 
-/** Decrypt a ciphertext blob with the thread key. */
+/**
+ * Decrypt a ciphertext blob with the thread key.
+ *
+ * `context` is optional so pre-v2 rows still decrypt. A v2 blob presented
+ * without its context fails the GCM tag, and a v1 blob still opens when a
+ * context is supplied, because the AAD only takes effect at encryption time.
+ */
 export async function decryptMessage(
   ct: string,
   threadKeyB64: string,
+  context?: MessageContext,
 ): Promise<string> {
   const key = await importThreadKey(threadKeyB64);
   const raw = b64ToBuf(ct);
   const iv = raw.slice(0, AES_GCM_BYTES);
   const body = raw.slice(AES_GCM_BYTES);
+  const additionalData = context ? aadBytes(context) : undefined;
   const plain = await subtle.decrypt(
-    { name: "AES-GCM", iv, tagLength: 128 },
+    { name: "AES-GCM", iv, tagLength: 128, ...(additionalData ? { additionalData } : {}) },
     key,
     body,
   );
@@ -273,10 +328,14 @@ function b64ToBuf(b64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
-function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array<ArrayBuffer> {
-  const out = new Uint8Array(a.length + b.length);
-  out.set(a, 0);
-  out.set(b, a.length);
+function concatBytes(...parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
+  const total = parts.reduce((n, p) => n + p.length, 0);
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
   return out;
 }
 

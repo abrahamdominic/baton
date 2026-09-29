@@ -15,6 +15,29 @@ import type { PlanRecord } from "./types";
 
 const SEED_TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
+/**
+ * Read one plan row, distinguishing "the query failed" from "no such plan".
+ *
+ * These must not collapse into the same fallback. The seed catalog is only
+ * authoritative when the `plans` table genuinely holds no row (local/dev
+ * mirror). If the query *errors* — Supabase unreachable, permission denied,
+ * timeout — quietly serving the seed row lets checkout price a real customer
+ * from a stale hardcoded amount while the admin-edited row says something
+ * else. A failed read therefore yields `error`, and the caller returns null so
+ * the purchase fails closed instead of charging the wrong number.
+ */
+async function selectPlanRow(
+  run: (sb: ReturnType<typeof getAdminClient>) => PromiseLike<{ data: unknown; error: { message: string } | null }>,
+): Promise<{ data: Row | null; error: { message: string } | null }> {
+  try {
+    const { data, error } = await run(getAdminClient());
+    if (error) return { data: null, error: { message: error.message } };
+    return { data: (data as Row | null) ?? null, error: null };
+  } catch (err) {
+    return { data: null, error: { message: err instanceof Error ? err.message : String(err) } };
+  }
+}
+
 export const DEFAULT_PLANS: PlanRecord[] = PLAN_CATALOG.map((p) => ({
   id: p.id,
   slug: p.slug,
@@ -59,29 +82,17 @@ export async function publicPlans(): Promise<PlanRecord[]> {
 }
 
 export async function getPlanBySlug(slug: string): Promise<PlanRecord | null> {
-  try {
-    const sb = getAdminClient();
-    const { data, error } = await sb.from("plans").select("*").eq("slug", slug).maybeSingle();
-    if (error || !data) {
-      return DEFAULT_PLANS.find((p) => p.slug === slug) ?? null;
-    }
-    return planFromRow(data as Row);
-  } catch {
-    return DEFAULT_PLANS.find((p) => p.slug === slug) ?? null;
-  }
+  const { data, error } = await selectPlanRow(sb => sb.from("plans").select("*").eq("slug", slug).maybeSingle());
+  if (error) return null;
+  if (!data) return DEFAULT_PLANS.find((p) => p.slug === slug) ?? null;
+  return planFromRow(data as Row);
 }
 
 export async function getPlanById(id: string): Promise<PlanRecord | null> {
-  try {
-    const sb = getAdminClient();
-    const { data, error } = await sb.from("plans").select("*").eq("id", id).maybeSingle();
-    if (error || !data) {
-      return DEFAULT_PLANS.find((p) => p.id === id || p.slug === id) ?? null;
-    }
-    return planFromRow(data as Row);
-  } catch {
-    return DEFAULT_PLANS.find((p) => p.id === id || p.slug === id) ?? null;
-  }
+  const { data, error } = await selectPlanRow(sb => sb.from("plans").select("*").eq("id", id).maybeSingle());
+  if (error) return null;
+  if (!data) return DEFAULT_PLANS.find((p) => p.id === id || p.slug === id) ?? null;
+  return planFromRow(data as Row);
 }
 
 export interface PlanInput {

@@ -13,6 +13,7 @@ import {
   normalizeLogin,
   requireActiveUser,
   requireOrganizationMember,
+  revokeWorkspaceConversations,
   slugFromName,
   recordOrgAudit,
   workspaceMemberCap,
@@ -261,15 +262,23 @@ export async function removeOrgMember(organizationId: string, userIdToRemove: st
   if (!target) throw new Error("Member not found.");
   if (target.role === "owner") throw new Error("The owner cannot be removed. Transfer ownership first.");
 
-  await prisma.organizationMember.delete({
-    where: { organizationId_userId: { organizationId, userId: userIdToRemove } },
+  // Conversation membership authorizes messaging independently of organization
+  // membership, so it must be revoked explicitly or the removed member keeps
+  // full read/write access to this organization's threads. Both writes share one
+  // transaction so a failure cannot leave the membership gone but the
+  // conversation grants intact.
+  const revokedConversations = await prisma.$transaction(async (tx) => {
+    await tx.organizationMember.delete({
+      where: { organizationId_userId: { organizationId, userId: userIdToRemove } },
+    });
+    return revokeWorkspaceConversations("organization", organizationId, userIdToRemove, tx);
   });
   await recordOrgAudit({
     organizationId,
     userId: user.id,
     actor: user.login,
     action: "organization.member_removed",
-    detail: { removedUserId: userIdToRemove },
+    detail: { removedUserId: userIdToRemove, revokedConversations },
   });
   revalidateOrg(organizationId);
 }
@@ -283,8 +292,11 @@ export async function leaveOrganization(organizationId: string): Promise<void> {
   if (member.role === "owner") {
     throw new Error("As the owner, transfer ownership to another member before leaving.");
   }
-  await prisma.organizationMember.delete({
-    where: { organizationId_userId: { organizationId, userId: user.id } },
+  await prisma.$transaction(async (tx) => {
+    await tx.organizationMember.delete({
+      where: { organizationId_userId: { organizationId, userId: user.id } },
+    });
+    await revokeWorkspaceConversations("organization", organizationId, user.id, tx);
   });
   revalidateOrg(organizationId);
 }

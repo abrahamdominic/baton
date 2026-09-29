@@ -13,6 +13,7 @@ import {
   normalizeLogin,
   requireActiveUser,
   requireTeamMember,
+  revokeWorkspaceConversations,
   slugFromName,
   workspaceMemberCap,
   type WorkspaceRole,
@@ -256,10 +257,20 @@ export async function removeTeamMember(teamId: string, userIdToRemove: string): 
   if (!target) throw new Error("Member not found.");
   if (target.role === "owner") throw new Error("The owner cannot be removed. Transfer ownership first.");
 
-  await prisma.teamMember.delete({ where: { teamId_userId: { teamId, userId: userIdToRemove } } });
+  // Deleting the membership row is not enough: conversation access is authorized
+  // separately, so a removed member would otherwise keep reading and posting in
+  // this team's threads. Both writes share one transaction so a failure cannot
+  // leave the membership gone but the conversation grants intact.
+  const revokedConversations = await prisma.$transaction(async (tx) => {
+    await tx.teamMember.delete({
+      where: { teamId_userId: { teamId, userId: userIdToRemove } },
+    });
+    return revokeWorkspaceConversations("team", teamId, userIdToRemove, tx);
+  });
   await auditedTeamAction(teamId, user.id, user.login, "team.member_removed", {
     removedUserId: userIdToRemove,
     actorRole: actorRole.role,
+    revokedConversations,
   });
   revalidateTeam(teamId);
 }
@@ -277,7 +288,10 @@ export async function leaveTeam(teamId: string): Promise<void> {
     }
     throw new Error("As the owner, transfer ownership to another member before leaving.");
   }
-  await prisma.teamMember.delete({ where: { teamId_userId: { teamId, userId: user.id } } });
+  await prisma.$transaction(async (tx) => {
+    await tx.teamMember.delete({ where: { teamId_userId: { teamId, userId: user.id } } });
+    await revokeWorkspaceConversations("team", teamId, user.id, tx);
+  });
   revalidateTeam(teamId);
 }
 

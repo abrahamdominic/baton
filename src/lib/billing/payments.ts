@@ -641,6 +641,23 @@ export interface AdminPaymentQuery {
   search?: string | null;
 }
 
+/**
+ * Make a value safe to interpolate into a PostgREST filter expression.
+ *
+ * `.or()` takes a mini-language where `,` separates predicates and `.`/`:` are
+ * operators, so a raw value containing them can close the intended predicate
+ * and append its own — an operator-supplied search string could otherwise
+ * rewrite the filter (e.g. match rows it should not, or reach columns the
+ * query never intended to expose). Backslash-escaping the grammar characters
+ * and dropping the quote/paren delimiters keeps the value a single literal.
+ */
+export function escapePostgrestLike(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/[%_]/g, (m) => `\\${m}`)
+    .replace(/[,():."']/g, "");
+}
+
 export async function listPaymentsAdmin(query: AdminPaymentQuery = {}) {
   const sb = getAdminClient();
   const limit = Math.min(100, query.limit ?? 25);
@@ -652,7 +669,9 @@ export async function listPaymentsAdmin(query: AdminPaymentQuery = {}) {
   if (query.status) q = q.eq("status", query.status);
   if (query.provider) q = q.eq("payment_provider", query.provider);
   if (query.search) {
-    q = q.or(`crypto_transaction_hash.ilike.%${query.search}%,user_id.ilike.%${query.search}%`);
+    q = q.or(
+      `crypto_transaction_hash.ilike.%${escapePostgrestLike(query.search)}%,user_id.ilike.%${escapePostgrestLike(query.search)}%`,
+    );
   }
   const { data, error } = await q;
   if (error) throw new Error(`payments.admin-list failed: ${error.message}`);

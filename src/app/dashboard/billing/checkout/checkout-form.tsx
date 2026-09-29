@@ -37,7 +37,12 @@ interface UsdcOrder {
 
 export function CheckoutForm(props: CheckoutFormProps) {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(props.providers.usdc && !props.providers.stripe ? "usdc_order" : "choose");
+  // Always start on the provider chooser. The USDC order screen is only
+  // meaningful once a server-issued order exists (`order` is null until
+  // `startUsdc` returns), so auto-entering it when Stripe is unavailable left
+  // the form rendering neither the chooser nor the order — a dead end with no
+  // way to pay. `startUsdc` moves us here as soon as the order is created.
+  const [step, setStep] = useState<Step>("choose");
   const [state, setState] = useState<CheckoutState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<UsdcOrder | null>(null);
@@ -54,18 +59,6 @@ export function CheckoutForm(props: CheckoutFormProps) {
             View your billing
           </Link>{" "}
           instead.
-        </div>
-      </div>
-    );
-  }
-
-  if (props.canRenewUsdc) {
-    return (
-      <div className="flex items-start gap-3 rounded-xl border border-brand-500/25 bg-brand-500/[0.06] px-5 py-4 text-xs text-ink-300">
-        <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" />
-        <div>
-          Your USDC plan doesn&apos;t auto-renew. Pay again below to extend your{" "}
-          {props.plan.name} subscription without losing access.
         </div>
       </div>
     );
@@ -155,6 +148,19 @@ export function CheckoutForm(props: CheckoutFormProps) {
 
   return (
     <div className="space-y-6">
+      {/* Renewal notice. Rendered as a banner above the order summary rather
+          than as an early return, so an active USDC subscriber still reaches
+          the payment options the copy points them at. */}
+      {props.canRenewUsdc ? (
+        <div className="flex items-start gap-3 rounded-xl border border-brand-500/25 bg-brand-500/[0.06] px-5 py-4 text-xs text-ink-300">
+          <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" />
+          <div>
+            Your USDC plan doesn&apos;t auto-renew. Pay again below to extend your{" "}
+            {props.plan.name} subscription without losing access.
+          </div>
+        </div>
+      ) : null}
+
       {/* Order summary */}
       <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-ink-900/60">
         <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
@@ -192,7 +198,9 @@ export function CheckoutForm(props: CheckoutFormProps) {
 
       {step === "choose" ? (
         <section className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* One available provider is the primary action and spans the row.
+              Two share it, with the card option leading as the default. */}
+          <div className={props.providers.stripe && props.providers.usdc ? "grid gap-3 sm:grid-cols-2" : "grid gap-3"}>
             {props.providers.stripe ? (
               <button
                 type="button"
@@ -209,7 +217,9 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 type="button"
                 onClick={startUsdc}
                 disabled={state === "creating" || props.plan.priceCustom}
-                className="btn btn-ghost btn-lg justify-center"
+                className={`btn btn-lg justify-center ${
+                  props.providers.stripe ? "btn-ghost" : "btn-primary"
+                }`}
               >
                 <IconCoins className="h-4 w-4 text-brand-300" />
                 <span>{state === "creating" ? "Generating Order..." : "Pay with USDC on Base"}</span>

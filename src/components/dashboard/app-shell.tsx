@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { BatonLogo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useI18n, type I18nContextValue } from "@/lib/i18n/provider";
+import { SignOutLink } from "@/components/sign-out-link";
 
 type CountFunction = I18nContextValue["tc"];
 import {
@@ -245,14 +246,13 @@ function AccountFooter({ user, onNavigate }: { user: ShellUser; onNavigate?: () 
           <IconExternalLink className="h-3.5 w-3.5" />
         </a>
       </div>
-      <a
-        href="/auth/logout"
-        onClick={onNavigate}
+      <SignOutLink
+        onNavigate={onNavigate}
         className="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-400 transition-colors hover:bg-danger-500/10 hover:text-danger-300"
       >
         <IconLogOut className="h-3.5 w-3.5 shrink-0" />
         <span>{t("common:sign_out")}</span>
-      </a>
+      </SignOutLink>
     </div>
   );
 }

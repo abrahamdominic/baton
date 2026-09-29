@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireActiveUser, requireTeamMember, requireOrganizationMember } from "@/lib/workspaces";
+import { requireActiveUser, requireTeamMember, requireOrganizationMember, isStillWorkspaceMember } from "@/lib/workspaces";
 import { fingerprintPublicKey, isValidDevicePublicKey } from "@/lib/messaging/crypto";
 import { conversationMemberRows, normalizeRoster } from "@/lib/messaging/participants";
 import { notifyConversationMessage } from "@/lib/notifications";
@@ -22,6 +22,59 @@ import { notifyConversationMessage } from "@/lib/notifications";
 export type MessagingActionResult =
   | { ok: true; data: unknown }
   | { ok: false; error: string };
+
+/**
+ * Size ceilings for client-supplied encrypted blobs.
+ *
+ *  - A thread key is 32 bytes; wrapped it is a 12-byte IV + 32 bytes + a
+ *    16-byte GCM tag, so 256 base64 chars is generous.
+ *  - An ECDH P-256 SPKI public key is ~91 bytes, so 512 base64 chars is
+ *    generous. Both exist to stop an unbounded write from a single call, not
+ *    to second-guess the client.
+ */
+const MAX_WRAP_B64 = 256;
+const MAX_ISSUER_KEY_B64 = 512;
+
+const DENIED = "You are not a member of this conversation." as const;
+
+/**
+ * Authorize one conversation-scoped action.
+ *
+ * Conversation membership is necessary but not sufficient: it is a *derived*
+ * grant that is only meant to exist while the person is still on the team or
+ * organization. Authorizing on it alone meant a member removed from a
+ * workspace kept full read access to every message in its threads, plus the
+ * ability to post into them — the HTML pages 404 them, but these actions are
+ * directly callable HTTP endpoints and a page guard is not an authorization
+ * boundary.
+ *
+ * Re-checking live workspace membership here closes that gap even if a
+ * membership row ever outlives the removal (legacy rows, a partially applied
+ * write), and returns the same generic denial either way so the two failure
+ * modes are indistinguishable to a caller.
+ */
+async function authorizeConversation(
+  conversationId: string,
+  userId: string,
+): Promise<{ ok: true; memberId: string } | { ok: false; error: string }> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: {
+      teamId: true,
+      orgId: true,
+      members: { where: { userId }, select: { id: true }, take: 1 },
+    },
+  });
+  const member = conversation?.members[0];
+  if (!conversation || !member) return { ok: false, error: DENIED };
+
+  const stillOnTeam = conversation.teamId
+    ? await isStillWorkspaceMember("team", conversation.teamId, userId)
+    : await isStillWorkspaceMember("organization", conversation.orgId!, userId);
+  if (!stillOnTeam) return { ok: false, error: DENIED };
+
+  return { ok: true, memberId: member.id };
+}
 
 const registerDeviceInputSchema = z.object({
   publicKeyB64: z.string().min(1),
@@ -157,13 +210,13 @@ const createConversationInputSchema = z
     orgId: z.string().min(1).optional(),
     memberIds: z.array(z.string().min(1)).default([]),
     wrap: z.object({
-      issuerPublicKeyB64: z.string().min(1),
+      issuerPublicKeyB64: z.string().min(1).max(MAX_ISSUER_KEY_B64),
       entries: z
         .array(
           z.object({
             userId: z.string().min(1),
             publicKeyId: z.string().min(1),
-            wrappedKeyB64: z.string().min(1),
+            wrappedKeyB64: z.string().min(1).max(MAX_WRAP_B64),
           }),
         )
         .min(1),
@@ -171,6 +224,18 @@ const createConversationInputSchema = z
   })
   .refine((data) => Boolean(data.teamId || data.orgId), {
     message: "Either teamId or orgId must be provided.",
+  })
+  // Exactly one scope, never both. The authorization below branches on
+  // `teamId` first, so accepting both let a team-only member attach a
+  // conversation to an organization they were never a member of (and label it
+  // `kind: "org"`), because only the team branch was ever checked.
+  .refine((data) => !(data.teamId && data.orgId), {
+    message: "A conversation belongs to exactly one workspace.",
+  })
+  // A bounded roster. Without a cap one call can name an unbounded number of
+  // participants, each becoming a membership row and a key wrap.
+  .refine((data) => data.memberIds.length <= 100, {
+    message: "A conversation cannot have more than 100 members.",
   });
 
 export type CreateConversationResult =
@@ -203,7 +268,12 @@ export async function createConversationAction(
   input: z.infer<typeof createConversationInputSchema>,
 ): Promise<CreateConversationResult> {
   const parsed = createConversationInputSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Invalid conversation input." };
+  if (!parsed.success) {
+    // Surface the first issue so a rejected request is actionable ("A
+    // conversation belongs to exactly one workspace.") instead of an opaque
+    // "Invalid conversation input." the client cannot do anything with.
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid conversation input." };
+  }
   const { teamId, orgId, memberIds, wrap } = parsed.data;
 
   const me = await requireActiveUser();
@@ -270,6 +340,13 @@ export async function createConversationAction(
   if (!creatorDevice || creatorDevice.userId !== me.id) {
     return { ok: false, error: "The creator's wrap must be under their own device." };
   }
+  // The issuer key must be that same registered device. Validating it only as
+  // "some importable P-256 key" let a creator name an arbitrary key (e.g. a
+  // victim's) as the issuer, which permanently broke unwrapping for every
+  // participant with no error raised at creation time.
+  if (wrap.issuerPublicKeyB64 !== creatorDevice.publicKeyB64) {
+    return { ok: false, error: "Issuer device key must be the creator's own registered device." };
+  }
 
   for (const entry of wrapEntries) {
     const dev = keyById.get(entry.publicKeyId);
@@ -335,8 +412,15 @@ export async function createConversationAction(
 
 const sendMessageInputSchema = z.object({
   conversationId: z.string().min(1),
-  ciphertext: z.string().min(1),
-  clientMessageId: z.string().min(1),
+  // A 12-byte IV plus the AES-256-GCM tag is ~28 bytes of framing, so this
+  // leaves room for a very long message while stopping a single call from
+  // writing an unbounded blob into the table.
+  ciphertext: z.string().min(1).max(64 * 1024),
+  clientMessageId: z.string().min(1).max(64),
+  // The encryption scheme the client used. Recorded so a reader knows which
+  // AAD rules apply, and constrained to ratified versions so an unknown tag
+  // is never stored. Defaults to the current scheme.
+  protocolVersion: z.enum(["v1", "v2"]).default("v2"),
 });
 
 export type MessageActionResult =
@@ -345,18 +429,17 @@ export type MessageActionResult =
 
 /** Persist one encrypted message blob. The server never sees plaintext. */
 export async function sendMessageAction(
-  input: z.infer<typeof sendMessageInputSchema>,
+  // `z.input` not `z.infer`: `protocolVersion` has a default, so callers may
+  // legitimately omit it and let the action choose the current scheme.
+  input: z.input<typeof sendMessageInputSchema>,
 ): Promise<MessageActionResult> {
   const parsed = sendMessageInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid message input." };
-  const { conversationId, ciphertext, clientMessageId } = parsed.data;
+  const { conversationId, ciphertext, clientMessageId, protocolVersion } = parsed.data;
 
   const me = await requireActiveUser();
-  const member = await prisma.conversationMember.findFirst({
-    where: { conversationId, userId: me.id },
-    select: { id: true },
-  });
-  if (!member) return { ok: false, error: "You are not a member of this conversation." };
+  const access = await authorizeConversation(conversationId, me.id);
+  if (!access.ok) return { ok: false, error: access.error };
 
   const activeKey = await prisma.conversationThreadKey.findFirst({
     where: { conversationId, active: true },
@@ -378,7 +461,7 @@ export async function sendMessageAction(
           senderId: me.id,
           threadKeyId: activeKey.id,
           ciphertext,
-          protocolVersion: "v1",
+          protocolVersion,
           clientMessageId,
         },
         select: { id: true },
@@ -513,6 +596,9 @@ export type MessageSummary = {
   ciphertext: string;
   protocolVersion: string;
   clientMessageId: string;
+  /** Thread key epoch this message was encrypted under; part of the v2 AAD. */
+  epoch: number;
+  conversationId: string;
   createdAt: Date;
 };
 
@@ -526,16 +612,14 @@ export async function listMessagesAction(
   const { conversationId, beforeId, limit } = parsed.data;
 
   const me = await requireActiveUser();
-  const member = await prisma.conversationMember.findFirst({
-    where: { conversationId, userId: me.id },
-    select: { id: true },
-  });
-  if (!member) return { ok: false, error: "You are not a member of this conversation." };
+  const access = await authorizeConversation(conversationId, me.id);
+  if (!access.ok) return { ok: false, error: access.error };
 
   const messages = await prisma.message.findMany({
     where: { conversationId, deletedAt: null, ...(beforeId ? { id: { lt: beforeId } } : {}) },
     include: {
       sender: { select: { id: true, login: true, name: true, avatarUrl: true } },
+      threadKey: { select: { epoch: true } },
     },
     orderBy: { createdAt: "desc" },
     take: limit,
@@ -552,6 +636,8 @@ export async function listMessagesAction(
       ciphertext: m.ciphertext,
       protocolVersion: m.protocolVersion,
       clientMessageId: m.clientMessageId,
+      epoch: m.threadKey.epoch,
+      conversationId: m.conversationId,
       createdAt: m.createdAt,
     })),
     hasMore: messages.length === limit,
@@ -570,15 +656,12 @@ export async function getThreadKeyAction(
   const { conversationId } = parsed.data;
 
   const me = await requireActiveUser();
-  const member = await prisma.conversationMember.findFirst({
-    where: { conversationId, userId: me.id },
-    select: { id: true },
-  });
-  if (!member) return { ok: false, error: "You are not a member of this conversation." };
+  const access = await authorizeConversation(conversationId, me.id);
+  if (!access.ok) return { ok: false, error: access.error };
 
   const threadKey = await prisma.conversationThreadKey.findFirst({
     where: { conversationId, active: true },
-    include: { wraps: { where: { memberId: member.id } } },
+    include: { wraps: { where: { memberId: access.memberId } } },
   });
   if (!threadKey) return { ok: false, error: "This conversation has no active thread key." };
 
@@ -595,7 +678,13 @@ export async function getThreadKeyAction(
 
 const markReadInputSchema = z.object({
   conversationId: z.string().min(1),
-  lastReadAt: z.coerce.date().optional(),
+  /**
+   * Accepted only as a hint and clamped to the past. Read state is the
+   * caller's own, so this is not an authorization hole, but a client-supplied
+   * future timestamp would let a member mark unread messages as read (or
+   * corrupt the unread badge) by writing a date the server never issued.
+   */
+  lastReadAt: z.coerce.date().max(new Date(), "Read receipts cannot be dated in the future.").optional(),
 });
 
 /** Stamp a read receipt on the caller's membership row. */
@@ -607,14 +696,11 @@ export async function markConversationReadAction(
   const { conversationId, lastReadAt } = parsed.data;
 
   const me = await requireActiveUser();
-  const member = await prisma.conversationMember.findFirst({
-    where: { conversationId, userId: me.id },
-    select: { id: true },
-  });
-  if (!member) return { ok: false, error: "You are not a member of this conversation." };
+  const access = await authorizeConversation(conversationId, me.id);
+  if (!access.ok) return { ok: false, error: access.error };
 
   await prisma.conversationMember.update({
-    where: { id: member.id },
+    where: { id: access.memberId },
     data: { lastReadAt: lastReadAt ?? new Date() },
   });
   return { ok: true };

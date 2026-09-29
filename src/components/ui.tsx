@@ -1,5 +1,6 @@
 import { STATE_META, type BatonState, type StateMeta } from "@/lib/engine/types";
 import { IconCheckCircle } from "@/components/icons";
+import { SignOutLink } from "@/components/sign-out-link";
 
 export function Badge({
   tone,
@@ -70,12 +71,9 @@ export function AccountHeader({
         ) : null}
         <span className="text-xs font-semibold text-white">{name ?? login}</span>
       </div>
-      <a
-        href="/auth/logout"
-        className="rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs text-ink-400 transition-colors hover:border-white/[0.14] hover:text-white"
-      >
+      <SignOutLink className="rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs text-ink-400 transition-colors hover:border-white/[0.14] hover:text-white">
         Sign out
-      </a>
+      </SignOutLink>
     </div>
   );
 }

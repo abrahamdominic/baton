@@ -35,6 +35,9 @@ export default async function ConversationThreadPage({
       where: { conversationId, deletedAt: null },
       include: {
         sender: { select: { id: true, login: true, name: true, avatarUrl: true } },
+        // The epoch is half of the v2 AAD; the client cannot authenticate the
+        // ciphertext without it.
+        threadKey: { select: { epoch: true } },
       },
       orderBy: { createdAt: "asc" },
       take: 60,
@@ -76,6 +79,8 @@ export default async function ConversationThreadPage({
           ciphertext: m.ciphertext,
           protocolVersion: m.protocolVersion,
           clientMessageId: m.clientMessageId,
+          epoch: m.threadKey.epoch,
+          conversationId: m.conversationId,
           createdAt: m.createdAt,
         }))}
         initialMessageCount={conversation._count.messages}

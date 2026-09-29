@@ -40,6 +40,72 @@ export async function requireActiveUser(): Promise<SessionUser> {
   return user;
 }
 
+/**
+ * Revoke a departed user's access to a workspace's conversations.
+ *
+ * Removing someone from a team or organization deleted only the membership
+ * row. The messaging actions authorize on `ConversationMember` alone, so a
+ * removed member kept both read access to every message ever sent in those
+ * threads and the ability to post into them — a page-level 404 is not an
+ * access-control boundary, since server actions are directly callable.
+ *
+ * Deleting their `ConversationMember` rows closes that door. The thread key
+ * itself is NOT rotated here: every member holds a copy of the same key, so
+ * rotation is what stops a removed member from *replaying old plaintext* they
+ * already hold, and it requires re-wrapping for the current roster from a
+ * client that still holds the key. That is a deliberate, separately-reviewed
+ * change, so this function revokes future access and does not pretend to
+ * un-ring the bell on history the departing member was authorized to read.
+ */
+/** Minimal Prisma surface both helpers need, so either can join a transaction. */
+type WorkspaceDb = Pick<typeof prisma, "conversationMember" | "teamMember" | "organizationMember">;
+
+export async function revokeWorkspaceConversations(
+  kind: "team" | "organization",
+  workspaceId: string,
+  userId: string,
+  db: WorkspaceDb = prisma,
+): Promise<number> {
+  const scope =
+    kind === "team" ? { teamId: workspaceId } : { orgId: workspaceId };
+  const { count } = await db.conversationMember.deleteMany({
+    where: { userId, conversation: scope },
+  });
+  return count;
+}
+
+/**
+ * Re-assert live workspace membership for a conversation participant.
+ *
+ * Conversation membership is the primary guard for message actions, but it is
+ * a *derived* grant: it is only ever supposed to exist while the person is
+ * still on the team or organization. A member row that outlives the workspace
+ * membership (legacy rows, a partially-applied removal) must not confer
+ * access, so conversation actions call this before acting.
+ *
+ * A query error is treated as "not a member" so a database fault can never
+ * widen access.
+ */
+export async function isStillWorkspaceMember(
+  kind: "team" | "organization",
+  workspaceId: string,
+  userId: string,
+  db: WorkspaceDb = prisma,
+): Promise<boolean> {
+  const row =
+    kind === "team"
+      ? await db.teamMember
+          .findUnique({ where: { teamId_userId: { teamId: workspaceId, userId } }, select: { id: true } })
+          .catch(() => null)
+      : await db.organizationMember
+          .findUnique({
+            where: { organizationId_userId: { organizationId: workspaceId, userId } },
+            select: { id: true },
+          })
+          .catch(() => null);
+  return row !== null;
+}
+
 export async function workspaceOwnerId(
   kind: "team" | "organization",
   workspaceId: string,

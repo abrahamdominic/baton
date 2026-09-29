@@ -50,6 +50,8 @@ export function MessageThread({
   const [total, setTotal] = useState(initialMessageCount);
   const latestRef = useRef<string | null>(initialMessages[initialMessages.length - 1]?.id ?? null);
   const keyRef = useRef<string | null>(null);
+  // Thread key epoch in force for this session; part of the v2 AAD on send.
+  const epochRef = useRef<number>(0);
 
   const canDecrypt = Boolean(threadKeyB64);
 
@@ -64,12 +66,23 @@ export function MessageThread({
       if (!key) return [];
       const out: DecryptedMessage[] = [];
       for (const m of rows) {
-        if (m.protocolVersion !== "v1") {
+        if (m.protocolVersion !== "v1" && m.protocolVersion !== "v2") {
           out.push({ ...m, plaintext: "⚠ unsupported message scheme" });
           continue;
         }
         try {
-          out.push({ ...m, plaintext: await decryptMessage(m.ciphertext, key) });
+          // v2 binds the ciphertext to its own conversation, sender, client
+          // id, and epoch, so a blob moved or relabelled between messages
+          // fails the GCM tag instead of decrypting as valid content.
+          out.push({
+            ...m,
+            plaintext: await decryptMessage(m.ciphertext, key, {
+              conversationId: m.conversationId,
+              senderId: m.senderId,
+              clientMessageId: m.clientMessageId,
+              epoch: m.epoch,
+            }),
+          });
         } catch {
           out.push({ ...m, plaintext: "⚠ undecryptable message" });
         }
@@ -112,6 +125,7 @@ export function MessageThread({
           return;
         }
         keyRef.current = key;
+        epochRef.current = tk.epoch;
         if (!cancelled) setThreadKeyB64(key);
       } finally {
         if (!cancelled) setUnlocking(false);
@@ -171,15 +185,25 @@ export function MessageThread({
     setSendError(null);
     try {
       const { encryptMessage } = await import("@/lib/messaging/client");
-      const wrapped = await encryptMessage(text, threadKeyB64);
       const clientMessageId =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `${currentUserId}-${Date.now()}`;
+      // Bind the ciphertext to this exact message's identity. Without it a
+      // member could copy a blob out of one conversation, or replay it under a
+      // new client id, and it would decrypt as valid content elsewhere.
+      const context = {
+        conversationId,
+        senderId: currentUserId,
+        clientMessageId,
+        epoch: epochRef.current,
+      };
+      const wrapped = await encryptMessage(text, threadKeyB64, context);
       const result = await sendMessageAction({
         conversationId,
         ciphertext: wrapped.ct,
         clientMessageId,
+        protocolVersion: "v2",
       });
       if (!result.ok) {
         setSendError(result.error);
@@ -192,8 +216,10 @@ export function MessageThread({
         senderName: null,
         senderAvatarUrl: null,
         ciphertext: wrapped.ct,
-        protocolVersion: "v1",
+        protocolVersion: "v2",
         clientMessageId,
+        epoch: context.epoch,
+        conversationId,
         createdAt: new Date(),
         plaintext: text,
       };

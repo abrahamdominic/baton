@@ -218,3 +218,85 @@ describe("messaging crypto (security boundary)", () => {
     ).rejects.toThrow();
   });
 });
+describe("message AAD binds ciphertext to its own identity", () => {
+  const ctx = {
+    conversationId: "conv-1",
+    senderId: "user-alice",
+    clientMessageId: "cm-1",
+    epoch: 3,
+  };
+
+  it("round-trips a v2 message", async () => {
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("hello", tk, ctx);
+    expect(await decryptMessage(ct, tk, ctx)).toBe("hello");
+  });
+
+  it("rejects the same ciphertext in a different conversation", async () => {
+    // Without AAD a member could lift a blob from one thread and drop it into
+    // another they also hold the key for, and it would decrypt as valid text.
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("hello", tk, ctx);
+    await expect(
+      decryptMessage(ct, tk, { ...ctx, conversationId: "conv-2" }),
+    ).rejects.toBeTruthy();
+  });
+
+  it("rejects the same ciphertext attributed to a different sender", async () => {
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("hello", tk, ctx);
+    await expect(
+      decryptMessage(ct, tk, { ...ctx, senderId: "user-mallory" }),
+    ).rejects.toBeTruthy();
+  });
+
+  it("rejects a replay under a new clientMessageId", async () => {
+    // This is what defeated the senderId+clientMessageId idempotency check
+    // before: the row was new, so the ciphertext was accepted as fresh.
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("hello", tk, ctx);
+    await expect(
+      decryptMessage(ct, tk, { ...ctx, clientMessageId: "cm-2" }),
+    ).rejects.toBeTruthy();
+  });
+
+  it("rejects the same ciphertext after a thread key rotation", async () => {
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("hello", tk, ctx);
+    await expect(decryptMessage(ct, tk, { ...ctx, epoch: 4 })).rejects.toBeTruthy();
+  });
+
+  it("does not let field boundaries collide", async () => {
+    // "ab" + "c" must not authenticate the same as "a" + "bc".
+    const tk = await generateThreadKey();
+    const a = await encryptMessage("x", tk, {
+      conversationId: "ab",
+      senderId: "c",
+      clientMessageId: "k",
+      epoch: 1,
+    });
+    await expect(
+      decryptMessage(a.ct, tk, {
+        conversationId: "a",
+        senderId: "bc",
+        clientMessageId: "k",
+        epoch: 1,
+      }),
+    ).rejects.toBeTruthy();
+  });
+
+  it("still decrypts a legacy v1 message, which has no AAD", async () => {
+    // Omitting the context reproduces the original v1 blob byte-for-byte, so
+    // already-stored messages must keep opening.
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("legacy", tk);
+    expect(await decryptMessage(ct, tk)).toBe("legacy");
+  });
+
+  it("will not open a v2 ciphertext when the context is withheld", async () => {
+    // A reader that skips the context must not silently accept a v2 blob.
+    const tk = await generateThreadKey();
+    const { ct } = await encryptMessage("bound", tk, ctx);
+    await expect(decryptMessage(ct, tk)).rejects.toBeTruthy();
+  });
+});

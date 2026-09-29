@@ -539,6 +539,11 @@ export const RevokeInviteButton = ({
         : () => revokeOrgInvite(workspaceId, githubLogin)
     }
     label="Revoke"
+    // Without a per-recipient name, every pending invite renders a trigger
+    // that reads simply "Revoke" and every dialog shares one DOM id, so a
+    // screen-reader user hears N identical controls and cannot tell which
+    // invitation a dialog belongs to.
+    ariaLabel={`Revoke invitation for @${githubLogin}`}
     confirmation={{
       title: "Revoke invitation?",
       description: (
