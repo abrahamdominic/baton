@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { createNotification, notifyConversationMessage, conversationNotificationHref } from "@/lib/notifications";
+import {
+  createNotification,
+  notifyConversationMessage,
+  conversationNotificationHref,
+  notificationHref,
+  prNotificationHref,
+} from "@/lib/notifications";
 
 function makeTx() {
   const rows: Array<{
@@ -180,6 +186,39 @@ describe("conversationNotificationHref", () => {
     expect(conversationNotificationHref(null)).toBe("/dashboard/notifications");
     expect(conversationNotificationHref("{not-json")).toBe("/dashboard/notifications");
     expect(conversationNotificationHref(JSON.stringify({ teamId: "t-1" }))).toBe(
+      "/dashboard/notifications",
+    );
+  });
+});
+
+describe("prNotificationHref", () => {
+  it("resolves a PR deep link from owner/repo/number context", () => {
+    expect(
+      prNotificationHref(JSON.stringify({ owner: "acme", repo: "payments-api", number: 31 })),
+    ).toBe("/dashboard/repos/acme/payments-api/pulls/31");
+  });
+
+  it("falls back for malformed or incomplete context", () => {
+    expect(prNotificationHref(null)).toBe("/dashboard/notifications");
+    expect(prNotificationHref("{bad-json")).toBe("/dashboard/notifications");
+    expect(prNotificationHref(JSON.stringify({ owner: "acme" }))).toBe(
+      "/dashboard/notifications",
+    );
+  });
+});
+
+describe("notificationHref", () => {
+  it("dispatches by resource type", () => {
+    expect(
+      notificationHref("pr", JSON.stringify({ owner: "acme", repo: "api", number: 7 })),
+    ).toBe("/dashboard/repos/acme/api/pulls/7");
+    expect(
+      notificationHref(
+        "conversation",
+        JSON.stringify({ conversationId: "c-1", teamId: "t-1" }),
+      ),
+    ).toBe("/dashboard/team/t-1/messaging/c-1");
+    expect(notificationHref("unknown", JSON.stringify({}))).toBe(
       "/dashboard/notifications",
     );
   });

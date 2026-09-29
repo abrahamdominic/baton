@@ -258,7 +258,7 @@ export function MessageThread({
                 <div
                   className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
                     mine
-                      ? "rounded-br-md bg-brand-500/90 text-white"
+                      ? "rounded-br-md bg-brand-500/90 text-on-brand"
                       : "rounded-bl-md border border-white/[0.06] bg-ink-950/70 text-ink-100"
                   }`}
                 >
@@ -268,7 +268,7 @@ export function MessageThread({
                     </p>
                   ) : null}
                   <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">{m.plaintext}</p>
-                  <p className={`mt-1 text-right font-mono text-[9px] ${mine ? "text-white/60" : "text-ink-500"}`}>
+                  <p className={`mt-1 text-right font-mono text-[9px] ${mine ? "text-on-brand/70" : "text-ink-500"}`}>
                     {m.createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 </div>

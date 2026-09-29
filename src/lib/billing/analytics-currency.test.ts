@@ -15,9 +15,12 @@ vi.mock("@/lib/supabase/client", () => ({
 import { confirmedPaymentAggregates, formatCurrencyTotal } from "./analytics";
 
 /**
- * USDC payments are recorded in USDC minor units (6 decimals) while card
- * payments are USD cents (2 decimals). Summing them into one "total revenue in
- * USD" figure reported a fabricated number on the admin overview, so totals are
+ * Every payment row is stored in 2-decimal minor units, USDC included: the
+ * checkout route prices an order with `planPriceCents` regardless of provider,
+ * and `amounts.ts` converts the 6-decimal on-chain value down to the same
+ * scale before persisting. Summing them into one "total revenue in USD"
+ * figure would still be wrong, so totals are bucketed per currency and never
+ * combined.
  * bucketed per currency and never combined.
  */
 function reset() {
@@ -30,11 +33,11 @@ describe("confirmed payment totals never mix currencies", () => {
     payments.push(
       { status: "confirmed", payment_provider: "stripe", amount: 1500, currency: "USD" },
       { status: "confirmed", payment_provider: "stripe", amount: 15000, currency: "USD" },
-      { status: "confirmed", payment_provider: "usdc", amount: 4_900_000, currency: "USDC" },
+      { status: "confirmed", payment_provider: "usdc", amount: 4_900, currency: "USDC" },
     );
     const agg = await confirmedPaymentAggregates();
     expect(agg.byCurrency.USD).toEqual({ count: 2, amountMinor: 16500 });
-    expect(agg.byCurrency.USDC).toEqual({ count: 1, amountMinor: 4_900_000 });
+    expect(agg.byCurrency.USDC).toEqual({ count: 1, amountMinor: 4_900 });
     // There is deliberately no combined total to render as a single USD figure.
     expect(Object.keys(agg).sort()).toEqual([
       "byCurrency",
@@ -72,11 +75,11 @@ describe("confirmed payment totals never mix currencies", () => {
     reset();
     payments.push(
       { status: "confirmed", payment_provider: "stripe", amount: 1500, currency: "USD" },
-      { status: "confirmed", payment_provider: "usdc", amount: 4_900_000, currency: "USDC" },
+      { status: "confirmed", payment_provider: "usdc", amount: 4_900, currency: "USDC" },
     );
     const agg = await confirmedPaymentAggregates();
     expect(agg.byProvider.stripe).toEqual({ count: 1, amountMinor: 1500 });
-    expect(agg.byProvider.usdc).toEqual({ count: 1, amountMinor: 4_900_000 });
+    expect(agg.byProvider.usdc).toEqual({ count: 1, amountMinor: 4_900 });
   });
 });
 
@@ -86,9 +89,12 @@ describe("currency totals render in their own currency", () => {
     expect(formatCurrencyTotal("USD", 15000)).toBe("USD 150.00");
   });
 
-  it("formats USDC with six decimals", () => {
-    // 4_900_000 USDC minor units is 4.9 USDC, not $49,000.
-    expect(formatCurrencyTotal("USDC", 4_900_000)).toBe("USDC 4.900000");
+  it("formats a real USDC order as its true face value", () => {
+    // A paid Organization order is 4_900 minor units, i.e. 49 USDC. Rendering
+    // it with 6 decimals reported "USDC 0.004900" on the admin dashboard.
+    expect(formatCurrencyTotal("USDC", 4_900)).toBe("USDC 49.00");
+    expect(formatCurrencyTotal("USDC", 1_500)).toBe("USDC 15.00");
+    expect(formatCurrencyTotal("USDC", 49_000)).toBe("USDC 490.00");
   });
 
   it("accepts a lowercase currency code", () => {

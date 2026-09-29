@@ -140,6 +140,7 @@ export function StateMatrix() {
             return (
               <button
                 key={s.key}
+                type="button"
                 onClick={() => setSelectedState(s)}
                 className={`w-full text-left p-4 transition-all flex items-center justify-between gap-4 ${
                   isSelected

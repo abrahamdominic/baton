@@ -9,7 +9,7 @@ import {
   markAllNotificationsReadAction,
   type NotificationItem,
 } from "@/app/dashboard/notifications/actions";
-import { conversationNotificationHref } from "@/lib/notifications";
+import { notificationHref } from "@/lib/notifications";
 import { IconCheck, IconInbox, IconExternalLink } from "@/components/icons";
 import { EmptyState } from "@/components/ui";
 
@@ -160,7 +160,7 @@ export function NotificationInbox({
                     <TypeLabel type={n.type} />
                   </p>
                   <Link
-                    href={conversationNotificationHref(JSON.stringify(n.context))}
+                    href={notificationHref(n.resourceType, JSON.stringify(n.context))}
                     onClick={() => void openNotification(n)}
                     className={`mt-0.5 inline-flex items-center gap-1 truncate font-mono text-[10px] transition-colors ${
                       n.readAt ? "text-ink-500" : "text-brand-300 hover:text-brand-200"

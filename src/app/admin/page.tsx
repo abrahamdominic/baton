@@ -151,7 +151,15 @@ export default async function AdminOverviewPage() {
                 Revenue by Provider
               </span>
 
-              {Object.entries(metrics.payments.byProvider).map(([provider, details]) => {
+              {/* `byProvider` is only populated for confirmed payments, unlike
+                  `byStatus` which is pre-seeded from PAYMENT_STATUSES. With no
+                  confirmed payments this section previously rendered a label
+                  above nothing, so it gets the same em-dash treatment as the
+                  revenue total above. */}
+              {Object.keys(metrics.payments.byProvider).length === 0 ? (
+                <div className="font-mono text-sm text-ink-500">&mdash;</div>
+              ) : (
+              Object.entries(metrics.payments.byProvider).map(([provider, details]) => {
                 // Each provider settles in exactly one currency, so the share
                 // is computed within that provider's own currency rather than
                 // against a cross-currency total.
@@ -186,7 +194,8 @@ export default async function AdminOverviewPage() {
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           </div>
         </div>

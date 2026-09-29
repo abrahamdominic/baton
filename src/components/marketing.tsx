@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { GITHUB_DISCUSSIONS_URL, GITHUB_URL, SITE_NAME } from "@/lib/site";
+import { GITHUB_ISSUES_URL, GITHUB_URL, SITE_NAME } from "@/lib/site";
 import { currentUser } from "@/lib/auth/session";
 import { IconMenu, IconGitHub, IconArrowRight } from "@/components/icons";
 import { BatonLogo } from "@/components/logo";
@@ -40,7 +40,7 @@ const FOOTER_COLS = [
       { href: "/docs", label: "Documentation" },
       { href: "/faq", label: "FAQ" },
       { href: GITHUB_URL, label: "GitHub repository", external: true },
-      { href: GITHUB_DISCUSSIONS_URL, label: "Discussions", external: true },
+      { href: GITHUB_ISSUES_URL, label: "Report an issue", external: true },
       { href: "/auth/login?next=/dashboard", label: "Sign in with GitHub" },
     ],
   },

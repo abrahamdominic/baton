@@ -14,6 +14,7 @@ import { classifyPullRequest } from "./classification";
 import { statusCommentBody } from "./message";
 import { decideNudge, parseNudgeBuckets } from "./nudges";
 import { applyOrgPolicyToSetting } from "./thresholds";
+import { createNotification } from "../notifications";
 import type { SnapshotInput } from "./types";
 
 // AI review assistants that set "FAILURE" conclusions on their own checks and
@@ -267,6 +268,13 @@ export async function processPrRefresh(payload: {
         where: { id: pr.id },
         data: { nudgeBucketsJson: JSON.stringify(updatedBuckets) },
       });
+      await notifyNudgeMentionedUsers({
+        body: nudge.body,
+        owner,
+        repo,
+        number,
+        prId: pr.id,
+      });
     } catch (e) {
       logger.warn("nudge-failed", { owner, repo, number, error: String(e) });
     }
@@ -301,6 +309,54 @@ export async function processPrRefresh(payload: {
 
   outcome.state = classification.state;
   return outcome;
+}
+
+/**
+ * Angular-bracket-free `@login` mentions in a delivered nudge body, i.e. the
+ * exact human reviewers/author the comment turned the PR over to. Parsing the
+ * delivered body (instead of re-deriving the decision) guarantees the inbox
+ * notifies the same people the GitHub comment actually mentions.
+ */
+function nudgeMentionLogins(body: string): string[] {
+  const logins = new Set<string>();
+  const re = /(?:^|\s)@([A-Za-z0-9_-]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const login = m[1];
+    if (login && login.toLowerCase() !== "baton") logins.add(login);
+  }
+  return [...logins];
+}
+
+async function notifyNudgeMentionedUsers(input: {
+  body: string;
+  owner: string;
+  repo: string;
+  number: number;
+  prId: string;
+}): Promise<void> {
+  const logins = nudgeMentionLogins(input.body);
+  if (logins.length === 0) return;
+  const recipients = await prisma.user.findMany({
+    where: { login: { in: logins } },
+    select: { id: true },
+  });
+  for (const r of recipients) {
+    // one notification per (user, review, pr); re-arms when already read.
+    await createNotification(prisma, {
+      userId: r.id,
+      actorId: null,
+      type: "review",
+      resourceType: "pr",
+      resourceId: input.prId,
+      contextJson: {
+        owner: input.owner,
+        repo: input.repo,
+        number: input.number,
+        prId: input.prId,
+      },
+    });
+  }
 }
 
 /** Process an installation registration job. */

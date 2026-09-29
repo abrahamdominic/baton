@@ -67,15 +67,22 @@ export async function confirmedPaymentAggregates(): Promise<PaymentAggregates> {
   return { byCurrency, byProvider, byStatus, totalRows: rows.length };
 }
 
-/** Decimals used to render a currency's minor units (USDC has 6). */
-const CURRENCY_DECIMALS: Record<string, number> = { USDC: 6 };
+/**
+ * Every `payments.amount` in Baton's ledger is stored in 2-decimal minor units,
+ * including USDC. `src/lib/billing/amounts.ts` converts the 6-decimal on-chain
+ * value down to that same 2-decimal scale before anything is persisted, so a
+ * $49.00 USDC order is `4900` on both the card and the crypto path (see
+ * `planPriceCents` in the checkout route). A per-currency decimals table used
+ * to claim USDC was 6-decimal, which rendered a real $49.00 payment as
+ * "USDC 0.004900" on the admin dashboard.
+ */
+const MINOR_UNIT_DECIMALS = 2;
 
 /** Format a minor-unit total in its own currency. Never mixes currencies. */
 export function formatCurrencyTotal(currency: string, amountMinor: number): string {
-  const decimals = CURRENCY_DECIMALS[currency.toUpperCase()] ?? 2;
-  const value = (amountMinor / 10 ** decimals).toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+  const value = (amountMinor / 10 ** MINOR_UNIT_DECIMALS).toLocaleString("en-US", {
+    minimumFractionDigits: MINOR_UNIT_DECIMALS,
+    maximumFractionDigits: MINOR_UNIT_DECIMALS,
   });
   return `${currency.toUpperCase()} ${value}`;
 }

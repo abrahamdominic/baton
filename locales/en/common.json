@@ -33,8 +33,6 @@
   "show_more": "Show more",
   "show_less": "Show less",
   "no_results": "No results",
-  "coming_soon": "Coming soon",
-  "coming_soon_description": "This feature is not available yet.",
   "page_not_found": "Page not found",
   "page_not_found_description": "The page you are looking for does not exist or has been moved.",
   "go_home": "Go to homepage",
@@ -43,5 +41,12 @@
   "hours_ago_one": "{{count}} hour ago",
   "hours_ago_other": "{{count}} hours ago",
   "days_ago_one": "{{count}} day ago",
-  "days_ago_other": "{{count}} days ago"
+  "days_ago_other": "{{count}} days ago",
+  "theme_label": "Color theme",
+  "theme_dark": "Dark",
+  "theme_light": "Light",
+  "theme_system": "System",
+  "theme_dark_title": "Dark theme",
+  "theme_light_title": "Light theme",
+  "theme_system_title": "Follow system theme (currently {{resolved}})"
 }

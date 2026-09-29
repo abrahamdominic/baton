@@ -33,8 +33,6 @@
   "show_more": "Ver más",
   "show_less": "Ver menos",
   "no_results": "Sin resultados",
-  "coming_soon": "Próximamente",
-  "coming_soon_description": "Esta función todavía no está disponible.",
   "page_not_found": "Página no encontrada",
   "page_not_found_description": "La página que buscas no existe o se ha movido.",
   "go_home": "Ir a la página de inicio",
@@ -43,5 +41,12 @@
   "hours_ago_one": "hace {{count}} hora",
   "hours_ago_other": "hace {{count}} horas",
   "days_ago_one": "hace {{count}} día",
-  "days_ago_other": "hace {{count}} días"
+  "days_ago_other": "hace {{count}} días",
+  "theme_label": "Tema de color",
+  "theme_dark": "Oscuro",
+  "theme_light": "Claro",
+  "theme_system": "Sistema",
+  "theme_dark_title": "Tema oscuro",
+  "theme_light_title": "Tema claro",
+  "theme_system_title": "Seguir el tema del sistema (actualmente {{resolved}})"
 }

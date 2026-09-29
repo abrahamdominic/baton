@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconGitHub, IconArrowRight } from "@/components/icons";
-import { GITHUB_DISCUSSIONS_URL } from "@/lib/site";
+import { GITHUB_ISSUES_URL } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -146,18 +146,18 @@ export default function FaqPage() {
           <div>
             <h3 className="text-base font-bold text-white">Have a specific question not covered here?</h3>
             <p className="mt-1 text-xs text-ink-400">
-              Check our public GitHub discussions or review the source code on GitHub.
+              Open an issue on GitHub, or read the source code to see how it works.
             </p>
           </div>
           <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
             <a
-              href={GITHUB_DISCUSSIONS_URL}
+              href={GITHUB_ISSUES_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-ghost btn-sm"
             >
               <IconGitHub className="h-3.5 w-3.5" />
-              GitHub Discussions
+              Open an issue
             </a>
             <Link href="/docs" className="btn btn-primary btn-sm">
               Read the Docs

@@ -10,4 +10,9 @@ export const SITE_DESCRIPTION =
 export const GITHUB_REPO = "abrahamdominic/baton";
 export const GITHUB_URL = `https://github.com/${GITHUB_REPO}`;
 export const GITHUB_CLONE_URL = `https://github.com/${GITHUB_REPO}.git`;
-export const GITHUB_DISCUSSIONS_URL = `${GITHUB_URL}/discussions`;
+/**
+ * Issues, not Discussions. GitHub Discussions is not enabled on the repository,
+ * so a `/discussions` link 404s for every visitor who clicks it. Issues is the
+ * public channel that actually works.
+ */
+export const GITHUB_ISSUES_URL = `${GITHUB_URL}/issues`;

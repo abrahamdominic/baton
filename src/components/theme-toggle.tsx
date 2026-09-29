@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IconMonitor, IconMoon, IconSun } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/provider";
 import {
   DEFAULT_THEME_PREF,
   normalizeStoredTheme,
@@ -38,10 +39,15 @@ function applyTheme(pref: ThemePref) {
   return resolved;
 }
 
-const OPTIONS: Array<{ value: ThemePref; label: string; Icon: typeof IconMoon }> = [
-  { value: "dark", label: "Dark", Icon: IconMoon },
-  { value: "light", label: "Light", Icon: IconSun },
-  { value: "system", label: "System", Icon: IconMonitor },
+const OPTIONS: Array<{
+  value: ThemePref;
+  labelKey: "common:theme_dark" | "common:theme_light" | "common:theme_system";
+  titleKey: "common:theme_dark_title" | "common:theme_light_title" | "common:theme_system_title";
+  Icon: typeof IconMoon;
+}> = [
+  { value: "dark", labelKey: "common:theme_dark", titleKey: "common:theme_dark_title", Icon: IconMoon },
+  { value: "light", labelKey: "common:theme_light", titleKey: "common:theme_light_title", Icon: IconSun },
+  { value: "system", labelKey: "common:theme_system", titleKey: "common:theme_system_title", Icon: IconMonitor },
 ];
 
 /**
@@ -52,6 +58,7 @@ const OPTIONS: Array<{ value: ThemePref; label: string; Icon: typeof IconMoon }>
  * "what does Baton look like right now?" is answerable at a glance.
  */
 export function ThemeToggle({ className = "" }: { className?: string }) {
+  const { t } = useI18n();
   const [pref, setPref] = useState<ThemePref | null>(null);
   const [resolved, setResolved] = useState<ResolvedTheme>("dark");
 
@@ -87,31 +94,34 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   return (
     <div
       role="radiogroup"
-      aria-label="Color theme"
+      aria-label={t("common:theme_label")}
       className={`inline-flex h-9 items-center gap-0.5 rounded-lg border border-white/[0.1] bg-ink-900 p-0.5 ${className}`}
     >
-      {OPTIONS.map(({ value, label, Icon }) => {
+      {OPTIONS.map(({ value, labelKey, titleKey, Icon }) => {
         const active = pref === value;
+        // The "system" option has to report what the OS actually resolved to,
+        // otherwise the button is a dead end: it looks selected but gives no
+        // indication of which of the other two it chose.
+        const title =
+          value === "system"
+            ? t("common:theme_system_title", { resolved: t(`common:theme_${resolved}`) })
+            : t(titleKey);
         return (
           <button
             key={value}
             type="button"
             role="radio"
             aria-checked={active}
-            title={
-              value === "system"
-                ? `Follow system theme (currently ${resolved})`
-                : `${label} theme`
-            }
+            title={title}
             onClick={() => choose(value)}
             className={`inline-flex h-full items-center gap-1.5 rounded-[0.4rem] px-2 text-[11px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 ${
               active
-                ? "bg-brand-500/20 text-white ring-1 ring-brand-500/40"
+                ? "bg-brand-500/20 text-on-brand ring-1 ring-brand-500/40"
                 : "text-ink-400 hover:bg-white/[0.05] hover:text-white"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{label}</span>
+            <span className="hidden sm:inline">{t(labelKey)}</span>
           </button>
         );
       })}

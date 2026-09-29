@@ -39,15 +39,34 @@ describe("PricingView billing toggle", () => {
     const annualTab = screen.getByRole("tab", { name: /annual billing/i });
     expect(monthlyTab.getAttribute("aria-selected")).toBe("true");
     expect(annualTab.getAttribute("aria-selected")).toBe("false");
-    expect(screen.getByText("$0")).toBeTruthy();
+    expect(screen.getAllByText("$0").length).toBeGreaterThan(0);
     expect(screen.getAllByText("$49").length).toBeGreaterThan(0);
 
     fireEvent.click(annualTab);
 
     expect(annualTab.getAttribute("aria-selected")).toBe("true");
     expect(monthlyTab.getAttribute("aria-selected")).toBe("false");
-    expect(screen.getByText("$0")).toBeTruthy();
+    expect(screen.getAllByText("$0").length).toBeGreaterThan(0);
     expect(screen.getAllByText("$490").length).toBeGreaterThan(0);
     expect(screen.queryByText("$49")).toBeNull();
+  });
+  it("prices the free comparison column at $0 forever, not 'Custom'", () => {
+    render(<PricingView />);
+
+    // The free column has no `plans` row, so the header derived its price from a
+    // null plan. That branch returned "Custom", which rendered the public
+    // pricing table as "Custom free forever" - implying a sales conversation
+    // for a plan that costs nothing.
+    const freeHeader = screen.getByRole("columnheader", { name: /free/i });
+    expect(freeHeader.textContent).toContain("$0");
+    expect(freeHeader.textContent).toContain("forever");
+    expect(freeHeader.textContent).not.toContain("Custom");
+
+    // Switching billing interval must not change the free tier's price.
+    fireEvent.click(screen.getByRole("tab", { name: /annual billing/i }));
+    const annualFreeHeader = screen.getByRole("columnheader", { name: /free/i });
+    expect(annualFreeHeader.textContent).toContain("$0");
+    expect(annualFreeHeader.textContent).toContain("forever");
+    expect(annualFreeHeader.textContent).not.toContain("Custom");
   });
 });

@@ -52,7 +52,6 @@ export const PLAN_CATALOG: readonly CatalogPlan[] = [
       "Team-wide repository boards",
       "Your Move queue with priority sorting",
       "Evidence-backed repository intelligence",
-      "Developer & review briefings",
       "Saved work context",
     ],
     limits: {
@@ -63,7 +62,6 @@ export const PLAN_CATALOG: readonly CatalogPlan[] = [
         "team_workspace",
         "unlimited_repos",
         "repo_intelligence",
-        "briefings",
         "work_context",
       ],
     },
@@ -99,7 +97,6 @@ export const PLAN_CATALOG: readonly CatalogPlan[] = [
         "audit_export",
         "unlimited_repos",
         "repo_intelligence",
-        "briefings",
         "work_context",
         "change_impact",
       ],

@@ -134,10 +134,11 @@ export function PrSimulator() {
           return (
             <button
               key={s.id}
+              type="button"
               onClick={() => setActiveId(s.id)}
               className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                 isActive
-                  ? "border border-brand-400/40 bg-brand-500/20 text-white shadow-sm"
+                  ? "border border-brand-400/40 bg-brand-500/20 text-on-brand shadow-sm"
                   : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
               }`}
             >
@@ -185,7 +186,7 @@ export function PrSimulator() {
           {/* Pinned Baton Status Comment Header */}
           <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-2.5 bg-brand-500/5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md border border-brand-400/40 bg-brand-600 text-white text-[10px] font-bold">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md border border-brand-400/40 bg-brand-600 text-on-brand text-[10px] font-bold">
                 B
               </div>
               <div className="flex items-center gap-2">

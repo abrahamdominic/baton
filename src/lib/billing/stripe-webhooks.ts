@@ -20,6 +20,7 @@ import {
   createPayment,
   patchPayment,
   periodForInterval,
+  rejectPayment,
 } from "./payments";
 import { getPlanById } from "./plans";
 import { recordSystemEvent } from "./system-events";
@@ -34,6 +35,11 @@ import { recordSystemEvent } from "./system-events";
 
 const EVENT_TYPES = new Set([
   "checkout.session.completed",
+  // Delayed payment methods (bank debits, some wallets, cash vouchers) settle
+  // after the customer has already left the Checkout page. Without these two
+  // events such an order is never activated, or a failed one is never revoked.
+  "checkout.session.async_payment_succeeded",
+  "checkout.session.async_payment_failed",
   "invoice.paid",
   "invoice.payment_failed",
   "customer.subscription.updated",
@@ -49,6 +55,12 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
   switch (event.type) {
     case "checkout.session.completed":
       await onCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+      break;
+    case "checkout.session.async_payment_succeeded":
+      await onCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+      break;
+    case "checkout.session.async_payment_failed":
+      await onCheckoutSessionAsyncFailed(event.data.object as Stripe.Checkout.Session);
       break;
     case "invoice.paid":
       await onInvoicePaid(event.data.object as Stripe.Invoice);
@@ -80,7 +92,10 @@ function epochSecondsToIso(seconds: number | null | undefined): string | null {
 }
 
 async function onCheckoutSessionCompleted(session: Stripe.Checkout.Session): Promise<void> {
-  if (session.payment_status !== "paid") return; // abandoned / still open
+  // `unpaid` covers both an abandoned session and a delayed payment method
+  // that has not settled yet; the latter is handled by the
+  // `async_payment_succeeded` event, so returning here is correct in both cases.
+  if (session.payment_status !== "paid") return;
 
   const packageUrl = session.metadata?.planId ? await getPlanById(session.metadata.planId) : null;
   const planId = packageUrl?.id ?? null;
@@ -161,6 +176,36 @@ async function onCheckoutSessionCompleted(session: Stripe.Checkout.Session): Pro
   });
 }
 
+/**
+ * A delayed payment method was declined. The order must never activate, and any
+ * subscription left pending by it must not be revived later by a stale
+ * `invoice.paid` for an invoice that was never collected.
+ */
+async function onCheckoutSessionAsyncFailed(session: Stripe.Checkout.Session): Promise<void> {
+  const paymentId = session.metadata?.paymentId ?? null;
+  if (paymentId) {
+    const payment = await getPaymentById(paymentId);
+    if (payment) await rejectPayment(payment.id, "Stripe reported the delayed payment method failed.");
+  }
+  const subscriptionId = session.metadata?.subscriptionId ?? null;
+  if (subscriptionId) {
+    const subscription = await getSubscriptionById(subscriptionId);
+    if (subscription && subscription.status === "pending") {
+      await markSubscriptionPaymentFailed(subscription.id, {
+        source: "stripe",
+        reason: `Stripe delayed payment failed for Checkout session ${session.id}`,
+      });
+    }
+  }
+  await recordSystemEvent({
+    eventType: "stripe_async_payment_failed",
+    severity: "warn",
+    status: "failed",
+    message: `Delayed payment for Checkout session ${session.id} failed; access was not granted.`,
+    metadata: { sessionId: session.id, paymentId, subscriptionId },
+  });
+}
+
 async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
   const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null;
   if (!subscriptionId) return;
@@ -186,6 +231,20 @@ async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     .maybeSingle();
   if (findError) throw new Error(`payments.find-by-invoice failed: ${findError.message}`);
 
+  // Stripe moved `period_start`/`period_end` off the invoice object onto its
+  // line items in API version 2025-03-31, so the top-level fields are `null`
+  // for every invoice on a modern account. Falling back to `new Date()` for
+  // both ends produced a window that expires the instant it is written, or, if
+  // the nulls were written through, one that never expires at all. The
+  // interval is recovered from whatever Stripe did send, and the missing bound
+  // is reconstructed from it so the stored window is always one full period.
+  const interval: "monthly" | "annual" = invoiceCycle(invoice);
+  const { start, end } = paidWindow(
+    epochSecondsToIso(invoice.period_start),
+    epochSecondsToIso(invoice.period_end),
+    interval,
+  );
+
   const payment =
     existing ?? (await createPayment({
       userId: subscription.user_id,
@@ -198,7 +257,7 @@ async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       currency: (invoice.currency ?? "usd").toUpperCase(),
       stripeInvoiceId: invoice.id,
       stripePaymentIntentId: typeof invoice.payment_intent === "string" ? invoice.payment_intent : null,
-      metadata: { interval: invoiceCycle(invoice) },
+      metadata: { interval },
     }));
 
   if (existing) {
@@ -209,8 +268,6 @@ async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     });
   }
 
-  const periodStart = epochSecondsToIso(invoice.period_start);
-  const periodEnd = epochSecondsToIso(invoice.period_end);
   if (subscription.status === "pending") {
     await activateSubscription(subscription.id, {
       source: "stripe",
@@ -218,15 +275,15 @@ async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
       planId: subscription.plan_id,
       providerCustomerId: toProviderCustomerId(invoice),
       providerSubscriptionId: subscriptionId,
-      currentPeriodStart: periodStart,
-      currentPeriodEnd: periodEnd,
+      currentPeriodStart: start,
+      currentPeriodEnd: end,
     });
   } else if (validateTransition(subscription.status, "active") === null) {
     await renewSubscription(subscription.id, {
       source: "stripe",
       paymentId: payment.id,
-      currentPeriodStart: periodStart ?? new Date().toISOString(),
-      currentPeriodEnd: periodEnd ?? new Date().toISOString(),
+      currentPeriodStart: start,
+      currentPeriodEnd: end,
     });
   } else {
     // A canceled/expired row cannot be revived by a stray invoice; the payment
@@ -317,9 +374,62 @@ function toProviderCustomerId(obj: WithCustomer): string | null {
   return null;
 }
 
+/** Annual invoices land near 365 days; anything at or above 330 counts as one. */
+const ANNUAL_WINDOW_MS = 330 * 86_400_000;
+
+/**
+ * Build a paid window that is always exactly one full billing period.
+ *
+ * The two bounds must not be mixed independently. `periodForInterval` derives
+ * both ends from `now`, so combining a real start with a derived end would
+ * produce a window that is longer or shorter than the interval that was
+ * actually charged. Whichever bound Stripe supplied is kept, and the other is
+ * reconstructed from it.
+ */
+function paidWindow(
+  start: string | null,
+  end: string | null,
+  interval: "monthly" | "annual",
+): { start: string; end: string } {
+  if (start && end) return { start, end };
+  if (start) return { start, end: shiftPeriod(new Date(start), interval) };
+  if (end) return { start: shiftPeriod(new Date(end), interval, -1), end };
+  return periodForInterval(interval);
+}
+
+function shiftPeriod(from: Date, interval: "monthly" | "annual", direction: 1 | -1 = 1): string {
+  const out = new Date(from.getTime());
+  if (interval === "annual") out.setUTCFullYear(out.getUTCFullYear() + direction);
+  else out.setUTCMonth(out.getUTCMonth() + direction);
+  return out.toISOString();
+}
+
+/**
+ * Decide which billing interval an invoice represents.
+ *
+ * Stripe 2025-03-31 removed `period_start`/`period_end` from the invoice and
+ * moved them onto the subscription's line items, so the top-level fields are
+ * frequently null. Every shape is consulted in order and the interval is never
+ * guessed from "no data": when nothing can be determined the shorter (monthly)
+ * window is used, because over-granting a year of access from a missing field is
+ * far more expensive than under-granting 30 days, and Stripe re-sends the
+ * subscription state on the next event either way.
+ */
 function invoiceCycle(invoice: Stripe.Invoice): "monthly" | "annual" {
-  const start = invoice.period_start ? invoice.period_start * 1000 : Date.now();
-  const end = invoice.period_end ? invoice.period_end * 1000 : Date.now();
-  const days = (end - start) / 86_400_000;
-  return days >= 330 ? "annual" : "monthly";
+  const topStart = epochSecondsToIso(invoice.period_start);
+  const topEnd = epochSecondsToIso(invoice.period_end);
+  if (topStart && topEnd) {
+    const span = Date.parse(topEnd) - Date.parse(topStart);
+    if (span > 0) return span >= ANNUAL_WINDOW_MS ? "annual" : "monthly";
+  }
+
+  const lines = Array.isArray(invoice.lines?.data) ? invoice.lines.data : [];
+  for (const line of lines) {
+    const lineStart = line.period?.start;
+    const lineEnd = line.period?.end;
+    if (typeof lineStart === "number" && typeof lineEnd === "number" && lineEnd > lineStart) {
+      return (lineEnd - lineStart) * 1000 >= ANNUAL_WINDOW_MS ? "annual" : "monthly";
+    }
+  }
+  return "monthly";
 }

@@ -85,7 +85,7 @@ function NavLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void 
         title={item.badge ? `${t(item.labelKey)}: ${item.badge}` : undefined}
         className={`group relative flex items-center justify-between rounded-lg px-3 py-2.5 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-ink-950 ${
           active
-            ? "bg-brand-500/10 text-white font-semibold shadow-sm"
+            ? "bg-brand-500/10 text-on-brand font-semibold shadow-sm"
             : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
         }`}
       >
@@ -273,10 +273,7 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-16 items-center justify-between border-b border-white/[0.07] px-4">
-        <BatonLogo href="/dashboard" size="sm" showBadge={false} />
-        <span className="inline-flex items-center gap-1 rounded border border-white/[0.08] bg-ink-900/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-400">
-          v0.1
-        </span>
+        <BatonLogo href="/dashboard" size="sm" />
       </div>
       <SidebarNav
         user={user}
@@ -355,7 +352,7 @@ export function AppShell({
       {/* Mobile top bar */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/90 px-4 backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-2">
-          <BatonLogo href="/dashboard" size="sm" showBadge={false} />
+          <BatonLogo href="/dashboard" size="sm" />
           {currentItem ? (
             <>
               <IconChevronRight className="h-3 w-3 text-ink-600" />
@@ -422,7 +419,7 @@ export function AppShell({
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-white/[0.1] bg-ink-950 shadow-2xl transition-transform"
           >
             <div className="flex h-14 items-center justify-between border-b border-white/[0.07] px-4">
-              <BatonLogo href="/dashboard" size="sm" showBadge={false} />
+              <BatonLogo href="/dashboard" size="sm" />
               <button
                 type="button"
                 onClick={() => setOpen(false)}

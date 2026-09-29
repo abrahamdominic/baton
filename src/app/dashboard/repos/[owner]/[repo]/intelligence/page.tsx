@@ -232,7 +232,18 @@ export default async function IntelligencePage({
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {onboardingGuide.architectureMap.map((mod, i) => (
+              {onboardingGuide.architectureMap.length === 0 ? (
+                <p className="text-[11px] leading-relaxed text-ink-400 sm:col-span-2 lg:col-span-3">
+                  No top-level structure was recognized. The analyzer looks for{" "}
+                  <code className="font-mono text-ink-300">src</code>,{" "}
+                  <code className="font-mono text-ink-300">prisma</code>,{" "}
+                  <code className="font-mono text-ink-300">app</code>,{" "}
+                  <code className="font-mono text-ink-300">lib</code>,{" "}
+                  <code className="font-mono text-ink-300">scripts</code>, or{" "}
+                  <code className="font-mono text-ink-300">docs</code> at the repository root.
+                </p>
+              ) : (
+              onboardingGuide.architectureMap.map((mod, i) => (
                 <div key={i} className="rounded-lg border border-white/[0.06] bg-ink-950/40 p-3.5 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-xs text-white">{mod.name}</span>
@@ -243,7 +254,8 @@ export default async function IntelligencePage({
                   <code className="text-[11px] font-mono text-brand-300 block">{mod.path}</code>
                   <p className="text-[11px] text-ink-400 leading-normal">{mod.role}</p>
                 </div>
-              ))}
+              ))
+              )}
             </div>
           </section>
 
@@ -315,6 +327,11 @@ export default async function IntelligencePage({
               <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
                 <h3 className="text-sm font-semibold text-white">Recommended Reading</h3>
               </div>
+              {onboardingGuide.readingList.length === 0 ? (
+                <p className="px-4 py-6 text-center text-[11px] text-ink-400">
+                  No README, CONTRIBUTING, or SECURITY file was found at the repository root.
+                </p>
+              ) : (
               <ul className="divide-y divide-white/[0.05]">
                 {onboardingGuide.readingList.map((item, i) => (
                   <li key={i} className="p-4 space-y-1 text-xs">
@@ -333,12 +350,20 @@ export default async function IntelligencePage({
                   </li>
                 ))}
               </ul>
+              )}
             </div>
 
             <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
               <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
                 <h3 className="text-sm font-semibold text-white">Common Pitfalls & Architectural Traps</h3>
               </div>
+              {onboardingGuide.pitfalls.length === 0 ? (
+                <p className="flex items-center gap-2 px-4 py-6 text-[11px] text-ink-400">
+                  <IconCheckCircle className="h-3.5 w-3.5 shrink-0 text-signal-400" />
+                  No stale areas were found. This repository has CODEOWNERS, CI,
+                  tests, a linter configuration, and an environment example.
+                </p>
+              ) : (
               <ul className="divide-y divide-white/[0.05]">
                 {onboardingGuide.pitfalls.map((pit, i) => (
                   <li key={i} className="p-4 space-y-1.5 text-xs">
@@ -350,6 +375,7 @@ export default async function IntelligencePage({
                   </li>
                 ))}
               </ul>
+              )}
             </div>
           </section>
 

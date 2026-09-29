@@ -39,8 +39,11 @@ type StaticTier = Omit<Tier, "monthlyPrice" | "annualPrice"> & {
 
 const TIERS: StaticTier[] = [
   {
+    // `individual` is the stored/DB slug and stays that way so no entitlement
+    // row or migration has to change. Only the customer-facing label is "Free",
+    // which is what the plan costs and what the pricing table calls it.
     slug: "individual",
-    name: "Individual",
+    name: "Free",
     monthlyPrice: "$0", // no plan row exists for the free tier
     annualPrice: "$0",
     monthlyPeriod: "free forever",
@@ -54,7 +57,7 @@ const TIERS: StaticTier[] = [
       "Automatic baton:* GitHub state labels",
       "Your Move personal review queue",
       "Standard webhook ingestion",
-      "Community GitHub discussions support",
+      "Community support via GitHub issues",
     ],
     ctaMonthly: "Start Free",
     ctaAnnual: "Start Free",
@@ -237,7 +240,6 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
     rows: [
       { feature: "Evidence-backed repository profiles", resolve: hasGate("repo_intelligence") },
       { feature: "Search a repository's collected evidence", resolve: hasGate("repo_intelligence") },
-      { feature: "Developer briefings from recorded facts", resolve: hasGate("briefings") },
       { feature: "Saved work context across sessions", resolve: hasGate("work_context") },
       { feature: "What Broke? CI failure investigation", resolve: hasGate("change_impact") },
       { feature: "Change impact analysis", resolve: hasGate("change_impact") },
@@ -247,7 +249,7 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
     category: "Workspaces, Roles & Compliance",
     rows: [
       { feature: "Team workspaces (shared board, invites, member roles)", resolve: hasGate("team_workspace") },
-      { feature: "Organization workspaces (multiple teams & roles)", resolve: hasGate("organization_workspace") },
+      { feature: "Organization workspaces (roles, invitations & shared boards)", resolve: hasGate("organization_workspace") },
       { feature: "Organization-wide review stall policies", resolve: hasGate("organization_policies") },
       { feature: "Audit log export (CSV/JSON)", resolve: hasGate("audit_export") },
     ],
@@ -298,12 +300,15 @@ export function PricingView({
   ];
 
   const headPrice = (plan: PlanRecord | null) => {
-    if (!plan || plan.price_custom) return "Custom";
+    // The Free column has no `plans` row, so its header must state the actual
+    // price. Falling through to "Custom" rendered "Custom free forever".
+    if (!plan) return "$0";
+    if (plan.price_custom) return "Custom";
     const cents = annual ? plan.annual_price_cents : plan.monthly_price_cents;
     return `$${(cents / 100).toFixed(0)}`;
   };
   const headPeriod = (plan: PlanRecord | null) =>
-    !plan ? "free forever" : annual ? "/year" : "/month";
+    !plan ? "forever" : annual ? "/year" : "/month";
 
   const cellView = (value: boolean | string) => {
     if (value === true) return <IconCheck className="h-4 w-4 text-signal-400" />;
@@ -327,7 +332,7 @@ export function PricingView({
             onClick={() => setAnnual(false)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
               !annual
-                ? "bg-brand-500 text-white shadow-sm"
+                ? "bg-brand-500 text-on-brand shadow-sm"
                 : "text-ink-400 hover:text-ink-200"
             }`}
           >
@@ -340,7 +345,7 @@ export function PricingView({
             onClick={() => setAnnual(true)}
             className={`flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
               annual
-                ? "bg-brand-500 text-white shadow-sm"
+                ? "bg-brand-500 text-on-brand shadow-sm"
                 : "text-ink-400 hover:text-ink-200"
             }`}
           >

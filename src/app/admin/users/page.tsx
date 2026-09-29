@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { AdminUserActions } from "./user-actions";
-import { StatCard, PageHeader } from "@/components/ui";
+import { StatCard, PageHeader, EmptyState } from "@/components/ui";
 import {
   IconUser,
   IconShield,
@@ -104,6 +104,15 @@ export default async function AdminUsersPage() {
           </span>
         </div>
 
+        {users.length === 0 ? (
+          // Without this the card renders its "0 User Records" header above an
+          // empty list, which reads as a failed query rather than an empty table.
+          <EmptyState
+            icon={IconUser}
+            title="No user records"
+            hint="Nobody has signed in with GitHub yet. Accounts appear here the first time a user completes OAuth."
+          />
+        ) : (
         <ul className="divide-y divide-white/[0.05]">
           {users.map((u) => {
             const isAdmin = u.role === "admin";
@@ -180,6 +189,7 @@ export default async function AdminUsersPage() {
             );
           })}
         </ul>
+        )}
       </section>
     </div>
   );

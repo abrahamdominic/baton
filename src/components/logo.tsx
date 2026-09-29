@@ -3,7 +3,6 @@ import { SITE_NAME } from "@/lib/site";
 
 interface LogoProps {
   className?: string;
-  showBadge?: boolean;
   size?: "sm" | "md" | "lg";
   href?: string;
 }
@@ -25,22 +24,44 @@ export function BatonIcon({
       className={`shrink-0 ${className}`}
       aria-hidden="true"
     >
-      <rect x="1.5" y="1.5" width="29" height="29" rx="7.5" fill="#0D0F18" stroke="#1E2333" strokeWidth="1.2" />
-      <rect x="2.5" y="2.5" width="27" height="27" rx="6.5" stroke="rgba(255, 255, 255, 0.05)" strokeWidth="1" fill="none" />
-      <path d="M8.5 23.5L23.5 8.5" stroke="#2A3044" strokeWidth="2" strokeLinecap="round" />
+      {/* The plate and the track are theme tokens so the mark is legible on a
+          dark page and on a light one. The baton itself and the two endpoint
+          dots stay fixed: white on the dark plate in dark mode, and the plate
+          token is always dark, so the mark's contrast never inverts. */}
+      <rect
+        x="1.5"
+        y="1.5"
+        width="29"
+        height="29"
+        rx="7.5"
+        className="fill-ink-950 stroke-ink-700"
+        strokeWidth="1.2"
+      />
+      <rect
+        x="2.5"
+        y="2.5"
+        width="27"
+        height="27"
+        rx="6.5"
+        stroke="currentColor"
+        strokeOpacity="0.08"
+        strokeWidth="1"
+        fill="none"
+        className="text-ink-50"
+      />
+      <path d="M8.5 23.5L23.5 8.5" className="stroke-ink-700" strokeWidth="2" strokeLinecap="round" />
       <path d="M12 20L20 12" stroke="#FFFFFF" strokeWidth="3.6" strokeLinecap="round" />
       <path d="M13.5 18.5L18.5 13.5" stroke="#6366F1" strokeWidth="1.8" strokeLinecap="round" />
       <circle cx="8.5" cy="23.5" r="3.2" fill="#10B981" />
-      <circle cx="8.5" cy="23.5" r="1.3" fill="#0D0F18" />
+      <circle cx="8.5" cy="23.5" r="1.3" className="fill-ink-950" />
       <circle cx="23.5" cy="8.5" r="3.2" fill="#818CF8" />
-      <circle cx="23.5" cy="8.5" r="1.3" fill="#0D0F18" />
+      <circle cx="23.5" cy="8.5" r="1.3" className="fill-ink-950" />
     </svg>
   );
 }
 
 export function BatonLogo({
   className = "",
-  showBadge = true,
   size = "md",
   href = "/",
 }: LogoProps) {
@@ -48,17 +69,12 @@ export function BatonLogo({
   const textSize = size === "sm" ? "text-sm" : size === "lg" ? "text-xl" : "text-[15px]";
 
   const content = (
-    <div className={`group flex items-center gap-2.5 font-mono ${textSize} font-bold tracking-tight text-white ${className}`}>
+    <div className={`group flex items-center gap-2.5 font-mono ${textSize} font-bold tracking-tight text-ink-50 ${className}`}>
       <div className="relative transition-transform duration-200 group-hover:scale-105">
         <BatonIcon size={iconSize} />
       </div>
-      <span className="flex items-center gap-1.5 font-bold tracking-tight text-white">
+      <span className="flex items-center gap-1.5 font-bold tracking-tight text-ink-50">
         {SITE_NAME.toLowerCase()}
-        {showBadge ? (
-          <span className="rounded border border-white/10 bg-white/[0.05] px-1.5 py-0.2 font-mono text-[10px] font-medium text-ink-300">
-            v0.1
-          </span>
-        ) : null}
       </span>
     </div>
   );

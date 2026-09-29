@@ -145,6 +145,16 @@ body {
 :root[data-theme="light"] .btn-ghost:hover {
   border-color: rgb(15 23 42 / 0.26);
 }
+/* `.btn-primary` fills with a solid, saturated `bg-brand-500` in BOTH themes -
+   that background does not change - so its label has to stay white. Without
+   this the light theme inverts it to near-black, putting dark text on solid
+   indigo on every primary button in the app. */
+:root[data-theme="light"] .btn-primary,
+:root[data-theme="light"] .btn-primary:hover,
+:root[data-theme="light"] .btn-primary:focus-visible,
+:root[data-theme="light"] .btn-primary:focus {
+  color: #fff;
+}
 :root[data-theme="light"] .btn-secondary {
   border-color: rgb(15 23 42 / 0.16);
   background-color: rgb(15 23 42 / 0.03);
@@ -165,8 +175,14 @@ body {
 /* White-alpha utilities become structural light tokens so real contrast,
    surfaces, dividers, and rings survive in light mode. Everything in the app
    derives from the --ink-* tokens, so dark text over white cards is correct
-   here. Solid brand surfaces keep white text (legible on indigo). */
+   here. */
 :root[data-theme="light"] .text-white {
+  color: rgb(15 23 42 / 1) !important;
+}
+/* `hover:text-white` compiles to its own selector, so it needs its own
+   light-mode rule. Without it, hovering a nav item or ghost button turns the
+   label pure white on an already near-white surface and the text disappears. */
+:root[data-theme="light"] .hover\:text-white:hover {
   color: rgb(15 23 42 / 1) !important;
 }
 :root[data-theme="light"] [class*="border-white"] {
@@ -185,8 +201,34 @@ body {
   background-color: var(--brand-500);
   color: #fff;
 }
-:root[data-theme="light"] .bg-brand-500.text-white,
-:root[data-theme="light"] .bg-brand-600.text-white {
+
+/* Text that sits ON a saturated brand fill. It must stay white in both themes:
+   the rule above deliberately inverts `text-white` for the light surfaces, and
+   inverting it here would put near-black on indigo. Using this token instead
+   of `text-white` makes "on brand" explicit rather than depending on which
+   exact bg utility the markup happened to pair with it. */
+@layer utilities {
+  .text-on-brand {
+    color: #fff;
+  }
+  .text-on-brand\/70 {
+    color: rgb(255 255 255 / 0.7);
+  }
+  .hover\:text-on-brand:hover {
+    color: #fff;
+  }
+  .text-on-brand:focus {
+    color: #fff;
+  }
+}
+
+/* A solid brand background always carries on-brand text, whichever utility
+   produced the fill. This covers the translucent and `/90` variants that an
+   exact-class-pair carve-out cannot match. */
+:root[data-theme="light"] .bg-brand-500.text-on-brand,
+:root[data-theme="light"] .bg-brand-600.text-on-brand,
+:root[data-theme="light"] .bg-brand-500\/90.text-on-brand,
+:root[data-theme="light"] .bg-brand-500\/80.text-on-brand {
   color: #fff !important;
 }
 

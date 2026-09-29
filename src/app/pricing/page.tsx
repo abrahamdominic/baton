@@ -4,14 +4,33 @@ import { PricingView, type Tier } from "@/components/pricing-view";
 import { currentUser } from "@/lib/auth/session";
 import { isSupabaseConfigured } from "@/lib/config";
 import { listPlans, publicPlans } from "@/lib/billing/plans";
+import { catalogPlanBySlug } from "@/lib/billing/plan-catalog";
+import { planPriceLabel } from "@/lib/billing/pricing";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The SEO description quotes the canonical prices, so it is generated from
+ * `PLAN_CATALOG` rather than typed out. A hardcoded string here would keep
+ * serving stale prices to search engines after a plan change, and would also
+ * be a second place a price is written down.
+ */
+function pricingDescription(): string {
+  const team = catalogPlanBySlug("team")!;
+  const org = catalogPlanBySlug("organization")!;
+  return [
+    "Simple pricing for Baton: free for individual developers,",
+    `${team.name} at ${planPriceLabel(team.monthlyPriceCents)}/month`,
+    `(${planPriceLabel(team.annualPriceCents)}/year billed annually),`,
+    `and ${org.name} at ${planPriceLabel(org.monthlyPriceCents)}/month`,
+    `(${planPriceLabel(org.annualPriceCents)}/year billed annually).`,
+  ].join(" ");
+}
 
 export const metadata: Metadata = {
   alternates: { canonical: "/pricing" },
   title: "Pricing: Transparent, Per-Seat Plans for Engineering Teams",
-  description:
-    "Simple pricing for Baton: free for individual developers, Team at $15/month ($150/year billed annually), and Organization at $49/month ($490/year billed annually).",
+  description: pricingDescription(),
 };
 
 const CHECKOUT_PREFIX = "/dashboard/billing/checkout?plan=";

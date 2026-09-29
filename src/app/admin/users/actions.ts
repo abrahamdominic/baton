@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { currentUser } from "@/lib/auth/session";
 import { revokeAllSessionsForUser } from "@/lib/auth/session";
+import { logAdminAudit } from "@/lib/billing/audit";
 import { logger } from "@/lib/logger";
 
 export interface AdminActionState {
@@ -31,6 +32,10 @@ async function requestMeta() {
  * `detail` is a structured record, not a pre-serialized string: storing
  * `JSON.stringify(detail)` on an already-stringified value produced a JSON
  * string containing JSON, which no reader could consume as an object.
+ *
+ * The Security Audit Log at `/admin/audit` reads the immutable Supabase
+ * `audit_logs` ledger; admin user mutations must land there, not in the
+ * Prisma `AuditLog` table (whose "user" rows have no reader).
  */
 async function writeAudit(
   actor: { id: string; login: string },
@@ -38,15 +43,14 @@ async function writeAudit(
   targetId: string,
   detail: Record<string, unknown>,
 ) {
-  await prisma.auditLog.create({
-    data: {
-      actor: actor.login,
-      action,
-      targetType: "user",
-      targetId,
-      detailJson: JSON.stringify(detail),
-      ...(await requestMeta()),
-    },
+  const { ip } = await requestMeta();
+  await logAdminAudit({
+    adminUserId: actor.id,
+    action,
+    resourceType: "user",
+    resourceId: targetId,
+    detail,
+    ip,
   });
 }
 

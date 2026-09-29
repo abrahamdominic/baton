@@ -84,19 +84,6 @@ export default function OpengraphImage() {
             />
           </div>
           <span>baton</span>
-          <span
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              padding: "4px 10px",
-              borderRadius: 6,
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.12)",
-              color: INK_300,
-            }}
-          >
-            v0.1
-          </span>
         </div>
 
         <h1

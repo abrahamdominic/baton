@@ -21,9 +21,6 @@ export type ResolvedTheme = Exclude<ThemePref, "system">;
 /** Baton's default experience for someone who has never chosen a theme. */
 export const DEFAULT_THEME_PREF: ThemePref = "dark";
 
-/** Order used by the toggle when cycling through the three options. */
-export const THEME_CYCLE: ThemePref[] = ["dark", "light", "system"];
-
 export function isThemePref(value: unknown): value is ThemePref {
   return value === "light" || value === "dark" || value === "system";
 }

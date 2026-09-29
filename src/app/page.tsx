@@ -204,8 +204,6 @@ export default async function LandingPage({
             {/* Top Pill */}
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-3.5 py-1 text-xs font-medium text-brand-300">
               <span className="flex h-2 w-2 rounded-full bg-signal-500" />
-              <span>Baton v0.1</span>
-              <span className="text-brand-400/50">·</span>
               <span>Deterministic GitHub App</span>
               <span className="text-brand-400/50">·</span>
               <span className="text-ink-300">AGPL-3.0 Open Source</span>

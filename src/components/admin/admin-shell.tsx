@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BatonLogo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   IconGauge,
   IconUser,
@@ -104,7 +105,7 @@ function AdminNavLink({
         aria-current={active ? "page" : undefined}
         className={`group relative flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-ink-950 ${
           active
-            ? "bg-brand-500/10 text-white font-semibold shadow-sm"
+            ? "bg-brand-500/10 text-on-brand font-semibold shadow-sm"
             : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
         }`}
       >
@@ -137,7 +138,7 @@ function AdminSidebarContent({
       {/* Brand & Badge */}
       <div className="flex h-16 items-center justify-between border-b border-white/[0.07] px-4">
         <div className="flex items-center gap-2.5">
-          <BatonLogo href="/admin" size="sm" showBadge={false} />
+          <BatonLogo href="/admin" size="sm" />
           <span className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
             Admin
           </span>
@@ -262,7 +263,7 @@ export function AdminShell({
       {/* Mobile & Tablet Header */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/90 px-4 backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-2">
-          <BatonLogo href="/admin" size="sm" showBadge={false} />
+          <BatonLogo href="/admin" size="sm" />
           <span className="rounded bg-brand-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
             Admin
           </span>
@@ -311,7 +312,7 @@ export function AdminShell({
           >
             <div className="flex h-14 items-center justify-between border-b border-white/[0.07] px-4">
               <div className="flex items-center gap-2">
-                <BatonLogo href="/admin" size="sm" showBadge={false} />
+                <BatonLogo href="/admin" size="sm" />
                 <span className="rounded bg-brand-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300">
                   Admin
                 </span>
@@ -361,6 +362,8 @@ export function AdminShell({
               <IconArrowLeft className="h-3 w-3" />
               <span>{t("admin:exit_to_user_app")}</span>
             </Link>
+
+            <ThemeToggle className="h-8" />
           </div>
         </div>
 

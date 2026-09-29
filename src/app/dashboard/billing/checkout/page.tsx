@@ -89,7 +89,7 @@ export default async function CheckoutPage({
                   href={`/dashboard/billing/checkout?plan=${plan.id}&billing=${opt}`}
                   className={`flex flex-col items-center rounded-lg px-3 py-2 text-center transition-colors ${
                     active
-                      ? "bg-brand-500/15 text-white ring-1 ring-brand-500/30"
+                      ? "bg-brand-500/15 text-on-brand ring-1 ring-brand-500/30"
                       : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
                   }`}
                 >

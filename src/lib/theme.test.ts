@@ -6,7 +6,6 @@ import {
   normalizeStoredTheme,
   resolveTheme,
   THEME_COLORS,
-  THEME_CYCLE,
   THEME_KEY,
 } from "./theme";
 
@@ -67,13 +66,6 @@ describe("resolveTheme", () => {
   it("follows the OS only when the user asked for system", () => {
     expect(resolveTheme("system", true)).toBe("light");
     expect(resolveTheme("system", false)).toBe("dark");
-  });
-});
-
-describe("THEME_CYCLE", () => {
-  it("exposes dark, light and system exactly once, starting from dark", () => {
-    expect(THEME_CYCLE).toEqual(["dark", "light", "system"]);
-    expect(new Set(THEME_CYCLE).size).toBe(THEME_CYCLE.length);
   });
 });
 

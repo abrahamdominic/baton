@@ -106,3 +106,60 @@ describe("server plan store is generated from the catalog", () => {
     expect(planBillingNote(org, "annual")).toBe("Billed annually at $490/year (save $98/year)");
   });
 });
+
+/**
+ * The `plans` table is the runtime source of truth, and it is populated by the
+ * SQL migrations. Those migrations are hand-written, so they drifted from the
+ * catalog once already: 0006 projected an older, smaller `limits.features` list
+ * and 0010 only corrected prices, which silently stripped four advertised
+ * features from every paying customer. These tests fail if that ever recurs.
+ */
+describe("SQL migrations agree with the plan catalog", () => {
+  const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
+
+  function latestMigrationWritingPlans(): string {
+    const files = readdirSync(MIGRATIONS_DIR)
+      .filter((f) => f.endsWith(".sql"))
+      .sort();
+    // The catalog projection lives in the highest-numbered migration, which is
+    // the one that runs last and therefore the state a real database ends in.
+    for (let i = files.length - 1; i >= 0; i--) {
+      const text = readFileSync(join(MIGRATIONS_DIR, files[i]), "utf8");
+      if (/limits\s*=\s*'\{/.test(text) && /on conflict \(slug\)/i.test(text)) return text;
+    }
+    throw new Error("No migration seeds plans.limits with an on-conflict guard row.");
+  }
+
+  const latest = latestMigrationWritingPlans();
+
+  it("seeds the canonical prices in the final plan migration", () => {
+    for (const plan of PLAN_CATALOG) {
+      const row = new RegExp(
+        `\\('${plan.slug}',[\\s\\S]*?${plan.monthlyPriceCents},\\s*${plan.annualPriceCents},`,
+      );
+      expect(row.test(latest), `${plan.slug} guard row must carry the catalog prices`).toBe(true);
+    }
+  });
+
+  it("seeds the exact catalog limits, so no advertised feature is locked away", () => {
+    for (const plan of PLAN_CATALOG) {
+      const normalized = latest.replace(/\s+/g, " ");
+      for (const key of plan.limits.features ?? []) {
+        expect(normalized, `migration must grant ${plan.slug} the "${key}" gate`).toContain(
+          `"${key}"`,
+        );
+      }
+      // maxMembers is stored on the row; assert it so a plan cannot silently
+      // become a personal plan.
+      expect(normalized).toContain(`"maxMembers": ${plan.limits.maxMembers}`);
+    }
+  });
+
+  it("never regresses the Team plan to a superseded price", () => {
+    // $96, $10, and $50/$480 were all real prices in earlier migrations. The
+    // final projection must not reintroduce any of them.
+    for (const stale of ["9600", "48000", "800", "1000, 9600", "5000, 48000"]) {
+      expect(latest, `final migration must not reintroduce ${stale}`).not.toContain(stale);
+    }
+  });
+});

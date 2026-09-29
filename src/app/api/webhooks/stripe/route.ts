@@ -88,18 +88,37 @@ async function isAllowed(ip: string): Promise<boolean> {
 
 async function wasEventProcessed(eventId: string): Promise<boolean> {
   const sb = getAdminClient();
-  const { data } = await sb
+  const { data, error } = await sb
     .from("stripe_webhook_events")
-    .select("event_id")
-    .eq("event_id", eventId)
+    .select("stripe_event_id")
+    .eq("stripe_event_id", eventId)
     .maybeSingle();
+  if (error) {
+    // A ledger read that failed is not proof the event was processed. Failing
+    // closed here would drop legitimate events; failing open only re-runs
+    // idempotent processing, so record the problem and continue.
+    logger.warn("stripe-webhook-ledger-read-failed", {
+      eventId,
+      error: error.message,
+    });
+    return false;
+  }
   return Boolean(data);
 }
 
 async function markEventProcessed(eventId: string, eventType: string): Promise<void> {
   const sb = getAdminClient();
-  await sb.from("stripe_webhook_events").insert({
-    event_id: eventId,
+  const { error } = await sb.from("stripe_webhook_events").insert({
+    stripe_event_id: eventId,
     event_type: eventType,
   });
+  if (error && !/duplicate key|already exists/i.test(error.message)) {
+    // A unique conflict means a concurrent delivery of the same event already
+    // succeeded, which is fine: processing is convergent and idempotent.
+    logger.error("stripe-webhook-ledger-write-failed", {
+      eventId,
+      type: eventType,
+      error: error.message,
+    });
+  }
 }

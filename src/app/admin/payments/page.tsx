@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { listPaymentsAdmin } from "@/lib/billing/payments";
+import { userIdentitiesById, describeActor } from "@/lib/user-identity";
 import { runVerificationAction, manualDecisionAction } from "./actions";
 import { PAYMENT_STATUSES, type PaymentStatus, type PaymentProvider } from "@/lib/billing/types";
 import { IconArrowLeft, IconExternalLink, IconShield } from "@/components/icons";
@@ -38,6 +39,11 @@ export default async function AdminPaymentsPage({
   const provider = (params?.provider as PaymentProvider | undefined) ?? null;
 
   const payments = await listPaymentsAdmin({ status, provider, limit: 50 }).catch(() => []);
+
+  // Resolve the paying customer in one query so an operator reads "@handle"
+  // instead of cross-referencing a raw cuid in a second tab. Batch resolution
+  // keeps this O(1) rather than N+1.
+  const identities = await userIdentitiesById(payments.map((p) => p.user_id));
 
   return (
     <div className="space-y-8">
@@ -113,128 +119,148 @@ export default async function AdminPaymentsPage({
           </div>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
-            {payments.map((p) => (
-              <li
-                key={p.id}
-                className="p-5 sm:p-6 transition-colors hover:bg-white/[0.015]"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2.5">
-                      <span
-                        className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
-                          p.status,
-                        )}`}
-                      >
-                        {p.status.replace(/_/g, " ")}
-                      </span>
-                      <span className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
-                        {p.payment_provider}
-                      </span>
-                      <span className="font-mono text-sm font-bold tabular-nums text-white">
-                        ${(p.amount / 100).toFixed(2)} {p.currency}
-                      </span>
+            {payments.map((p) => {
+              const payer = identities.get(p.user_id) ?? null;
+              return (
+                <li
+                  key={p.id}
+                  className="p-5 sm:p-6 transition-colors hover:bg-white/[0.015]"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <span
+                          className={`rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
+                            p.status,
+                          )}`}
+                        >
+                          {p.status.replace(/_/g, " ")}
+                        </span>
+                        <span className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
+                          {p.payment_provider}
+                        </span>
+                        <span className="font-mono text-sm font-bold tabular-nums text-white">
+                          ${(p.amount / 100).toFixed(2)} {p.currency}
+                        </span>
+                        {/* Who paid. The internal id stays visible underneath so a
+                            deleted or imported user is still traceable. */}
+                        {payer ? (
+                          <a
+                            href={`https://github.com/${payer.login}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-2 py-0.5 text-[11px] text-ink-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+                          >
+                            {describeActor(payer)}
+                          </a>
+                        ) : null}
+                      </div>
+
+                      <p className="mt-1 font-mono text-[11px] text-ink-400">
+                        Payment ID: <span className="text-ink-200">{p.id}</span> &middot;{" "}
+                        {payer?.email ? (
+                          <>
+                            Email: <span className="text-ink-200">{payer.email}</span> &middot;{" "}
+                          </>
+                        ) : null}
+                        User ID: <span className="text-ink-200">{p.user_id}</span> &middot;{" "}
+                        {new Date(p.created_at).toISOString()}
+                      </p>
+
+                      {p.crypto_transaction_hash ? (
+                        <p className="mt-1.5 font-mono text-[11px] text-ink-400 break-all">
+                          Tx Hash:{" "}
+                          <a
+                            href={`https://basescan.org/tx/${p.crypto_transaction_hash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
+                          >
+                            <span>{p.crypto_transaction_hash}</span>
+                            <IconExternalLink className="h-3 w-3 shrink-0" />
+                          </a>
+                        </p>
+                      ) : (
+                        <p className="mt-1 font-mono text-[11px] text-ink-500">
+                          No on-chain transaction hash submitted yet
+                        </p>
+                      )}
+
+                      {p.failure_reason ? (
+                        <p className="mt-1 text-xs text-danger-300">
+                          Failure reason: {p.failure_reason}
+                        </p>
+                      ) : null}
                     </div>
 
-                    <p className="mt-1 font-mono text-[11px] text-ink-400">
-                      Payment ID: <span className="text-ink-200">{p.id}</span> &middot; User ID:{" "}
-                      <span className="text-ink-200">{p.user_id}</span> &middot;{" "}
-                      {new Date(p.created_at).toISOString()}
-                    </p>
-
-                    {p.crypto_transaction_hash ? (
-                      <p className="mt-1.5 font-mono text-[11px] text-ink-400 break-all">
-                        Tx Hash:{" "}
-                        <a
-                          href={`https://basescan.org/tx/${p.crypto_transaction_hash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
-                        >
-                          <span>{p.crypto_transaction_hash}</span>
-                          <IconExternalLink className="h-3 w-3 shrink-0" />
-                        </a>
-                      </p>
-                    ) : (
-                      <p className="mt-1 font-mono text-[11px] text-ink-500">
-                        No on-chain transaction hash submitted yet
-                      </p>
-                    )}
-
-                    {p.failure_reason ? (
-                      <p className="mt-1 text-xs text-danger-300">
-                        Failure reason: {p.failure_reason}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  {/* Manual On-Chain Actions (USDC pending verification) */}
-                  {p.status === "pending_verification" && p.payment_provider === "usdc" ? (
-                    <div className="flex shrink-0 flex-col items-start lg:items-end gap-2 pt-1">
-                      <form action={runVerificationAction}>
-                        <input type="hidden" name="paymentId" value={p.id} />
-                        <label className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                          <input
-                            type="checkbox"
-                            name="confirm"
-                            aria-label="Confirm on-chain verification"
-                            className="h-3.5 w-3.5 accent-brand-500 rounded"
-                          />
-                          <span className="font-mono text-[11px]">confirm</span>
-                          <button type="submit" className="btn btn-primary btn-sm h-7 text-xs ml-1">
-                            Verify On-Chain Now
-                          </button>
-                        </label>
-                      </form>
-
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* Manual Approve */}
-                        <form action={manualDecisionAction}>
+                    {/* Manual On-Chain Actions (USDC pending verification) */}
+                    {p.status === "pending_verification" && p.payment_provider === "usdc" ? (
+                      <div className="flex shrink-0 flex-col items-start lg:items-end gap-2 pt-1">
+                        <form action={runVerificationAction}>
                           <input type="hidden" name="paymentId" value={p.id} />
-                          <input type="hidden" name="decision" value="confirmed" />
-                          <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                          <label className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
                             <input
                               type="checkbox"
                               name="confirm"
-                              aria-label="Confirm manual approval"
+                              aria-label="Confirm on-chain verification"
                               className="h-3.5 w-3.5 accent-brand-500 rounded"
                             />
                             <span className="font-mono text-[11px]">confirm</span>
-                            <button
-                              type="submit"
-                              className="btn btn-ghost btn-sm h-7 text-xs text-signal-300 ml-1"
-                            >
-                              Force Approve
+                            <button type="submit" className="btn btn-primary btn-sm h-7 text-xs ml-1">
+                              Verify On-Chain Now
                             </button>
                           </label>
                         </form>
 
-                        {/* Manual Reject */}
-                        <form action={manualDecisionAction}>
-                          <input type="hidden" name="paymentId" value={p.id} />
-                          <input type="hidden" name="decision" value="rejected" />
-                          <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
-                            <input
-                              type="checkbox"
-                              name="confirm"
-                              aria-label="Confirm manual rejection"
-                              className="h-3.5 w-3.5 accent-danger-500 rounded"
-                            />
-                            <span className="font-mono text-[11px]">confirm</span>
-                            <button
-                              type="submit"
-                              className="btn btn-ghost btn-sm h-7 text-xs text-danger-300 hover:border-danger-500/40 ml-1"
-                            >
-                              Reject
-                            </button>
-                          </label>
-                        </form>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Manual Approve */}
+                          <form action={manualDecisionAction}>
+                            <input type="hidden" name="paymentId" value={p.id} />
+                            <input type="hidden" name="decision" value="confirmed" />
+                            <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                              <input
+                                type="checkbox"
+                                name="confirm"
+                                aria-label="Confirm manual approval"
+                                className="h-3.5 w-3.5 accent-brand-500 rounded"
+                              />
+                              <span className="font-mono text-[11px]">confirm</span>
+                              <button
+                                type="submit"
+                                className="btn btn-ghost btn-sm h-7 text-xs text-signal-300 ml-1"
+                              >
+                                Force Approve
+                              </button>
+                            </label>
+                          </form>
+
+                          {/* Manual Reject */}
+                          <form action={manualDecisionAction}>
+                            <input type="hidden" name="paymentId" value={p.id} />
+                            <input type="hidden" name="decision" value="rejected" />
+                            <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                              <input
+                                type="checkbox"
+                                name="confirm"
+                                aria-label="Confirm manual rejection"
+                                className="h-3.5 w-3.5 accent-danger-500 rounded"
+                              />
+                              <span className="font-mono text-[11px]">confirm</span>
+                              <button
+                                type="submit"
+                                className="btn btn-ghost btn-sm h-7 text-xs text-danger-300 hover:border-danger-500/40 ml-1"
+                              >
+                                Reject
+                              </button>
+                            </label>
+                          </form>
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            ))}
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

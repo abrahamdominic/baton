@@ -42,16 +42,27 @@ function isFeatureKey(value: unknown): value is FeatureKey {
   return typeof value === "string" && KNOWN_FEATURE_KEYS.has(value);
 }
 
+/**
+ * Read one numeric cap out of a free-form `limits` blob.
+ *
+ * `null` means "no cap" and is only honoured when the stored value is
+ * genuinely `null`/`undefined` — i.e. when an administrator deliberately wrote
+ * "unlimited". A malformed, negative, zero, or fractional value falls back to
+ * `0` instead of `null`: failing open would hand a corrupted row an unlimited
+ * allowance, and failing closed costs a customer nothing they could prove they
+ * were entitled to.
+ */
+function readCap(raw: Record<string, unknown>, key: "maxRepos" | "maxMembers"): number | null {
+  const value = raw[key];
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
+  return 0;
+}
+
 export function parsePlanLimits(limits: unknown): PlanLimits {
   const raw = (limits ?? {}) as Record<string, unknown>;
-  const maxRepos =
-    typeof raw.maxRepos === "number" && Number.isInteger(raw.maxRepos) && raw.maxRepos > 0
-      ? raw.maxRepos
-      : null;
-  const maxMembers =
-    typeof raw.maxMembers === "number" && Number.isInteger(raw.maxMembers) && raw.maxMembers > 0
-      ? raw.maxMembers
-      : null;
+  const maxRepos = readCap(raw, "maxRepos");
+  const maxMembers = readCap(raw, "maxMembers");
   const features = Array.isArray(raw.features)
     ? (raw.features.filter(isFeatureKey) as FeatureKey[])
     : [];
@@ -64,11 +75,26 @@ export function parsePlanLimits(limits: unknown): PlanLimits {
 
 export function featureMapFromLimits(limits: PlanLimits): FeatureMap {
   const map: FeatureMap = {};
-  for (const key of limits.features ?? []) map[key] = true;
+  for (const key of limits.features ?? []) {
+    if (key === FEATURE_KEYS.unlimitedRepos) {
+      // `unlimited_repos` is a derived alias of the repo cap: a plan listing the
+      // key is still bounded when maxRepos is numeric. Resolve it here so the
+      // feature map never lies about the actual cap.
+      map[key] = limits.maxRepos === null;
+      continue;
+    }
+    map[key] = true;
+  }
   return map;
 }
 
 export function hasFeature(entitlement: Entitlement, key: FeatureKey): boolean {
+  // `unlimited_repos` is a derived alias of the repo cap AND the plan's own
+  // grant: a plan that never lists the key grants nothing, and a plan that
+  // lists it is still bounded when maxRepos is numeric.
+  if (key === FEATURE_KEYS.unlimitedRepos) {
+    return entitlement.features[key] === true && entitlement.maxRepos === null;
+  }
   return entitlement.features[key] === true;
 }
 

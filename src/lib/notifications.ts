@@ -142,3 +142,35 @@ export function conversationNotificationHref(
   }
   return "/dashboard/notifications";
 }
+
+/** Resolve a PR notification's deep link into the pull request page. */
+export function prNotificationHref(
+  contextJson: string | null | undefined,
+): string {
+  if (!contextJson) return "/dashboard/notifications";
+  try {
+    const ctx = JSON.parse(contextJson) as Record<string, unknown>;
+    const owner = ctx.owner;
+    const repo = ctx.repo;
+    const number = ctx.number;
+    if (
+      typeof owner === "string" &&
+      typeof repo === "string" &&
+      (typeof number === "string" || typeof number === "number")
+    ) {
+      return `/dashboard/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${encodeURIComponent(String(number))}`;
+    }
+  } catch {
+    // malformed context — fall through to the inbox
+  }
+  return "/dashboard/notifications";
+}
+
+/** Resolve any notification to its deep link, by resource type. */
+export function notificationHref(
+  resourceType: string,
+  contextJson: string | null | undefined,
+): string {
+  if (resourceType === "pr") return prNotificationHref(contextJson);
+  return conversationNotificationHref(contextJson);
+}

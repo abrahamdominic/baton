@@ -56,7 +56,9 @@ describe("PricingView component", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const html = ReactDOMServer.renderToString(<PricingView />);
 
-    expect(html).toContain("Individual");
+    // "Free" is the customer-facing label; "individual" is only the stored slug.
+    expect(html).toContain("Free");
+    expect(html).not.toContain("Individual");
     expect(html).toContain("Team");
     expect(html).toContain("Organization");
     expect(html).toContain("$15");
@@ -94,7 +96,8 @@ describe("PricingView component", () => {
   it("renders the plans table even when no plan rows are passed (hardcoded fallback)", () => {
     const html = ReactDOMServer.renderToString(<PricingView plans={[]} />);
     expect(html).toContain("<table");
-    expect(html).toContain("Individual");
+    // "Free" is the customer-facing label; "Individual" is only the stored slug.
+    expect(html).toContain("Free");
     expect(html).toContain("Team");
     expect(html).toContain("Organization");
   });

@@ -17,7 +17,6 @@ import { FEATURE_KEYS, type Entitlement, type FeatureKey } from "../billing/type
 export type IntelligenceFeature = Extract<
   FeatureKey,
   | typeof FEATURE_KEYS.repoIntelligence
-  | typeof FEATURE_KEYS.briefings
   | typeof FEATURE_KEYS.workContext
   | typeof FEATURE_KEYS.changeImpact
 >;
@@ -32,7 +31,6 @@ export interface IntelligenceAccess {
 
 const FEATURE_LABELS: Record<IntelligenceFeature, string> = {
   [FEATURE_KEYS.repoIntelligence]: "Repository intelligence and grounded Q&A",
-  [FEATURE_KEYS.briefings]: "Developer, review and change-impact briefings",
   [FEATURE_KEYS.workContext]: "Saved work context",
   [FEATURE_KEYS.changeImpact]: "Change-impact analysis and CI investigation",
 };

@@ -343,10 +343,15 @@ export async function addInstallationToTeam(teamId: string, installationId: stri
   const owned = mine.find((i) => i.id === installationId);
   if (!owned) throw new Error("That GitHub installation does not belong to your account.");
 
-  const existing = await prisma.teamInstallation.findUnique({
+  const existingTeam = await prisma.teamInstallation.findUnique({
     where: { installationId },
   });
-  if (existing) throw new Error("This GitHub account is already shared in a workspace.");
+  const existingOrg = await prisma.organizationInstallation.findUnique({
+    where: { installationId },
+  });
+  if (existingTeam || existingOrg) {
+    throw new Error("This GitHub account is already shared in a workspace.");
+  }
 
   await prisma.teamInstallation.create({
     data: { teamId, installationId, addedById: user.id },
@@ -372,6 +377,9 @@ export async function removeInstallationFromTeam(teamId: string, installationId:
 export async function deleteTeam(teamId: string): Promise<void> {
   const user = await requireActiveUser();
   await requireTeamMember(teamId, user.id, "owner");
-  await prisma.team.delete({ where: { id: teamId } });
+  await prisma.$transaction([
+    prisma.auditLog.deleteMany({ where: { targetType: "team", targetId: teamId } }),
+    prisma.team.delete({ where: { id: teamId } }),
+  ]);
   revalidatePath("/dashboard/team");
 }
