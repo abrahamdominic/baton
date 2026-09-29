@@ -3,6 +3,7 @@ import Link from "next/link";
 import { listAdminAudit } from "@/lib/billing/audit";
 import { IconArrowLeft, IconLock } from "@/components/icons";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -12,19 +13,20 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminAuditPage() {
+  const { t } = await getTranslatorForRequest();
   const audit = await listAdminAudit({ limit: 100 }).catch(() => []);
 
   return (
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="Security Audit Log"
-        description="Immutable administrative event ledger. Rows are append-only and cannot be updated, modified, or purged."
+        title={t("admin:audit_title")}
+        description={t("admin:audit_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -45,8 +47,8 @@ export default async function AdminAuditPage() {
           <div className="p-8">
             <EmptyState
               icon={IconLock}
-              title="No administrative audit events recorded yet"
-              hint="When administrators modify user roles, override subscriptions, or change plan pricing, immutable audit entries will appear here."
+              title={t("admin:audit_empty_title")}
+              hint={t("admin:audit_empty_hint")}
             />
           </div>
         ) : (
@@ -88,7 +90,10 @@ export default async function AdminAuditPage() {
                           ) : null}
                         </>
                       ) : (
-                        <>Actor: <span className="text-ink-200">System / Bootstrap</span></>
+                        <>
+                          {t("admin:audit_actor")}{" "}
+                          <span className="text-ink-200">{t("admin:audit_system_actor")}</span>
+                        </>
                       )}
                       {a.adminUserId ? (
                         <span className="text-ink-500">

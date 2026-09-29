@@ -1,4 +1,4 @@
-import { STATE_META, type BatonState, type StateMeta } from "@/lib/engine/types";
+import type { StateMeta } from "@/lib/engine/types";
 import { IconCheckCircle } from "@/components/icons";
 import { SignOutLink } from "@/components/sign-out-link";
 
@@ -26,25 +26,6 @@ export function Badge({
       <span>{children}</span>
     </span>
   );
-}
-
-export function StateBadge({ state }: { state: string }) {
-  const meta = STATE_META[state as BatonState];
-  if (!meta) return <Badge tone="neutral">{state}</Badge>;
-  return <Badge tone={meta.tone}>{meta.label}</Badge>;
-}
-
-export function Duration({ hours }: { hours: number }) {
-  return <span className="font-mono">{formatHours(hours)}</span>;
-}
-
-function formatHours(hours: number): string {
-  if (hours < 1) return "under an hour";
-  if (hours < 24) return `${Math.max(0, Math.round(hours))}h`;
-  const days = Math.floor(hours / 24);
-  const rem = Math.round(hours % 24);
-  if (days === 1) return rem ? `1d ${rem}h` : "1d";
-  return rem ? `${days}d ${rem}h` : `${days}d`;
 }
 
 export function AccountHeader({

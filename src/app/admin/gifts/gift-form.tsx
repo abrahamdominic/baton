@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useActionState } from "react";
 import { giftPlanAction, type GiftActionResult } from "./actions";
 import { IconGift, IconSearch, IconCheck, IconChevronDown, IconX, IconShield } from "@/components/icons";
+import { useTranslation } from "@/lib/i18n/provider";
+import { formatCurrency, formatDate } from "@/lib/i18n/format";
 
 export interface GiftUser {
   id: string;
@@ -30,6 +32,7 @@ export function GiftForm({
   users: GiftUser[];
   plans: GiftPlanOption[];
 }) {
+  const { t, locale } = useTranslation();
   const [state, formAction, pending] = useActionState<GiftActionResult, FormData>(giftPlanAction, { ok: false });
 
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -72,15 +75,26 @@ export function GiftForm({
   const accessEndsAt = useMemo(() => {
     const d = new Date();
     d.setUTCMonth(d.getUTCMonth() + months);
-    return d.toISOString().slice(0, 10);
-  }, [months]);
+    return formatDate(d, locale, { year: "numeric", month: "short", day: "numeric" });
+  }, [months, locale]);
 
   const priceLabel =
     selectedPlan && !selectedPlan.price_custom
-      ? durationType === "annual"
-        ? `$${(selectedPlan.annual_price_cents / 100).toFixed(2)}/year value`
-        : `$${(selectedPlan.monthly_price_cents / 100).toFixed(2)}/month value`
-      : "custom priced";
+      ? t(
+          durationType === "annual"
+            ? "admin:gift_price_year_value"
+            : "admin:gift_price_month_value",
+          {
+            amount: formatCurrency(
+              durationType === "annual"
+                ? selectedPlan.annual_price_cents
+                : selectedPlan.monthly_price_cents,
+              "USD",
+              locale,
+            ),
+          },
+        )
+      : t("admin:gift_price_custom");
 
   const resetAll = () => {
     setSelectedUserId(null);
@@ -99,7 +113,7 @@ export function GiftForm({
         <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3.5">
           <IconGift className="h-4 w-4 text-brand-300" />
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-300">
-            Gift a paid plan
+            {t("admin:gift_form_title")}
           </span>
         </div>
 
@@ -109,16 +123,15 @@ export function GiftForm({
               <div className="flex items-start gap-3 rounded-lg border border-signal-500/30 bg-signal-500/10 p-4">
                 <IconCheck className="mt-0.5 h-5 w-5 shrink-0 text-signal-300" />
                 <div>
-                  <p className="text-sm font-semibold text-white">Paid plan gifted</p>
+                  <p className="text-sm font-semibold text-white">{t("admin:gift_success_title")}</p>
                   <p className="mt-0.5 text-sm text-ink-300">{state.detail}</p>
                   <p className="mt-1 text-xs text-ink-400">
-                    Recorded in the audit log, gift grants ledger, and subscription history. The user&apos;s
-                    billing page shows an admin-gifted badge and the exact access-end date.
+                    {t("admin:gift_success_hint")}
                   </p>
                 </div>
               </div>
               <button type="button" onClick={resetAll} className="btn btn-ghost btn-sm">
-                Gift another plan
+                {t("admin:gift_another")}
               </button>
             </div>
           ) : null}
@@ -129,7 +142,9 @@ export function GiftForm({
               <div className="grid gap-5 md:grid-cols-2">
                 {/* User search combobox */}
                 <div ref={comboRef} className="relative">
-                  <label className="mb-1.5 block text-xs font-medium text-ink-300">Recipient</label>
+                  <label className="mb-1.5 block text-xs font-medium text-ink-300">
+                    {t("admin:gift_recipient")}
+                  </label>
                   {selectedUser ? (
                     <div className="flex items-center justify-between rounded-lg border border-brand-500/40 bg-ink-950/60 px-3 py-2.5">
                       <div className="flex min-w-0 items-center gap-3">
@@ -158,7 +173,7 @@ export function GiftForm({
                           setSelectedUserId(null);
                           setQuery("");
                         }}
-                        aria-label="Clear selected user"
+                        aria-label={t("admin:gift_clear_user")}
                         className="rounded-md p-1 text-ink-400 transition-colors hover:bg-white/[0.06] hover:text-white"
                       >
                         <IconX className="h-4 w-4" />
@@ -175,7 +190,7 @@ export function GiftForm({
                           setOpen(true);
                         }}
                         onFocus={() => setOpen(true)}
-                        placeholder="Search @login or name…"
+                        placeholder={t("admin:gift_search_placeholder")}
                         className="w-full rounded-lg border border-white/[0.1] bg-ink-950/60 pl-9 pr-9 py-2.5 text-sm text-white placeholder:text-ink-500 outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
                       />
                       <IconChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-ink-500" />
@@ -185,7 +200,9 @@ export function GiftForm({
                   {!selectedUser && open ? (
                     <ul className="absolute z-20 mt-1.5 max-h-64 w-full overflow-y-auto rounded-lg border border-white/[0.1] bg-ink-900 shadow-2xl">
                       {filtered.length === 0 ? (
-                        <li className="px-3 py-3 text-sm text-ink-500">No users match “{query}”.</li>
+                        <li className="px-3 py-3 text-sm text-ink-500">
+                          {t("admin:gift_no_users_match", { query })}
+                        </li>
                       ) : (
                         filtered.map((u) => (
                           <li key={u.id}>
@@ -245,7 +262,9 @@ export function GiftForm({
               {/* Duration */}
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-xs font-medium text-ink-300">Duration</label>
+                  <label className="mb-1.5 block text-xs font-medium text-ink-300">
+                    {t("admin:gift_duration")}
+                  </label>
                   <div className="flex overflow-hidden rounded-lg border border-white/[0.1]">
                     <button
                       type="button"
@@ -256,7 +275,7 @@ export function GiftForm({
                           : "text-ink-400 hover:bg-white/[0.04]"
                       }`}
                     >
-                      Monthly
+                      {t("admin:gift_monthly")}
                     </button>
                     <button
                       type="button"
@@ -267,19 +286,25 @@ export function GiftForm({
                           : "text-ink-400 hover:bg-white/[0.04]"
                       }`}
                     >
-                      Annual
+                      {t("admin:gift_annual")}
                     </button>
                   </div>
                   <p className="mt-1.5 text-[11px] text-ink-500">
-                    {durationType === "annual"
-                      ? "One year-long grant per selected year."
-                      : "The grant renews at the end unless an administrator extends it."}
+                    {t(
+                      durationType === "annual"
+                        ? "admin:gift_duration_hint_annual"
+                        : "admin:gift_duration_hint_monthly",
+                    )}
                   </p>
                 </div>
 
                 <div>
                   <label className="mb-1.5 block text-xs font-medium text-ink-300">
-                    {durationType === "monthly" ? "Months of access" : "Years of access"}
+                    {t(
+                      durationType === "monthly"
+                        ? "admin:gift_months_of_access"
+                        : "admin:gift_years_of_access",
+                    )}
                   </label>
                   {durationType === "monthly" ? (
                     <div className="grid grid-cols-2 gap-2">
@@ -300,7 +325,7 @@ export function GiftForm({
                         ))}
                       </div>
                       <label className="flex items-center gap-2 rounded-md border border-white/[0.08] bg-ink-950/50 px-2.5 py-1">
-                        <span className="text-[11px] text-ink-500">Custom</span>
+                        <span className="text-[11px] text-ink-500">{t("admin:gift_custom")}</span>
                         <input
                           type="number"
                           min={1}
@@ -330,7 +355,7 @@ export function GiftForm({
                         ))}
                       </div>
                       <label className="flex items-center gap-2 rounded-md border border-white/[0.08] bg-ink-950/50 px-2.5 py-1">
-                        <span className="text-[11px] text-ink-500">Custom</span>
+                        <span className="text-[11px] text-ink-500">{t("admin:gift_custom")}</span>
                         <input
                           type="number"
                           min={1}
@@ -348,7 +373,7 @@ export function GiftForm({
               {/* Note */}
               <div>
                 <label htmlFor="gift-note" className="mb-1.5 block text-xs font-medium text-ink-300">
-                  Note (optional)
+                  {t("admin:gift_note_optional")}
                 </label>
                 <textarea
                   id="gift-note"
@@ -356,7 +381,7 @@ export function GiftForm({
                   onChange={(e) => setNote(e.target.value)}
                   maxLength={500}
                   rows={2}
-                  placeholder="Why is this being gifted? (visible to other admins and in the audit trail)"
+                  placeholder={t("admin:gift_note_placeholder")}
                   className="w-full resize-none rounded-lg border border-white/[0.1] bg-ink-950/60 px-3 py-2.5 text-sm text-white placeholder:text-ink-500 outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
@@ -369,7 +394,7 @@ export function GiftForm({
 
               <div className="flex items-center justify-between border-t border-white/[0.06] pt-4">
                 <p className="text-[11px] text-ink-500">
-                  No money moves. Access expires automatically. Fully audited.
+                  {t("admin:gift_footer_note")}
                 </p>
                 <button
                   type="button"
@@ -377,7 +402,7 @@ export function GiftForm({
                   onClick={() => setMode("confirm")}
                   className="btn btn-primary btn-sm"
                 >
-                  Review gift
+                  {t("admin:gift_review")}
                 </button>
               </div>
             </div>
@@ -402,18 +427,22 @@ export function GiftForm({
                   )}
                   <div className="min-w-0">
                     <p className="truncate font-mono text-sm font-semibold text-white">@{selectedUser?.login}</p>
-                    <p className="truncate text-xs text-ink-400">{selectedUser?.name ?? "GitHub user"}</p>
+                    <p className="truncate text-xs text-ink-400">
+                      {selectedUser?.name ?? t("admin:gift_github_user")}
+                    </p>
                   </div>
                 </div>
 
                 <div className="rounded-lg border border-white/[0.08] bg-ink-950/50 p-4">
-                  <p className="text-xs font-medium text-ink-300">Grant summary</p>
+                  <p className="text-xs font-medium text-ink-300">{t("admin:gift_summary")}</p>
                   <p className="mt-1.5 text-sm text-white">
                     <span className="font-semibold text-brand-300">{selectedPlan?.name}</span> ·{" "}
-                    {months} month{months === 1 ? "" : "s"} ({durationType})
+                    {t("admin:gifts_months", { count: months })} ({t(
+                      durationType === "annual" ? "admin:gift_annual" : "admin:gift_monthly",
+                    ).toLowerCase()})
                   </p>
                   <p className="mt-0.5 text-xs text-ink-400">
-                    {priceLabel} · access until {accessEndsAt}
+                    {priceLabel} · {t("admin:gift_access_until", { date: accessEndsAt })}
                   </p>
                 </div>
               </div>
@@ -421,19 +450,19 @@ export function GiftForm({
               <div className="space-y-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] p-4 text-xs">
                 <p className="flex items-center gap-2 font-medium text-amber-300">
                   <IconShield className="h-4 w-4" />
-                  This is real paid access. Confirm the details before granting.
+                  {t("admin:gift_confirm_warning")}
                 </p>
                 <ul className="list-disc space-y-1 pl-5 text-ink-300">
-                  <li>No payment or Stripe/USDC charge is created against the user.</li>
-                  <li>The user&apos;s plan features and limits unlock immediately.</li>
-                  <li>Access ends automatically on {accessEndsAt}. It never renews or charges.</li>
-                  <li>The action is recorded in the immutable audit log and subscription history.</li>
+                  <li>{t("admin:gift_warning_no_charge")}</li>
+                  <li>{t("admin:gift_warning_unlocks")}</li>
+                  <li>{t("admin:gift_warning_no_renew", { date: accessEndsAt })}</li>
+                  <li>{t("admin:gift_warning_audited")}</li>
                 </ul>
               </div>
 
               {note ? (
                 <p className="rounded-lg border border-white/[0.08] bg-ink-950/50 px-3 py-2 text-xs text-ink-300">
-                  <span className="font-medium text-ink-400">Note:</span> {note}
+                  <span className="font-medium text-ink-400">{t("admin:note_label")}</span> {note}
                 </p>
               ) : null}
 
@@ -450,7 +479,7 @@ export function GiftForm({
                   className="h-4 w-4 rounded accent-brand-500"
                   defaultChecked={false}
                 />
-                I confirm that gifting this plan grants real paid access without payment.
+                {t("admin:gift_confirm_checkbox")}
               </label>
 
               {!state.ok && state.error ? (
@@ -461,10 +490,10 @@ export function GiftForm({
 
               <div className="flex items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
                 <button type="button" onClick={() => setMode("form")} className="btn btn-ghost btn-sm">
-                  Back
+                  {t("admin:back")}
                 </button>
                 <button type="submit" disabled={pending} className="btn btn-primary btn-sm">
-                  {pending ? "Gifting…" : "Confirm gift"}
+                  {pending ? t("admin:gift_pending") : t("admin:gift_confirm")}
                 </button>
               </div>
             </form>

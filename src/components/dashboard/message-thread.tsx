@@ -11,6 +11,7 @@ import {
 } from "@/app/dashboard/team/[teamId]/messaging/actions";
 import { ensureDevice, unwrapMyThreadKey, decryptMessage } from "@/lib/messaging/client";
 import { IconSend, IconLock, IconAlertCircle } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/provider";
 
 interface ThreadProps {
   conversationId: string;
@@ -39,6 +40,7 @@ export function MessageThread({
   initialMessages,
   initialMessageCount,
 }: ThreadProps) {
+  const { t } = useI18n();
   const [threadKeyB64, setThreadKeyB64] = useState<string | null>(null);
   const [messages, setMessages] = useState<DecryptedMessage[]>([]);
   const [ready, setReady] = useState(false);
@@ -335,7 +337,7 @@ export function MessageThread({
           <button
             type="submit"
             disabled={!canDecrypt || !draft.trim() || sending}
-            aria-label="Send message"
+            aria-label={t("messaging:send_message")}
             className="btn btn-primary btn-sm h-10 shrink-0"
           >
             <IconSend className="h-4 w-4" />

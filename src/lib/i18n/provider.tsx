@@ -63,7 +63,7 @@ export interface I18nContextValue {
   loading: boolean;
   /** Set when the account save failed, so the UI can explain without blocking. */
   saveError: string | null;
-  reportSaveError: (message: string) => void;
+  reportSaveError: (key: string | null) => void;
   /** Locale-aware number/date/currency helpers (lan.md §13). */
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
   formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
@@ -208,7 +208,7 @@ export function I18nProvider({
           // The language stays changed locally and on the account next time it
           // syncs; only the user is told, and only if we can say it.
           if (!mounted.current) return;
-          setSaveError("settings:language.save_failed");
+          setSaveError("language:save_failed");
         });
     },
     [persist],

@@ -4,6 +4,8 @@ import { adminDashboardMetrics, formatCurrencyTotal } from "@/lib/billing/analyt
 import { listPaymentsAdmin } from "@/lib/billing/payments";
 import { recentSystemEvents } from "@/lib/billing/system-events";
 import { StatCard, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { paymentStatusLabel } from "@/lib/i18n/billing-label";
 import {
   IconUser,
   IconActivity,
@@ -34,6 +36,7 @@ function statusTone(status: string): string {
 }
 
 export default async function AdminOverviewPage() {
+  const { t, locale, formatDateTime, formatTime } = await getTranslatorForRequest();
   const [metrics, userCount, latestPayments, latestEvents, repoCount] = await Promise.all([
     adminDashboardMetrics(),
     prisma.user.count(),
@@ -53,16 +56,16 @@ export default async function AdminOverviewPage() {
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-signal-500/30 bg-signal-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-signal-400">
             <span className="h-1.5 w-1.5 rounded-full bg-signal-400" />
-            Live Platform Services
+            {t("admin:live_services")}
           </span>
         }
-        title="Control Panel Overview"
-        description="Real-time administrative telemetry across user accounts, billing subscriptions, and background engine workers."
+        title={t("admin:overview_title")}
+        description={t("admin:overview_description")}
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
             <Link href="/admin/analytics" className="btn btn-ghost btn-sm">
               <IconActivity className="h-3.5 w-3.5" />
-              <span>Deep Analytics</span>
+              <span>{t("admin:overview_deep_analytics")}</span>
               <IconArrowRight className="h-3 w-3" />
             </Link>
           </div>
@@ -72,29 +75,29 @@ export default async function AdminOverviewPage() {
       {/* 4 Executive Stat Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Registered Users"
+          label={t("admin:stat_users")}
           value={userCount}
-          detail="Total authenticated GitHub users"
+          detail={t("admin:stat_users_detail")}
           icon={IconUser}
         />
         <StatCard
-          label="Active Subscriptions"
+          label={t("admin:stat_active_subscriptions")}
           value={metrics.activeSubscriptions}
-          detail="Accounts with paid access"
+          detail={t("admin:stat_active_subscriptions_detail")}
           tone="signal"
           icon={IconShield}
         />
         <StatCard
-          label="Pending Checkouts"
+          label={t("admin:stat_pending_checkouts")}
           value={metrics.pendingSubscriptions}
-          detail="Awaiting payment verification"
+          detail={t("admin:stat_pending_checkouts_detail")}
           tone={metrics.pendingSubscriptions > 0 ? "brand" : "default"}
           icon={IconClock}
         />
         <StatCard
-          label="Past Due / Failed"
+          label={t("admin:stat_past_due")}
           value={metrics.pastDue}
-          detail={metrics.pastDue > 0 ? "Requires manual review" : "Zero payment delinquencies"}
+          detail={metrics.pastDue > 0 ? t("admin:stat_past_due_warn") : t("admin:stat_past_due_clear")}
           tone={metrics.pastDue > 0 ? "danger" : "default"}
           icon={IconAlertCircle}
         />
@@ -106,20 +109,20 @@ export default async function AdminOverviewPage() {
         <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-              Payment Volume &amp; Channels
+              {t("admin:payment_volume")}
             </span>
             <Link
               href="/admin/payments"
               className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
             >
-              <span>Manage payments</span>
+              <span>{t("admin:manage_payments")}</span>
               <IconArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
           <div className="p-5 sm:p-6 space-y-5">
             <div>
-              <span className="text-xs text-ink-400">Total Confirmed Revenue</span>
+              <span className="text-xs text-ink-400">{t("admin:total_confirmed_revenue")}</span>
               {revenueByCurrency.length === 0 ? (
                 <div className="mt-1 font-mono text-3xl font-extrabold tabular-nums tracking-tight text-ink-500">
                   &mdash;
@@ -129,7 +132,7 @@ export default async function AdminOverviewPage() {
                   {revenueByCurrency.map(([currency, total]) => (
                     <div key={currency} className="flex items-baseline gap-2">
                       <span className="font-mono text-3xl font-extrabold tabular-nums tracking-tight text-white">
-                        {formatCurrencyTotal(currency, total.amountMinor).split(" ")[1]}
+                        {formatCurrencyTotal(currency, total.amountMinor, locale).split(" ")[1]}
                       </span>
                       <span className="font-mono text-xs font-semibold text-ink-400">
                         {currency}
@@ -140,15 +143,14 @@ export default async function AdminOverviewPage() {
               )}
               {revenueByCurrency.length > 1 && (
                 <p className="mt-2 text-[11px] leading-relaxed text-ink-500">
-                  Totals are listed per currency and are never converted or added
-                  together.
+                  {t("admin:revenue_per_currency_note")}
                 </p>
               )}
             </div>
 
             <div className="space-y-3.5 border-t border-white/[0.06] pt-4">
               <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-ink-500">
-                Revenue by Provider
+                {t("admin:revenue_by_provider")}
               </span>
 
               {/* `byProvider` is only populated for confirmed payments, unlike
@@ -175,12 +177,12 @@ export default async function AdminOverviewPage() {
                   <div key={provider} className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-mono uppercase text-ink-300">
-                        {provider === "usdc" ? "USDC (Base)" : "Stripe (Card)"}
+                        {t(provider === "usdc" ? "admin:provider_usdc" : "admin:provider_stripe")}
                       </span>
                       <span className="font-mono text-ink-200">
-                        {formatCurrencyTotal(currency, details.amountMinor)}{" "}
+                        {formatCurrencyTotal(currency, details.amountMinor, locale)}{" "}
                         <span className="text-ink-500">
-                          ({details.count} pay{details.count === 1 ? "" : "s"} &middot; {pct}%)
+                          {t("admin:provider_payments", { count: details.count, pct })}
                         </span>
                       </span>
                     </div>
@@ -204,20 +206,20 @@ export default async function AdminOverviewPage() {
         <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-              Latest Ingested Payments
+              {t("admin:latest_payments")}
             </span>
             <Link
               href="/admin/payments"
               className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
             >
-              <span>View all</span>
+              <span>{t("admin:view_all")}</span>
               <IconArrowRight className="h-3 w-3" />
             </Link>
           </div>
 
           {latestPayments.length === 0 ? (
             <div className="p-8 text-center text-xs text-ink-500">
-              No payment transactions recorded yet.
+              {t("admin:no_payments")}
             </div>
           ) : (
             <ul className="divide-y divide-white/[0.05]">
@@ -236,7 +238,7 @@ export default async function AdminOverviewPage() {
                       </span>
                     </div>
                     <p className="mt-0.5 font-mono text-[10px] text-ink-500">
-                      {new Date(p.created_at).toLocaleDateString("en-US", {
+                      {formatDateTime(p.created_at, {
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",
@@ -251,7 +253,7 @@ export default async function AdminOverviewPage() {
                         p.status,
                       )}`}
                     >
-                      {p.status.replace("_", " ")}
+                      {paymentStatusLabel(p.status, t)}
                     </span>
                     <span className="font-mono font-bold tabular-nums text-white">
                       ${(p.amount / 100).toFixed(2)}
@@ -269,11 +271,11 @@ export default async function AdminOverviewPage() {
         <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-              System Events Pulse
+              {t("admin:system_events_pulse")}
             </span>
             {errorEvents > 0 ? (
               <span className="rounded bg-danger-500/15 px-1.5 py-0.2 font-mono text-[10px] font-bold text-danger-300">
-                {errorEvents} Error{errorEvents === 1 ? "" : "s"}
+                {t("admin:system_events_errors", { count: errorEvents })}
               </span>
             ) : null}
           </div>
@@ -281,14 +283,14 @@ export default async function AdminOverviewPage() {
             href="/admin/health"
             className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
           >
-            <span>System Health</span>
+            <span>{t("admin:system_health")}</span>
             <IconArrowRight className="h-3 w-3" />
           </Link>
         </div>
 
         {latestEvents.length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-500">
-            No system events recorded. Platform running cleanly.
+            {t("admin:no_system_events")}
           </div>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
@@ -311,7 +313,7 @@ export default async function AdminOverviewPage() {
                 </span>
                 <span className="min-w-0 flex-1 truncate text-ink-400">{e.message}</span>
                 <span className="shrink-0 font-mono text-[10px] text-ink-500">
-                  {new Date(e.createdAt).toLocaleTimeString()}
+                  {formatTime(e.createdAt)}
                 </span>
               </li>
             ))}
@@ -324,26 +326,26 @@ export default async function AdminOverviewPage() {
         {[
           {
             href: "/admin/users",
-            title: "User Management",
-            desc: "Promote/demote admins, manage suspensions",
+            title: t("admin:nav_users_title"),
+            desc: t("admin:nav_users_desc"),
             icon: IconUser,
           },
           {
             href: "/admin/subscriptions",
-            title: "Subscriptions",
-            desc: "Lifecycle overrides, plan changes",
+            title: t("admin:nav_subscriptions_title"),
+            desc: t("admin:nav_subscriptions_desc"),
             icon: IconLayers,
           },
           {
             href: "/admin/plans",
-            title: "Plan Catalog",
-            desc: "Pricing tiers, feature matrix, limits",
+            title: t("admin:nav_plans_title"),
+            desc: t("admin:nav_plans_desc"),
             icon: IconLayers,
           },
           {
             href: "/admin/github",
-            title: "GitHub Integrations",
-            desc: `${repoCount} repos, app installs & webhooks`,
+            title: t("admin:nav_github_title"),
+            desc: t("admin:nav_github_desc", { count: repoCount }),
             icon: IconGitHub,
           },
         ].map((c) => (

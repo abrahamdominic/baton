@@ -25,17 +25,23 @@ import { getOnboardingGuideForRepo } from "@/lib/intelligence/onboarding";
 import { intelligenceAccess, UPGRADE_HREF } from "@/lib/intelligence/access";
 import { FEATURE_KEYS } from "@/lib/billing/types";
 import { IntelligenceQuestionForm } from "./question-form";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import type { Translator } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
 
-/** Flags rendered as present/absent, with the evidence that establishes each. */
-const FLAG_ROWS: { key: keyof IntelligenceFlags; label: string; absent: string }[] = [
-  { key: "readme", label: "README", absent: "No README in the default branch" },
-  { key: "codeowners", label: "CODEOWNERS", absent: "No CODEOWNERS file" },
-  { key: "contributing", label: "CONTRIBUTING", absent: "No CONTRIBUTING guide" },
-  { key: "ci", label: "CI workflows", absent: "No GitHub Actions workflows" },
-  { key: "securityPolicy", label: "Security policy", absent: "No SECURITY.md" },
-  { key: "license", label: "License", absent: "No license file" },
+/**
+ * Flags rendered as present/absent, with the evidence that establishes each.
+ * Only the keys live here; the labels and absent copy are resolved per request
+ * from `intelligence:flag_*` so the table is identical in every locale.
+ */
+const FLAG_ROWS: { key: keyof IntelligenceFlags; id: string }[] = [
+  { key: "readme", id: "readme" },
+  { key: "codeowners", id: "codeowners" },
+  { key: "contributing", id: "contributing" },
+  { key: "ci", id: "ci" },
+  { key: "securityPolicy", id: "security" },
+  { key: "license", id: "license" },
 ];
 
 type IntelligenceFlags = {
@@ -62,6 +68,8 @@ export default async function IntelligencePage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const currentTab = resolvedSearchParams?.tab === "onboarding" ? "onboarding" : "profile";
 
+  const { t } = await getTranslatorForRequest();
+
   const user = await currentUser();
   if (!user) return null;
 
@@ -80,15 +88,15 @@ export default async function IntelligencePage({
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Repository intelligence"
+          title={t("intelligence:title")}
           description={`${owner}/${repo}`}
         />
         <EmptyState
-          title="Repository intelligence is a paid capability"
-          hint={`${access.label} is included with the Team plan. Your current plan does not include it.`}
+          title={t("intelligence:paid_title")}
+          hint={t("intelligence:paid_hint", { plan: access.label })}
           action={
             <Link href={UPGRADE_HREF} className="btn btn-primary btn-sm">
-              View plans
+              {t("intelligence:paid_action")}
             </Link>
           }
         />
@@ -169,12 +177,15 @@ export default async function IntelligencePage({
             <span>{owner}/{repo}</span>
           </Link>
           <span className="text-ink-600">/</span>
-          <span className="text-ink-400">Intelligence</span>
+          <span className="text-ink-400">{t("intelligence:breadcrumb")}</span>
         </div>
 
         <PageHeader
-          title={`${owner}/${repo} intelligence`}
-          description={`Facts collected from GitHub at revision ${view.insight.revision}, ${hoursSince(view.insight.collectedAt)}h ago. Every claim below links to the file or API response it came from.`}
+          title={t("intelligence:page_title", { repo: `${owner}/${repo}` })}
+          description={t("intelligence:page_description", {
+            revision: view.insight.revision,
+            count: hoursSince(view.insight.collectedAt),
+          })}
           actions={
             <div className="flex items-center gap-2">
               <a href={githubRepoUrl} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
@@ -197,7 +208,7 @@ export default async function IntelligencePage({
               : "text-ink-400 hover:text-white"
           }`}
         >
-          Intelligence Profile & Grounded Q&A
+          {t("intelligence:tab_profile")}
         </Link>
         <Link
           href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=onboarding`}
@@ -207,7 +218,7 @@ export default async function IntelligencePage({
               : "text-ink-400 hover:text-white"
           }`}
         >
-          Developer Onboarding Guide
+          {t("intelligence:tab_onboarding")}
         </Link>
       </div>
 
@@ -223,7 +234,7 @@ export default async function IntelligencePage({
           <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
               <div>
-                <h2 className="text-base font-bold text-white">System Architecture & Tech Stack</h2>
+                <h2 className="text-base font-bold text-white">{t("intelligence:architecture_title")}</h2>
                 <p className="mt-0.5 text-xs text-ink-400">{onboardingGuide.description}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -234,13 +245,7 @@ export default async function IntelligencePage({
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {onboardingGuide.architectureMap.length === 0 ? (
                 <p className="text-[11px] leading-relaxed text-ink-400 sm:col-span-2 lg:col-span-3">
-                  No top-level structure was recognized. The analyzer looks for{" "}
-                  <code className="font-mono text-ink-300">src</code>,{" "}
-                  <code className="font-mono text-ink-300">prisma</code>,{" "}
-                  <code className="font-mono text-ink-300">app</code>,{" "}
-                  <code className="font-mono text-ink-300">lib</code>,{" "}
-                  <code className="font-mono text-ink-300">scripts</code>, or{" "}
-                  <code className="font-mono text-ink-300">docs</code> at the repository root.
+                  {t("intelligence:architecture_empty")}
                 </p>
               ) : (
               onboardingGuide.architectureMap.map((mod, i) => (
@@ -248,7 +253,7 @@ export default async function IntelligencePage({
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-xs text-white">{mod.name}</span>
                     <Badge tone={mod.importance === "critical" ? "warn" : mod.importance === "high" ? "info" : "neutral"}>
-                      {mod.importance}
+                      {importanceLabel(mod.importance, t)}
                     </Badge>
                   </div>
                   <code className="text-[11px] font-mono text-brand-300 block">{mod.path}</code>
@@ -262,8 +267,8 @@ export default async function IntelligencePage({
           {/* Setup & Run Workflow */}
           <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
             <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-              <h2 className="text-sm font-semibold text-white">1. Local Setup Workflow</h2>
-              <p className="mt-0.5 text-xs text-ink-500">Step-by-step commands to get a working local development environment.</p>
+              <h2 className="text-sm font-semibold text-white">{t("intelligence:setup_title")}</h2>
+              <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:setup_description")}</p>
             </div>
             <div className="divide-y divide-white/[0.05]">
               {onboardingGuide.setupWorkflow.map((step) => (
@@ -290,10 +295,10 @@ export default async function IntelligencePage({
           {/* Testing & Verification Workflow */}
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-white">2. Testing & Quality Gates</h3>
+              <h3 className="text-sm font-semibold text-white">{t("intelligence:testing_title")}</h3>
               <p className="text-xs text-ink-300 leading-relaxed">{onboardingGuide.testingWorkflow.details}</p>
               <div className="rounded-lg border border-white/[0.06] bg-ink-950/80 p-3">
-                <span className="text-[10px] font-mono text-ink-500 uppercase">Framework:</span>
+                <span className="text-[10px] font-mono text-ink-500 uppercase">{t("intelligence:framework_label")}</span>
                 <p className="text-xs font-bold text-white mt-0.5">{onboardingGuide.testingWorkflow.testFramework}</p>
                 <div className="mt-2 font-mono text-xs text-brand-300 bg-white/[0.03] p-2 rounded">
                   {onboardingGuide.testingWorkflow.command}
@@ -302,14 +307,14 @@ export default async function IntelligencePage({
             </div>
 
             <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-white">3. CI & Deployment Automation</h3>
+              <h3 className="text-sm font-semibold text-white">{t("intelligence:ci_title")}</h3>
               <p className="text-xs text-ink-300 leading-relaxed">{onboardingGuide.deployWorkflow.details}</p>
               <div className="rounded-lg border border-white/[0.06] bg-ink-950/80 p-3 space-y-1.5">
-                <span className="text-[10px] font-mono text-ink-500 uppercase">Provider:</span>
+                <span className="text-[10px] font-mono text-ink-500 uppercase">{t("intelligence:provider_label")}</span>
                 <p className="text-xs font-bold text-white">{onboardingGuide.deployWorkflow.ciProvider}</p>
                 {onboardingGuide.deployWorkflow.workflows.length > 0 ? (
                   <div className="pt-1">
-                    <span className="text-[10px] font-mono text-ink-500">Configured Workflows:</span>
+                    <span className="text-[10px] font-mono text-ink-500">{t("intelligence:workflows_label")}</span>
                     <ul className="mt-1 space-y-1">
                       {onboardingGuide.deployWorkflow.workflows.map((w, i) => (
                         <li key={i} className="text-xs font-mono text-ink-300">&bull; {w}</li>
@@ -325,11 +330,11 @@ export default async function IntelligencePage({
           <section className="grid gap-6 lg:grid-cols-2">
             <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
               <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-                <h3 className="text-sm font-semibold text-white">Recommended Reading</h3>
+                <h3 className="text-sm font-semibold text-white">{t("intelligence:reading_title")}</h3>
               </div>
               {onboardingGuide.readingList.length === 0 ? (
                 <p className="px-4 py-6 text-center text-[11px] text-ink-400">
-                  No README, CONTRIBUTING, or SECURITY file was found at the repository root.
+                  {t("intelligence:reading_empty")}
                 </p>
               ) : (
               <ul className="divide-y divide-white/[0.05]">
@@ -355,13 +360,12 @@ export default async function IntelligencePage({
 
             <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
               <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-                <h3 className="text-sm font-semibold text-white">Common Pitfalls & Architectural Traps</h3>
+                <h3 className="text-sm font-semibold text-white">{t("intelligence:pitfalls_title")}</h3>
               </div>
               {onboardingGuide.pitfalls.length === 0 ? (
                 <p className="flex items-center gap-2 px-4 py-6 text-[11px] text-ink-400">
                   <IconCheckCircle className="h-3.5 w-3.5 shrink-0 text-signal-400" />
-                  No stale areas were found. This repository has CODEOWNERS, CI,
-                  tests, a linter configuration, and an environment example.
+                  {t("intelligence:pitfalls_empty")}
                 </p>
               ) : (
               <ul className="divide-y divide-white/[0.05]">
@@ -369,7 +373,7 @@ export default async function IntelligencePage({
                   <li key={i} className="p-4 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-warn-300">{pit.pitfall}</span>
-                      <Badge tone="warn">{pit.severity}</Badge>
+                      <Badge tone="warn">{severityLabel(pit.severity, t)}</Badge>
                     </div>
                     <p className="text-ink-300 text-[11px] leading-relaxed">&rarr; {pit.recommendation}</p>
                   </li>
@@ -382,13 +386,13 @@ export default async function IntelligencePage({
           {/* Key Owners */}
           {onboardingGuide.keyOwners.length > 0 ? (
             <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-white">Domain Maintainers & Active Contributors</h3>
+              <h3 className="text-sm font-semibold text-white">{t("intelligence:owners_title")}</h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 {onboardingGuide.keyOwners.map((ownerItem, i) => (
                   <div key={i} className="rounded-lg border border-white/[0.06] bg-ink-950/40 p-3 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-semibold text-white">@{ownerItem.login}</span>
-                      <p className="text-[10px] text-ink-500 font-mono">{ownerItem.commits} recent commits</p>
+                      <p className="text-[10px] text-ink-500 font-mono">{t("intelligence:owners_commits", { count: ownerItem.commits })}</p>
                     </div>
                     <a
                       href={`https://github.com/${ownerItem.login}`}
@@ -410,7 +414,7 @@ export default async function IntelligencePage({
             <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
               <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
                 <IconActivity className="h-4 w-4 text-brand-300" />
-                <h2 className="text-sm font-semibold text-white">Waiting on you</h2>
+                <h2 className="text-sm font-semibold text-white">{t("intelligence:waiting_on_you")}</h2>
                 <span className="font-mono text-xs text-ink-500">({actions.length})</span>
               </div>
               <ul className="divide-y divide-white/[0.05]">
@@ -421,7 +425,7 @@ export default async function IntelligencePage({
                       <p className="text-xs text-ink-400">{a.reason}</p>
                     </div>
                     <Link href={a.href} className="btn btn-ghost btn-sm">
-                      Open
+                      {t("intelligence:open")}
                       <IconArrowLeft className="h-3 w-3 rotate-180" />
                     </Link>
                   </li>
@@ -436,7 +440,9 @@ export default async function IntelligencePage({
             <IconLayers className="h-4 w-4 text-brand-300" />
             <h2 className="text-sm font-semibold text-white">{briefing.title}</h2>
             <span className="ml-auto font-mono text-[10px] text-ink-500">
-              {savedDigest ? `cached r${savedDigest.revision}` : `rendered r${briefing.revision}`}
+              {savedDigest
+                ? t("intelligence:briefing_cached", { revision: savedDigest.revision })
+                : t("intelligence:briefing_rendered", { revision: briefing.revision })}
             </span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
@@ -488,15 +494,15 @@ export default async function IntelligencePage({
       ) : (
         <EmptyState
           icon={IconLayers}
-          title="No evidence-backed observations yet"
-          hint="Nothing in the collected profile can be cited for this repository, so no briefing is shown rather than a guess."
+          title={t("intelligence:briefing_empty_title")}
+          hint={t("intelligence:briefing_empty_hint")}
         />
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
           <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-            <h2 className="text-sm font-semibold text-white">Project health</h2>
+            <h2 className="text-sm font-semibold text-white">{t("intelligence:health_title")}</h2>
           </div>
           <dl className="divide-y divide-white/[0.05]">
             {FLAG_ROWS.map((row) => {
@@ -516,7 +522,7 @@ export default async function IntelligencePage({
               );
               return (
                 <div key={row.key} className="flex items-center justify-between gap-3 px-5 py-2.5">
-                  <dt className="text-sm text-ink-300">{row.label}</dt>
+                  <dt className="text-sm text-ink-300">{t(`intelligence:flag_${row.id}_label`)}</dt>
                   <dd>
                     {present ? (
                       <span className="inline-flex items-center gap-1.5">
@@ -527,15 +533,15 @@ export default async function IntelligencePage({
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-xs text-signal-400 hover:underline"
                           >
-                            present
+                            {t("intelligence:present")}
                             <IconExternalLink className="h-2.5 w-2.5" />
                           </a>
                         ) : (
-                          <span className="text-xs text-signal-400">present</span>
+                          <span className="text-xs text-signal-400">{t("intelligence:present")}</span>
                         )}
                       </span>
                     ) : (
-                      <span className="text-xs text-ink-500">{row.absent}</span>
+                      <span className="text-xs text-ink-500">{t(`intelligence:flag_${row.id}_absent`)}</span>
                     )}
                   </dd>
                 </div>
@@ -546,29 +552,32 @@ export default async function IntelligencePage({
 
         <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
           <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-            <h2 className="text-sm font-semibold text-white">Activity</h2>
+            <h2 className="text-sm font-semibold text-white">{t("intelligence:activity_title")}</h2>
           </div>
           <dl className="divide-y divide-white/[0.05]">
-            <Row label="Open pull requests" value={String(view.insight.counts.openPullRequests)} />
-            <Row label="Open issues" value={String(view.insight.counts.openIssues)} />
+            <Row label={t("intelligence:activity_open_prs")} value={String(view.insight.counts.openPullRequests)} />
+            <Row label={t("intelligence:activity_open_issues")} value={String(view.insight.counts.openIssues)} />
             <Row
-              label="Merged, last 30 days"
+              label={t("intelligence:activity_merged_30d")}
               value={
                 view.insight.counts.mergedLast30Days === null
-                  ? "not available"
+                  ? t("intelligence:not_available")
                   : String(view.insight.counts.mergedLast30Days)
               }
             />
-            <Row label="Recent contributors" value={String(view.insight.counts.contributors)} />
+            <Row label={t("intelligence:activity_contributors")} value={String(view.insight.counts.contributors)} />
             <Row
-              label="Latest release"
-              value={view.insight.lastReleaseTag ?? "none published"}
+              label={t("intelligence:activity_latest_release")}
+              value={view.insight.lastReleaseTag ?? t("intelligence:none_published")}
             />
             <Row
-              label="Default branch"
-              value={view.insight.defaultBranch ?? "unknown"}
+              label={t("intelligence:activity_default_branch")}
+              value={view.insight.defaultBranch ?? t("intelligence:unknown")}
             />
-            <Row label="Collected" value={`${hoursSince(view.insight.collectedAt)}h ago`} />
+            <Row
+              label={t("intelligence:activity_collected")}
+              value={t("intelligence:collected_ago", { count: hoursSince(view.insight.collectedAt) })}
+            />
           </dl>
         </section>
       </div>
@@ -576,8 +585,8 @@ export default async function IntelligencePage({
       {view.insight.languages.length > 0 ? (
         <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
           <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-            <h2 className="text-sm font-semibold text-white">Languages</h2>
-            <p className="mt-0.5 text-xs text-ink-500">Share of bytes detected by GitHub.</p>
+            <h2 className="text-sm font-semibold text-white">{t("intelligence:languages_title")}</h2>
+            <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:languages_description")}</p>
           </div>
           <ul className="space-y-2.5 px-5 py-4">
             {view.insight.languages.map((l) => (
@@ -602,9 +611,9 @@ export default async function IntelligencePage({
         <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
           <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <IconAlertCircle className="h-4 w-4 text-warn-300" />
-            <h2 className="text-sm font-semibold text-white">What broke?</h2>
+            <h2 className="text-sm font-semibold text-white">{t("intelligence:what_broke_title")}</h2>
             <span className="font-mono text-xs text-ink-500">({broken.length})</span>
-            <span className="ml-auto text-[10px] text-ink-500">from recorded check runs</span>
+            <span className="ml-auto text-[10px] text-ink-500">{t("intelligence:what_broke_source")}</span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
             {broken.map((b) => (
@@ -620,8 +629,11 @@ export default async function IntelligencePage({
                   </a>
                   <IconExternalLink className="h-3 w-3 text-ink-500" />
                   <span className="ml-auto font-mono text-[10px] text-ink-500">
-                    {b.failedChecks.length} failing / {b.pendingChecks.length} pending /{" "}
-                    {b.passedChecks.length} passed
+                    {t("intelligence:checks_summary", {
+                      failing: b.failedChecks.length,
+                      pending: b.pendingChecks.length,
+                      passed: b.passedChecks.length,
+                    })}
                   </span>
                 </div>
                 <ul className="mt-2 space-y-1">
@@ -650,13 +662,13 @@ export default async function IntelligencePage({
 
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
         <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-          <h2 className="text-sm font-semibold text-white">Evidence ({view.evidence.length})</h2>
+          <h2 className="text-sm font-semibold text-white">{t("intelligence:evidence_title", { count: view.evidence.length })}</h2>
           <p className="mt-0.5 text-xs text-ink-500">
-            Every source this page is built from. Nothing is asserted without one of these.
+            {t("intelligence:evidence_description")}
           </p>
         </div>
         {view.evidence.length === 0 ? (
-          <p className="px-5 py-4 text-sm text-ink-500">No evidence was collected for this repository.</p>
+          <p className="px-5 py-4 text-sm text-ink-500">{t("intelligence:evidence_empty")}</p>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
             {view.evidence.map((e) => (
@@ -672,11 +684,11 @@ export default async function IntelligencePage({
                     rel="noopener noreferrer"
                     className="btn btn-ghost btn-sm shrink-0"
                   >
-                    {e.path ?? "source"}
+                    {e.path ?? t("intelligence:source")}
                     <IconExternalLink className="h-3 w-3" />
                   </a>
                 ) : (
-                  <span className="font-mono text-[10px] text-ink-600">{e.ref ?? "api"}</span>
+                  <span className="font-mono text-[10px] text-ink-600">{e.ref ?? t("intelligence:api")}</span>
                 )}
               </li>
             ))}
@@ -687,6 +699,20 @@ export default async function IntelligencePage({
       )}
     </div>
   );
+}
+
+/**
+ * The onboarding analyzer emits enums, not copy. Resolving them through a
+ * closed key set keeps a future enum value from rendering as a raw token.
+ */
+function importanceLabel(value: string, t: Translator): string {
+  const known = ["critical", "high", "medium", "low"] as const;
+  return known.includes(value as (typeof known)[number]) ? t(`intelligence:importance_${value}`) : value;
+}
+
+function severityLabel(value: string, t: Translator): string {
+  const known = ["high", "medium", "low"] as const;
+  return known.includes(value as (typeof known)[number]) ? t(`intelligence:severity_${value}`) : value;
 }
 
 function Row({ label, value }: { label: string; value: string }) {

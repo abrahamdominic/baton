@@ -6,6 +6,8 @@ import { runVerificationAction, manualDecisionAction } from "./actions";
 import { PAYMENT_STATUSES, type PaymentStatus, type PaymentProvider } from "@/lib/billing/types";
 import { IconArrowLeft, IconExternalLink, IconShield } from "@/components/icons";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { paymentStatusLabel } from "@/lib/i18n/billing-label";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,7 @@ export default async function AdminPaymentsPage({
 }: {
   searchParams?: Promise<{ status?: string; provider?: string }>;
 }) {
+  const { t } = await getTranslatorForRequest();
   const params = searchParams ? await searchParams : undefined;
   const status = (params?.status as PaymentStatus | undefined) ?? null;
   const provider = (params?.provider as PaymentProvider | undefined) ?? null;
@@ -49,13 +52,13 @@ export default async function AdminPaymentsPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="Payment Transactions"
-        description="Inspect credit card and on-chain cryptocurrency transactions. USDC orders require on-chain event verification on Base."
+        title={t("admin:payments_title")}
+        description={t("admin:payments_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -72,7 +75,7 @@ export default async function AdminPaymentsPage({
                 : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
             }`}
           >
-            All Transactions
+            {t("admin:payments_filter_all")}
           </Link>
           {PAYMENT_STATUSES.map((s) => (
             <Link
@@ -84,13 +87,13 @@ export default async function AdminPaymentsPage({
                   : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
               }`}
             >
-              {s.replace(/_/g, " ")}
+              {paymentStatusLabel(s, t)}
             </Link>
           ))}
         </div>
 
         <span className="font-mono text-[11px] text-ink-500">
-          Showing up to 50 latest transactions
+          {t("admin:payments_showing_latest")}
         </span>
       </div>
 
@@ -98,7 +101,7 @@ export default async function AdminPaymentsPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            {payments.length} Payments Recorded
+            {t("admin:payments_recorded", { count: payments.length })}
           </span>
         </div>
 
@@ -106,12 +109,12 @@ export default async function AdminPaymentsPage({
           <div className="p-8">
             <EmptyState
               icon={IconShield}
-              title="No payments match this filter"
-              hint="Try clearing your status filter to view all payment records."
+              title={t("admin:payments_empty_title")}
+              hint={t("admin:payments_empty_hint")}
               action={
                 status ? (
                   <Link href="/admin/payments" className="btn btn-ghost btn-sm">
-                    Clear filter
+                    {t("admin:payments_clear_filter")}
                   </Link>
                 ) : undefined
               }
@@ -134,7 +137,7 @@ export default async function AdminPaymentsPage({
                             p.status,
                           )}`}
                         >
-                          {p.status.replace(/_/g, " ")}
+                          {paymentStatusLabel(p.status, t)}
                         </span>
                         <span className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
                           {p.payment_provider}
@@ -157,19 +160,22 @@ export default async function AdminPaymentsPage({
                       </div>
 
                       <p className="mt-1 font-mono text-[11px] text-ink-400">
-                        Payment ID: <span className="text-ink-200">{p.id}</span> &middot;{" "}
+                        {t("admin:payments_payment_id")}{" "}
+                        <span className="text-ink-200">{p.id}</span> &middot;{" "}
                         {payer?.email ? (
                           <>
-                            Email: <span className="text-ink-200">{payer.email}</span> &middot;{" "}
+                            {t("admin:payments_email")}{" "}
+                            <span className="text-ink-200">{payer.email}</span> &middot;{" "}
                           </>
                         ) : null}
-                        User ID: <span className="text-ink-200">{p.user_id}</span> &middot;{" "}
+                        {t("admin:payments_user_id")}{" "}
+                        <span className="text-ink-200">{p.user_id}</span> &middot;{" "}
                         {new Date(p.created_at).toISOString()}
                       </p>
 
                       {p.crypto_transaction_hash ? (
                         <p className="mt-1.5 font-mono text-[11px] text-ink-400 break-all">
-                          Tx Hash:{" "}
+                          {t("admin:payments_tx_hash")}{" "}
                           <a
                             href={`https://basescan.org/tx/${p.crypto_transaction_hash}`}
                             target="_blank"
@@ -182,13 +188,13 @@ export default async function AdminPaymentsPage({
                         </p>
                       ) : (
                         <p className="mt-1 font-mono text-[11px] text-ink-500">
-                          No on-chain transaction hash submitted yet
+                          {t("admin:payments_no_tx_hash")}
                         </p>
                       )}
 
                       {p.failure_reason ? (
                         <p className="mt-1 text-xs text-danger-300">
-                          Failure reason: {p.failure_reason}
+                          {t("admin:payments_failure_reason", { reason: p.failure_reason })}
                         </p>
                       ) : null}
                     </div>
@@ -202,12 +208,12 @@ export default async function AdminPaymentsPage({
                             <input
                               type="checkbox"
                               name="confirm"
-                              aria-label="Confirm on-chain verification"
+                              aria-label={t("admin:payments_aria_verify")}
                               className="h-3.5 w-3.5 accent-brand-500 rounded"
                             />
-                            <span className="font-mono text-[11px]">confirm</span>
+                            <span className="font-mono text-[11px]">{t("admin:confirm")}</span>
                             <button type="submit" className="btn btn-primary btn-sm h-7 text-xs ml-1">
-                              Verify On-Chain Now
+                              {t("admin:payments_verify_now")}
                             </button>
                           </label>
                         </form>
@@ -221,15 +227,15 @@ export default async function AdminPaymentsPage({
                               <input
                                 type="checkbox"
                                 name="confirm"
-                                aria-label="Confirm manual approval"
+                                aria-label={t("admin:payments_aria_approve")}
                                 className="h-3.5 w-3.5 accent-brand-500 rounded"
                               />
-                              <span className="font-mono text-[11px]">confirm</span>
+                              <span className="font-mono text-[11px]">{t("admin:confirm")}</span>
                               <button
                                 type="submit"
                                 className="btn btn-ghost btn-sm h-7 text-xs text-signal-300 ml-1"
                               >
-                                Force Approve
+                                {t("admin:payments_force_approve")}
                               </button>
                             </label>
                           </form>
@@ -242,15 +248,15 @@ export default async function AdminPaymentsPage({
                               <input
                                 type="checkbox"
                                 name="confirm"
-                                aria-label="Confirm manual rejection"
+                                aria-label={t("admin:payments_aria_reject")}
                                 className="h-3.5 w-3.5 accent-danger-500 rounded"
                               />
-                              <span className="font-mono text-[11px]">confirm</span>
+                              <span className="font-mono text-[11px]">{t("admin:confirm")}</span>
                               <button
                                 type="submit"
                                 className="btn btn-ghost btn-sm h-7 text-xs text-danger-300 hover:border-danger-500/40 ml-1"
                               >
-                                Reject
+                                {t("admin:payments_reject")}
                               </button>
                             </label>
                           </form>

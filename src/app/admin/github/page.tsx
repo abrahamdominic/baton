@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { StatCard, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   IconGitHub,
   IconBranch,
@@ -19,6 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminGithubPage() {
+  const { t } = await getTranslatorForRequest();
   const [installs, repos, prs, webhooks, actions] = await Promise.all([
     prisma.appInstallation.findMany({
       orderBy: { createdAt: "desc" },
@@ -48,13 +50,13 @@ export default async function AdminGithubPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="GitHub Integrations &amp; Pipeline"
-        description="Real-time status of connected GitHub App installations, tracked repositories, and webhook ingestion events."
+        title={t("admin:github_title")}
+        description={t("admin:github_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -63,27 +65,27 @@ export default async function AdminGithubPage() {
       {/* KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Active Installations"
+          label={t("admin:github_stat_installations")}
           value={activeInstalls}
           detail={`${installs.length - activeInstalls} uninstalled accounts`}
           tone="signal"
           icon={IconGitHub}
         />
         <StatCard
-          label="Tracked Repositories"
+          label={t("admin:github_stat_repos")}
           value={repos}
           detail="Across all active installations"
           icon={IconBranch}
         />
         <StatCard
-          label="Live Open PRs"
+          label={t("admin:github_stat_open_prs")}
           value={prs}
           detail="Monitored by state engine"
           tone="brand"
           icon={IconGitPullRequest}
         />
         <StatCard
-          label="Baton Actions Issued"
+          label={t("admin:github_stat_actions")}
           value={actions}
           detail="Targeted nudges & comments"
           icon={IconActivity}

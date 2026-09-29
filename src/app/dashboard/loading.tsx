@@ -1,6 +1,9 @@
-export default function DashboardLoading() {
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+
+export default async function DashboardLoading() {
+  const { t } = await getTranslatorForRequest();
   return (
-    <div className="space-y-8" aria-busy="true" aria-label="Loading dashboard view">
+    <div className="space-y-8" aria-busy="true" aria-label={t("dashboard:loading_view")}>
       {/* Header skeleton */}
       <div className="animate-pulse flex flex-col gap-4 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">

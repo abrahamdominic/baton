@@ -10,11 +10,7 @@ import {
 } from "./actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { IconAlertCircle, IconArrowRight, IconRefresh, IconShield } from "@/components/icons";
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "the end of your current billing period";
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(iso));
-}
+import { useI18n } from "@/lib/i18n/provider";
 
 export function CancelPlanButton({
   subscriptionId,
@@ -25,6 +21,7 @@ export function CancelPlanButton({
   planName: string;
   periodEnd: string | null;
 }) {
+  const { t, formatDate } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction, pending] = useActionState<BillingActionState, FormData>(
@@ -57,12 +54,17 @@ export function CancelPlanButton({
                 <IconAlertCircle className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Cancel your {planName} plan?</p>
+                <p className="text-sm font-semibold text-white">
+                  {t("billing:cancel_confirm_title", { plan: planName })}
+                </p>
                 <p className="mt-1 text-xs leading-relaxed text-ink-400">
-                  Your Team access continues in full until{" "}
-                  <span className="font-semibold text-ink-200">{formatDate(periodEnd)}</span>. After
-                  that date your account returns to the Individual Free tier, and you can cancel the
-                  cancellation anytime before then.
+                  {t("billing:cancel_confirm_prefix")}{" "}
+                  <span className="font-semibold text-ink-200">
+                    {periodEnd
+                      ? formatDate(periodEnd)
+                      : t("billing:current_period_end")}
+                  </span>{" "}
+                  {t("billing:cancel_confirm_suffix")}
                 </p>
               </div>
             </div>
@@ -96,6 +98,7 @@ export function CancelPlanButton({
 }
 
 export function ReactivateButton({ subscriptionId }: { subscriptionId: string }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [state, formAction, pending] = useActionState<BillingActionState, FormData>(
     reactivateCurrentSubscriptionAction,
@@ -115,7 +118,7 @@ export function ReactivateButton({ subscriptionId }: { subscriptionId: string })
         ) : (
           <IconShield className="h-3 w-3" />
         )}
-        <span>Reactivate plan</span>
+        <span>{t("billing:reactivate_plan")}</span>
         <IconArrowRight className="h-3 w-3" />
       </button>
       {state.error ? (

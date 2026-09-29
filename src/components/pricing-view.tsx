@@ -6,6 +6,7 @@ import { IconCheck, IconX, IconArrowRight } from "@/components/icons";
 import type { PlanRecord } from "@/lib/billing/types";
 import { planBillingNote, planPriceCents, planPriceLabel } from "@/lib/billing/pricing";
 import { catalogPlanBySlug, type CatalogPlan } from "@/lib/billing/plan-catalog";
+import { useI18n } from "@/lib/i18n/provider";
 
 export interface Tier {
   slug: string;
@@ -265,6 +266,7 @@ export function PricingView({
   /** Server-fetched plan rows from the `plans` table (compare matrix source of truth). */
   plans?: PlanRecord[];
 }) {
+  const { t } = useI18n();
   const [annual, setAnnual] = useState(false);
 
   const planBySlug = new Map(plans.map((p) => [p.slug, p]));
@@ -322,7 +324,7 @@ export function PricingView({
       <div className="flex flex-col items-center justify-center gap-3">
         <div
           role="tablist"
-          aria-label="Billing frequency selection"
+          aria-label={t("billing:frequency_toggle_label")}
           className="inline-flex items-center rounded-full border border-white/[0.1] bg-ink-900/90 p-1"
         >
           <button
@@ -336,7 +338,7 @@ export function PricingView({
                 : "text-ink-400 hover:text-ink-200"
             }`}
           >
-            Monthly billing
+            {t("billing:monthly_billing")}
           </button>
           <button
             type="button"
@@ -349,14 +351,14 @@ export function PricingView({
                 : "text-ink-400 hover:text-ink-200"
             }`}
           >
-            <span>Annual billing</span>
+            <span>{t("billing:annual_billing")}</span>
             <span className="rounded-full bg-signal-500/20 px-2 py-0.5 text-[10px] font-bold text-signal-400">
-              Save with annual
+              {t("billing:save_with_annual")}
             </span>
           </button>
         </div>
         <p className="text-xs text-ink-400 font-mono">
-          No credit card required to start on the free plan.
+          {t("billing:no_card_required")}
         </p>
       </div>
 
@@ -451,10 +453,9 @@ export function PricingView({
       {/* Feature Comparison Matrix */}
       <div className="pt-8">
         <div className="text-center max-w-xl mx-auto mb-10">
-          <h2 className="text-2xl font-bold text-white">Compare plans in detail</h2>
+          <h2 className="text-2xl font-bold text-white">{t("billing:compare_title")}</h2>
           <p className="mt-2 text-xs text-ink-400">
-            Every capability below comes from the product&apos;s enforcement layer, so the matrix
-            always reflects exactly what a plan unlocks.
+            {t("billing:compare_subtitle")}
           </p>
         </div>
 
@@ -462,7 +463,7 @@ export function PricingView({
           <table className="w-full min-w-[680px] text-left text-xs">
             <thead>
               <tr className="border-b border-white/[0.08] bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
-                <th className="py-4 pl-6 pr-4 font-semibold">Capability</th>
+                <th scope="col" className="py-4 ps-6 pe-4 font-semibold">{t("billing:th_capability")}</th>
                 {columns.map((col) => (
                   <th
                     key={col.slug}

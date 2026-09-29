@@ -25,6 +25,7 @@ import {
   IconSend,
 } from "@/components/icons";
 import { updateOrganization } from "../actions";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   InviteForm,
   RoleSelectForm,
@@ -45,6 +46,7 @@ export default async function OrganizationDetailPage({
 }: {
   params: Promise<{ orgId: string }>;
 }) {
+  const { t } = await getTranslatorForRequest();
   const { orgId } = await params;
   const user = await currentUser();
   if (!user) return null;
@@ -107,25 +109,28 @@ export default async function OrganizationDetailPage({
         eyebrow={
           <span className="inline-flex items-center gap-1.5 font-mono">
             <IconBuilding className="h-3 w-3" />
-            Organization Workspace
+            {t("workspace:eyebrow_organization")}
           </span>
         }
         title={org.name}
-        description={`Shared by ${org.members.length} member${org.members.length === 1 ? "" : "s"} under @${org.owner.login}'s plan with org-wide stall policies.`}
+        description={t("workspace:header_description_org", {
+          count: org.members.length,
+          owner: org.owner.login,
+        })}
         badge={
           <Badge tone={paid ? "success" : "warn"}>
-            {paid ? "Owner plan active" : "Owner plan inactive"}
+            {t(paid ? "workspace:owner_plan_active" : "workspace:owner_plan_inactive")}
           </Badge>
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Link href={`/dashboard/organization/${org.id}/board`} className="btn btn-ghost btn-sm">
-              <span>Org Board</span>
+              <span>{t("workspace:org_board")}</span>
               <IconChevronRight className="h-3 w-3" />
             </Link>
             <Link href={`/dashboard/organization/${org.id}/messaging`} className="btn btn-ghost btn-sm">
               <IconSend className="h-3.5 w-3.5" />
-              <span>Messages</span>
+              <span>{t("workspace:tab_messages")}</span>
             </Link>
             {canExportAudit ? (
               <Link
@@ -133,7 +138,7 @@ export default async function OrganizationDetailPage({
                 className="btn btn-ghost btn-sm"
               >
                 <IconDownload className="h-3.5 w-3.5" />
-                <span>Audit Ledger</span>
+                <span>{t("workspace:audit_ledger")}</span>
               </Link>
             ) : null}
           </div>
@@ -145,43 +150,46 @@ export default async function OrganizationDetailPage({
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full bg-warn-400" />
             <p className="leading-relaxed">
-              <span className="font-semibold text-white">This organization is in free mode.</span>{" "}
-              Policies, audit export, and member plan entitlements need an active Organization plan.
+              <span className="font-semibold text-white">
+                {t("workspace:free_mode_lead_org")}
+              </span>{" "}
+              {t("workspace:free_mode_tail_org")}
             </p>
           </div>
           <Link href="/dashboard/billing" className="btn btn-secondary btn-sm shrink-0">
-            Activate Organization plan
+            {t("workspace:activate_plan_org")}
           </Link>
         </div>
       ) : null}
 
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Members" value={org.members.length} icon={IconBuilding} />
+        <StatCard label={t("workspace:stat_members")} value={org.members.length} icon={IconBuilding} />
         <StatCard
-          label="Shared Accounts"
+          label={t("workspace:stat_shared_accounts")}
           value={org.installations.length}
-          detail={`${sharedRepos} repos under org policy`}
+          detail={t("workspace:repos_under_policy", { count: sharedRepos })}
           tone={org.installations.length > 0 ? "brand" : "default"}
           icon={IconGitHub}
         />
         <StatCard
-          label="Pending Invites"
+          label={t("workspace:stat_pending_invites")}
           value={org.invites.length}
           tone={org.invites.length > 0 ? "warn" : "default"}
           icon={IconGitPullRequest}
         />
         <StatCard
-          label="Plan"
+          label={t("workspace:plan")}
           value={
             scopeEntitlement.source === "workspace" && paid
               ? scopeEntitlement.planName
-              : "Free"
+              : t("workspace:free")
           }
-          detail={
+          detail={t(
             slotLeft === null
-              ? "unlimited member cap"
-              : `${Math.max(0, slotLeft)} member slots left`
-          }
+              ? "workspace:unlimited_member_cap"
+              : "workspace:member_slots_left",
+            slotLeft === null ? undefined : { count: Math.max(0, slotLeft) },
+          )}
           tone={workspaceFeature && paid ? "brand" : "warn"}
           icon={IconShield}
         />
@@ -191,11 +199,14 @@ export default async function OrganizationDetailPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-            Members
+            {t("workspace:members")}
           </span>
           {isAdmin && canShare ? (
             <span className="font-mono text-[11px] text-ink-500">
-              {slotLeft === null ? "unlimited cap" : `${Math.max(0, slotLeft)} slots left`}
+              {t(
+                slotLeft === null ? "workspace:unlimited_cap" : "workspace:slots_left",
+                slotLeft === null ? undefined : { count: Math.max(0, slotLeft) },
+              )}
             </span>
           ) : null}
         </div>
@@ -223,7 +234,9 @@ export default async function OrganizationDetailPage({
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-white">
                       {m.user.name ?? m.user.login}
-                      {isMe ? <span className="ml-1.5 text-ink-500">(you)</span> : null}
+                      {isMe ? (
+                        <span className="ml-1.5 text-ink-500">{t("workspace:you_suffix")}</span>
+                      ) : null}
                     </p>
                     <a
                       href={`https://github.com/${encodeURIComponent(m.user.login)}`}
@@ -241,15 +254,15 @@ export default async function OrganizationDetailPage({
                     <Link
                       href={`/dashboard/organization/${org.id}/messaging?member=${encodeURIComponent(m.userId)}`}
                       className="btn btn-ghost btn-sm"
-                      aria-label={`Message @${m.user.login}`}
+                      aria-label={t("workspace:message_aria", { login: m.user.login })}
                     >
                       <IconSend className="h-3.5 w-3.5" />
-                      <span>Message</span>
+                      <span>{t("workspace:message")}</span>
                     </Link>
                   ) : null}
                   {isOwner ? (
                     <span className="rounded-full border border-brand-500/25 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
-                      Owner
+                      {t("workspace:role_owner")}
                     </span>
                   ) : isAdmin ? (
                     <RoleSelectForm
@@ -291,10 +304,9 @@ export default async function OrganizationDetailPage({
 
       {/* Invitations */}
       <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-white">Invitations</h2>
+        <h2 className="text-sm font-bold text-white">{t("workspace:invitations")}</h2>
         <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
-          Invite by GitHub username; the invited developer accepts from their Baton Organizations
-          page. Invitations expire after 14 days.
+          {t("workspace:invitations_hint_org")}
         </p>
         {isAdmin ? (
           <div className="mb-5 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4">
@@ -302,7 +314,7 @@ export default async function OrganizationDetailPage({
           </div>
         ) : null}
         {org.invites.length === 0 ? (
-          <p className="text-xs text-ink-500">No pending invitations.</p>
+          <p className="text-xs text-ink-500">{t("workspace:no_pending_invitations")}</p>
         ) : (
           <ul className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.06]">
             {org.invites.map((inv) => (
@@ -310,7 +322,8 @@ export default async function OrganizationDetailPage({
                 <div className="min-w-0">
                   <p className="font-mono text-xs font-semibold text-white">@{inv.githubLogin}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {inv.role} &middot; invited by @{inv.invitedBy.login}
+                    {t(`workspace:role_${inv.role}`)} &middot;{" "}
+                    {t("workspace:invited_by", { login: inv.invitedBy.login })}
                   </p>
                 </div>
                 {isAdmin ? (
@@ -329,24 +342,23 @@ export default async function OrganizationDetailPage({
 
       {/* Shared repositories */}
       <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-white">Shared Board Scope</h2>
+        <h2 className="text-sm font-bold text-white">{t("workspace:shared_board_scope")}</h2>
         <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
-          Every member sees pull requests from these GitHub accounts on the organization board, and
-          org policy thresholds apply to them all.
+          {t("workspace:shared_board_scope_hint_org")}
         </p>
         {isAdmin ? (
           <div className="mb-5 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4">
             {myInstalls.length === 0 ? (
               <p className="text-xs text-ink-500">
-                No GitHub installations on your account yet.{" "}
+                {t("workspace:no_installations")}{" "}
                 <Link href="/dashboard/repos" className="font-semibold text-brand-300 hover:text-brand-200">
-                  Connect one first
+                  {t("workspace:connect_one_first")}
                 </Link>
                 .
               </p>
             ) : !canShare ? (
               <p className="text-xs text-ink-500">
-                Sharing repositories is available while the owner&apos;s Organization plan is active.
+                {t("workspace:sharing_requires_plan_org")}
               </p>
             ) : (
               <ShareInstallForm
@@ -364,12 +376,10 @@ export default async function OrganizationDetailPage({
         {org.installations.length === 0 ? (
           <EmptyState
             icon={IconBranch}
-            title="Nothing shared yet"
-            hint={
-              isAdmin
-                ? "Share an installation above to bring its repositories into the organization board."
-                : "An admin needs to share a GitHub installation before this board has data."
-            }
+            title={t("workspace:nothing_shared_title")}
+            hint={t(
+              isAdmin ? "workspace:nothing_shared_admin_org" : "workspace:nothing_shared_member",
+            )}
           />
         ) : (
           <ul className="space-y-2">
@@ -383,8 +393,7 @@ export default async function OrganizationDetailPage({
                     @{link.installation.accountLogin}
                   </p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {link.installation.repos.length} repositor
-                    {link.installation.repos.length === 1 ? "y" : "ies"} shared
+                    {t("workspace:repos_shared", { count: link.installation.repos.length })}
                   </p>
                 </div>
                 {isAdmin ? (
@@ -407,17 +416,16 @@ export default async function OrganizationDetailPage({
           <div>
             <h2 className="flex items-center gap-2 text-sm font-bold text-white">
               <IconSettings className="h-4 w-4 text-ink-400" />
-              Organization Review Stall Policy
+              {t("workspace:org_policy_title")}
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
-              Stall thresholds applied across every shared repository. Members inherit these unless a
-              repository admin tunes per-repo values.
+              {t("workspace:org_policy_hint")}
             </p>
           </div>
           {!hasFeature(scopeEntitlement, FEATURE_KEYS.orgPolicies) ? (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-2.5 py-1 font-mono text-[10px] font-semibold text-brand-300">
               <IconLock className="h-3 w-3" />
-              Organization Plan
+              {t("workspace:org_plan_badge")}
             </span>
           ) : null}
         </div>
@@ -451,20 +459,16 @@ export default async function OrganizationDetailPage({
           ) : (
             <EmptyState
               icon={IconLock}
-              title={
-                isAdmin
-                  ? "Organization-wide policies require the Organization plan"
-                  : "Only admins can edit org policies"
-              }
-              hint={
-                isAdmin
-                  ? "Upgrade from /dashboard/billing to set org-level thresholds. Your plan is currently on Free/Team."
-                  : "Contact an admin in this organization to adjust the policy."
-              }
+              title={t(
+                isAdmin ? "workspace:org_policy_locked_admin" : "workspace:org_policy_locked_member",
+              )}
+              hint={t(
+                isAdmin ? "workspace:org_policy_locked_hint_admin" : "workspace:org_policy_locked_hint_member",
+              )}
               action={
                 isAdmin ? (
                   <Link href="/dashboard/billing" className="btn btn-secondary btn-sm">
-                    Upgrade Plan
+                    {t("workspace:upgrade_plan")}
                   </Link>
                 ) : undefined
               }
@@ -477,7 +481,7 @@ export default async function OrganizationDetailPage({
         <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-sm font-bold text-white">
             <IconSettings className="h-4 w-4 text-ink-400" />
-            Organization Settings
+            {t("workspace:settings_title_org")}
           </h2>
           <form
             action={async (formData) => {
@@ -492,7 +496,7 @@ export default async function OrganizationDetailPage({
           >
             <div className="flex-1 min-w-52">
               <label htmlFor="org-name" className="mb-1 block text-[11px] font-semibold text-ink-400">
-                Organization name
+                {t("workspace:name_label_org")}
               </label>
               <input
                 id="org-name"
@@ -504,7 +508,7 @@ export default async function OrganizationDetailPage({
             </div>
             <div className="flex-1 min-w-40">
               <label htmlFor="org-slug" className="mb-1 block text-[11px] font-semibold text-ink-400">
-                Slug
+                {t("workspace:slug_label")}
               </label>
               <input
                 id="org-slug"
@@ -515,7 +519,7 @@ export default async function OrganizationDetailPage({
               />
             </div>
             <button type="submit" className="btn btn-secondary btn-sm h-9">
-              Save changes
+              {t("workspace:save_changes")}
             </button>
           </form>
         </section>
@@ -527,11 +531,10 @@ export default async function OrganizationDetailPage({
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-sm font-bold text-white">
               <IconDownload className="h-4 w-4 text-ink-400" />
-              Audit Trail
+              {t("workspace:audit_trail")}
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
-              {auditCount} recorded event{auditCount === 1 ? "" : "s"} &middot; member, invite,
-              policy, installation, and ownership changes.
+              {t("workspace:audit_trail_hint", { count: auditCount })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -540,13 +543,13 @@ export default async function OrganizationDetailPage({
               className="btn btn-ghost btn-sm"
             >
               <IconDownload className="h-3.5 w-3.5" />
-              <span>Export CSV</span>
+              <span>{t("workspace:export_csv")}</span>
             </a>
             <a
               href={`/api/org-audit/${org.id}?format=json`}
               className="btn btn-ghost btn-sm"
             >
-              <span>Export JSON</span>
+              <span>{t("workspace:export_json")}</span>
             </a>
           </div>
         </section>
@@ -556,13 +559,15 @@ export default async function OrganizationDetailPage({
       <section className="rounded-xl border border-danger-500/20 bg-danger-500/[0.03] p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
           <IconArrowRight className="h-4 w-4 text-ink-500" />
-          Danger Zone
+          {t("workspace:danger_zone")}
         </h2>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
           <p className="text-ink-400">
-            {role === "owner"
-              ? "Delete this organization permanently. Members lose access, shared boards are removed, and the audit trail is erased."
-              : "Leave this organization. The owner and admins keep managing the board and policy."}
+            {t(
+              role === "owner"
+                ? "workspace:danger_delete_owner_org"
+                : "workspace:danger_leave_member_org",
+            )}
           </p>
           <div className="flex items-center gap-2">
             {role === "owner" ? (

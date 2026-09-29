@@ -13,5 +13,12 @@
   "save_failed": "Your language was changed on this device but could not be saved to your account. It will sync later.",
   "language_list": "Available languages",
   "results_one": "{{count}} language",
-  "results_other": "{{count}} languages"
+  "results_other": "{{count}} languages",
+  "rtl_badge": "RTL",
+  "no_results_hint": "Try a different spelling, or search by the language code.",
+  "group_europe": "Europe",
+  "group_americas": "Americas",
+  "group_asia": "Asia",
+  "group_middle_east": "Middle East",
+  "group_africa": "Africa"
 }

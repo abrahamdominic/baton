@@ -4,14 +4,14 @@ import { currentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { organizationAuditLog, requireOrganizationMember } from "@/lib/workspaces";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { IconBuilding, IconDownload, IconArrowLeft } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
-function NiceDate({ date }: { date: Date }) {
-  const s = date.toLocaleString();
-  return <span className="font-mono text-[11px] text-ink-400">{s}</span>;
+function NiceDate({ date, format }: { date: Date; format: (v: Date) => string }) {
+  return <span className="font-mono text-[11px] text-ink-400">{format(date)}</span>;
 }
 
 export default async function OrganizationAuditPage({
@@ -20,6 +20,7 @@ export default async function OrganizationAuditPage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
+  const { t, formatDateTime } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -48,23 +49,23 @@ export default async function OrganizationAuditPage({
         eyebrow={
           <span className="inline-flex items-center gap-1.5 font-mono">
             <IconBuilding className="h-3 w-3" />
-            Audit Trail
+            {t("workspace:audit_trail")}
           </span>
         }
-        title={`${org.name} · Audit Ledger`}
-        description="Every member, invite, policy, ownership, and installation change in this organization, newest first. Export the full ledger as CSV or JSON."
+        title={t("workspace:audit_ledger_title", { org: org.name })}
+        description={t("workspace:audit_ledger_description")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Link href={`/dashboard/organization/${org.id}`} className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3.5 w-3.5" />
-              <span>Back to org</span>
+              <span>{t("workspace:back_to_org")}</span>
             </Link>
             <a href={`/api/org-audit/${org.id}?format=csv`} className="btn btn-primary btn-sm">
               <IconDownload className="h-3.5 w-3.5" />
-              <span>Export CSV</span>
+              <span>{t("workspace:export_csv")}</span>
             </a>
             <a href={`/api/org-audit/${org.id}?format=json`} className="btn btn-ghost btn-sm">
-              <span>Export JSON</span>
+              <span>{t("workspace:export_json")}</span>
             </a>
           </div>
         }
@@ -73,14 +74,14 @@ export default async function OrganizationAuditPage({
       {rows.length === 0 ? (
         <EmptyState
           icon={IconBuilding}
-          title="No audit events yet"
-          hint="Member invitations, role changes, policy updates, and installation sharing will appear here as they happen."
+          title={t("workspace:audit_empty_title")}
+          hint={t("workspace:audit_empty_hint")}
         />
       ) : (
         <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-              {rows.length} event{rows.length === 1 ? "" : "s"}
+              {t("workspace:event_count", { count: rows.length })}
             </span>
             <span className="font-mono text-[11px] text-ink-500">
               org-scoped trail &middot; immutable
@@ -114,7 +115,7 @@ export default async function OrganizationAuditPage({
                     {r.ip ? <span className="text-ink-600">· {r.ip}</span> : null}
                   </p>
                 </div>
-                <NiceDate date={r.createdAt} />
+                <NiceDate date={r.createdAt} format={formatDateTime} />
               </li>
             ))}
           </ul>

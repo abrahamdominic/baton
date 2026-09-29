@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { AdminUserActions } from "./user-actions";
 import { StatCard, PageHeader, EmptyState } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   IconUser,
   IconShield,
@@ -24,6 +25,7 @@ function suffix(n: number): string {
 }
 
 export default async function AdminUsersPage() {
+  const { t } = await getTranslatorForRequest();
   const [users, sessionCount] = await Promise.all([
     prisma.user.findMany({
       orderBy: { createdAt: "desc" },
@@ -50,13 +52,13 @@ export default async function AdminUsersPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="User Accounts &amp; Roles"
-        description="Inspect registered GitHub accounts, manage administrative roles, and enforce account suspensions with audited confirmation."
+        title={t("admin:users_title")}
+        description={t("admin:users_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -65,27 +67,27 @@ export default async function AdminUsersPage() {
       {/* KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Registered Users"
+          label={t("admin:users_stat_users")}
           value={users.length}
           detail="Recent account sign-ups"
           icon={IconUser}
         />
         <StatCard
-          label="Active Server Sessions"
+          label={t("admin:users_stat_sessions")}
           value={sessionCount}
           detail="Valid authentication tokens"
           tone="brand"
           icon={IconClock}
         />
         <StatCard
-          label="Administrators"
+          label={t("admin:users_stat_admins")}
           value={adminCount}
           detail="Accounts with /admin access"
           tone="signal"
           icon={IconShield}
         />
         <StatCard
-          label="Suspended Accounts"
+          label={t("admin:users_stat_suspended")}
           value={suspendedCount}
           detail={suspendedCount > 0 ? "Denied service access" : "Zero suspended users"}
           tone={suspendedCount > 0 ? "danger" : "default"}
@@ -109,8 +111,8 @@ export default async function AdminUsersPage() {
           // empty list, which reads as a failed query rather than an empty table.
           <EmptyState
             icon={IconUser}
-            title="No user records"
-            hint="Nobody has signed in with GitHub yet. Accounts appear here the first time a user completes OAuth."
+            title={t("admin:users_empty_title")}
+            hint={t("admin:users_empty_hint")}
           />
         ) : (
         <ul className="divide-y divide-white/[0.05]">

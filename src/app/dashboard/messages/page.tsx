@@ -1,25 +1,27 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { prisma } from "@/lib/db";
 import { PageHeader, EmptyState } from "@/components/ui";
 import { IconMessageCircle } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
-function formatTime(d: Date): string {
+function formatTime(d: Date, locale: string): string {
   const now = new Date();
   if (d.toDateString() === now.toDateString()) {
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
   }
   const days = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
   if (days < 7) {
-    return d.toLocaleDateString([], { weekday: "short" });
+    return d.toLocaleDateString(locale, { weekday: "short" });
   }
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  return d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 export default async function MessagesPage() {
+  const { t, locale } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard/messages");
 
@@ -77,19 +79,19 @@ export default async function MessagesPage() {
             Workspace
           </span>
         }
-        title="Messages"
+        title={t("messaging:title")}
         description={
           unreadTotal > 0
-            ? `You have ${unreadTotal} conversation${unreadTotal === 1 ? "" : "s"} with unread messages.`
-            : "Encrypted conversations across your teams and organizations."
+            ? t("messaging:unread_summary", { count: unreadTotal })
+            : t("messaging:encrypted_across_workspaces")
         }
       />
 
       {rows.length === 0 ? (
         <EmptyState
           icon={IconMessageCircle}
-          title="No conversations yet"
-          hint="Join a team or organization and start a conversation. Messages are encrypted on your device."
+          title={t("messaging:empty_title")}
+          hint={t("messaging:empty_hint")}
         />
       ) : (
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
@@ -125,7 +127,7 @@ export default async function MessagesPage() {
                 <div className="flex shrink-0 items-center gap-3">
                   {r.lastMessageAt ? (
                     <span className="font-mono text-[11px] text-ink-500">
-                      {formatTime(r.lastMessageAt)}
+                      {formatTime(r.lastMessageAt, locale)}
                     </span>
                   ) : null}
                   {r.unread ? (

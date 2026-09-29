@@ -3,6 +3,7 @@ import { listPlans, getPlanById } from "@/lib/billing/plans";
 import { PlanForm } from "./plan-form";
 import { IconArrowLeft, IconLayers } from "@/components/icons";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ export default async function AdminPlansPage({
 }: {
   searchParams?: Promise<{ edit?: string; create?: string }>;
 }) {
+  const { t } = await getTranslatorForRequest();
   const [plans, params] = await Promise.all([
     listPlans({ includeInactive: true }).catch(() => []),
     searchParams ? searchParams : Promise.resolve(undefined),
@@ -23,13 +25,13 @@ export default async function AdminPlansPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="Plan Catalog"
-        description="Configure subscription tiers served on the public pricing page and checkout flow. All plan modifications are audited."
+        title={t("admin:plans_title")}
+        description={t("admin:plans_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
             {!creating && !editing ? (
               <Link href="/admin/plans?create=1" className="btn btn-primary btn-sm">
@@ -67,8 +69,8 @@ export default async function AdminPlansPage({
           <div className="p-8">
             <EmptyState
               icon={IconLayers}
-              title="No plans created yet"
-              hint="Create your first subscription tier to enable paid checkout on the platform."
+              title={t("admin:plans_empty_title")}
+              hint={t("admin:plans_empty_hint")}
               action={
                 <Link href="/admin/plans?create=1" className="btn btn-primary btn-sm">
                   + Create First Plan
@@ -127,7 +129,7 @@ export default async function AdminPlansPage({
                       {p.stripe_monthly_price_id || p.stripe_annual_price_id ? (
                         <>
                           <span className="text-ink-600">&middot;</span>
-                          <span className="text-brand-300">Stripe Linked</span>
+                          <span className="text-brand-300">{t("admin:plans_stripe_linked")}</span>
                         </>
                       ) : null}
                       <span className="text-ink-600">&middot;</span>

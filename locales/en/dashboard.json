@@ -77,5 +77,6 @@
   "all_prs": "All PRs ({{count}})",
   "stalled_24h": "Stalled 24h+ ({{count}})",
   "flagged_stalled_one": "{{count}} flagged stalled",
-  "flagged_stalled_other": "{{count}} flagged stalled"
+  "flagged_stalled_other": "{{count}} flagged stalled",
+  "loading_view": "Loading dashboard view"
 }

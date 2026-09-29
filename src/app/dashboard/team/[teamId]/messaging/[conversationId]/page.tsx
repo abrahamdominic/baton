@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { requireTeamMember } from "@/lib/workspaces";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
@@ -14,6 +15,7 @@ export default async function ConversationThreadPage({
   params: Promise<{ teamId: string; conversationId: string }>;
 }) {
   const { teamId, conversationId } = await params;
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -55,8 +57,8 @@ export default async function ConversationThreadPage({
             Team Workspace
           </span>
         }
-        title="Conversation"
-        description="Messages are encrypted on your device with a thread key the server never sees."
+        title={t("messaging:conversation_title")}
+        description={t("messaging:conversation_description")}
       />
 
       <MessageThread

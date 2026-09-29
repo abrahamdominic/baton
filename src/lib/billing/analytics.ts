@@ -78,9 +78,20 @@ export async function confirmedPaymentAggregates(): Promise<PaymentAggregates> {
  */
 const MINOR_UNIT_DECIMALS = 2;
 
-/** Format a minor-unit total in its own currency. Never mixes currencies. */
-export function formatCurrencyTotal(currency: string, amountMinor: number): string {
-  const value = (amountMinor / 10 ** MINOR_UNIT_DECIMALS).toLocaleString("en-US", {
+/**
+ * Format a minor-unit total in its own currency. Never mixes currencies.
+ *
+ * The currency code stays in ASCII ahead of the amount so the pair is
+ * recognisable in either language, and only the number's separators and
+ * decimal marks follow the request locale. Defaults to `en-US` so callers
+ * outside a request (tests, scripts) keep their existing output.
+ */
+export function formatCurrencyTotal(
+  currency: string,
+  amountMinor: number,
+  locale = "en-US",
+): string {
+  const value = (amountMinor / 10 ** MINOR_UNIT_DECIMALS).toLocaleString(locale, {
     minimumFractionDigits: MINOR_UNIT_DECIMALS,
     maximumFractionDigits: MINOR_UNIT_DECIMALS,
   });

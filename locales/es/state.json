@@ -1,0 +1,12 @@
+{
+  "draft": "Borrador",
+  "awaiting_review": "Esperando revisión",
+  "awaiting_review_after_fix": "Correcciones enviadas, esperando nueva revisión",
+  "changes_required": "Cambios solicitados",
+  "ci_failing": "CI fallando",
+  "blocked_on_checks": "Checks pendientes",
+  "conflicts": "Conflictos de merge",
+  "ready_to_merge": "Listo para fusionar",
+  "merged": "Fusionada",
+  "closed": "Cerrada"
+}

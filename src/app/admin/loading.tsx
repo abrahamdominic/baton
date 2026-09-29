@@ -1,6 +1,9 @@
-export default function AdminLoading() {
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+
+export default async function AdminLoading() {
+  const { t } = await getTranslatorForRequest();
   return (
-    <div className="space-y-8" aria-busy="true" aria-label="Loading administrative view">
+    <div className="space-y-8" aria-busy="true" aria-label={t("admin:loading_view")}>
       {/* Header skeleton */}
       <div className="animate-pulse flex flex-col gap-4 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">

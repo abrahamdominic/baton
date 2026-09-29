@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import type { PlanRecord } from "@/lib/billing/types";
 import { savePlanAction, syncStripePricingAction } from "./actions";
+import { useTranslation } from "@/lib/i18n/provider";
 
 function field(label: string, name: string, defaultValue: string, hint?: string) {
   return (
@@ -30,6 +31,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
     error?: string;
   });
 
+  const { t } = useTranslation();
   const featuresText = Array.isArray(plan?.features)
     ? (plan.features as unknown[]).filter((f): f is string => typeof f === "string").join("\n")
     : "";
@@ -46,23 +48,23 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       {/* Basic Info */}
       <div className="space-y-4">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
-          General Details
+          {t("admin:plan_section_general")}
         </h3>
         <div className="grid gap-4 sm:grid-cols-2">
-          {field("Slug (URL Key)", "slug", plan?.slug ?? "", "e.g. team, individual, enterprise")}
-          {field("Display Name", "name", plan?.name ?? "", "Customer-facing tier name")}
+          {field(t("admin:plan_slug"), "slug", plan?.slug ?? "", t("admin:plan_slug_hint"))}
+          {field(t("admin:plan_name"), "name", plan?.name ?? "", t("admin:plan_name_hint"))}
         </div>
 
         <label className="block">
           <span className="mb-1.5 block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-            Description
+            {t("admin:plan_description")}
           </span>
           <textarea
             name="description"
             defaultValue={plan?.description ?? ""}
             rows={2}
             className="input w-full text-xs"
-            placeholder="Brief summary of who this plan is designed for"
+            placeholder={t("admin:plan_description_placeholder")}
           />
         </label>
       </div>
@@ -70,22 +72,27 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       {/* Pricing in Cents */}
       <div className="space-y-4 border-t border-white/[0.06] pt-5">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
-          Pricing (Integer Cents)
+          {t("admin:plan_section_pricing")}
         </h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {field(
-            "Monthly Price (Cents)",
+            t("admin:plan_price_monthly"),
             "monthlyPriceCents",
             String(plan?.monthly_price_cents ?? 0),
-            "1500 = $15.00 / month",
+            t("admin:plan_price_monthly_hint"),
           )}
           {field(
-            "Annual Price (Cents)",
+            t("admin:plan_price_annual"),
             "annualPriceCents",
             String(plan?.annual_price_cents ?? 0),
-            "15000 = $150.00 / year (two months free)",
+            t("admin:plan_price_annual_hint"),
           )}
-          {field("Sort Order", "sortOrder", String(plan?.sort_order ?? 0), "Lower appears first")}
+          {field(
+            t("admin:plan_sort_order"),
+            "sortOrder",
+            String(plan?.sort_order ?? 0),
+            t("admin:plan_sort_order_hint"),
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-6 pt-1">
@@ -98,10 +105,10 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
                 : (plan?.is_public ?? true);
             const labelText =
               key === "priceCustom"
-                ? "Custom pricing (contact sales)"
+                ? t("admin:plan_flag_price_custom")
                 : key === "isActive"
-                ? "Active (sold)"
-                : "Public (visible in pricing page)";
+                  ? t("admin:plan_flag_is_active")
+                  : t("admin:plan_flag_is_public");
             return (
               <label
                 key={key}
@@ -123,23 +130,23 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       {/* Stripe Metadata */}
       <div className="space-y-4 border-t border-white/[0.06] pt-5">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
-          Stripe Product Linkage (Optional)
+          {t("admin:plan_section_stripe")}
         </h3>
         <div className="grid gap-4 sm:grid-cols-3">
           {field(
-            "Stripe Product ID",
+            t("admin:plan_stripe_product"),
             "stripeProductId",
             plan?.stripe_product_id ?? "",
             "prod_...",
           )}
           {field(
-            "Stripe Monthly Price ID",
+            t("admin:plan_stripe_monthly"),
             "stripeMonthlyPriceId",
             plan?.stripe_monthly_price_id ?? "",
             "price_...",
           )}
           {field(
-            "Stripe Annual Price ID",
+            t("admin:plan_stripe_annual"),
             "stripeAnnualPriceId",
             plan?.stripe_annual_price_id ?? "",
             "price_...",
@@ -153,21 +160,19 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
           // action instead, and the plan id is already in the outer form.
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/[0.07] bg-ink-950/40 px-4 py-3">
             <div className="min-w-0 flex-1 text-xs text-ink-300">
-              <p className="font-semibold text-ink-200">Stripe price sync</p>
-              <p className="mt-0.5 text-[10px] text-ink-500">
-                Creates (or updates) the Stripe product and monthly/annual prices to match the
-                amounts above, then stores the returned IDs on this plan. Stripe uses the saved
-                plan amount as the source of truth; re-run after changing prices.
-              </p>
+              <p className="font-semibold text-ink-200">{t("admin:plan_stripe_sync_title")}</p>
+              <p className="mt-0.5 text-[10px] text-ink-500">{t("admin:plan_stripe_sync_body")}</p>
             </div>
             <button type="submit" formAction={stripeAction} className="btn btn-ghost btn-sm">
-              {stripePending ? "Syncing…" : "Sync Stripe Prices"}
+              {stripePending ? t("admin:plan_stripe_syncing") : t("admin:plan_stripe_sync")}
             </button>
             {stripeState?.error ? (
               <p className="w-full text-xs font-medium text-danger-300">{stripeState.error}</p>
             ) : null}
             {stripeState?.ok ? (
-              <p className="w-full text-xs font-medium text-signal-300">Stripe prices synced successfully.</p>
+              <p className="w-full text-xs font-medium text-signal-300">
+                {t("admin:plan_stripe_sync_ok")}
+              </p>
             ) : null}
           </div>
         ) : null}
@@ -176,24 +181,24 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       {/* Features & Limits */}
       <div className="space-y-4 border-t border-white/[0.06] pt-5">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
-          Features &amp; Resource Limits
+          {t("admin:plan_section_features")}
         </h3>
         <label className="block">
           <span className="mb-1.5 block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-            Features (One per line)
+            {t("admin:plan_features")}
           </span>
           <textarea
             name="features"
             defaultValue={featuresText}
             rows={5}
             className="input w-full font-mono text-xs"
-            placeholder="Unlimited tracked repositories&#10;Custom nudge thresholds&#10;Repo board views"
+            placeholder={t("admin:plan_features_placeholder")}
           />
         </label>
 
         <label className="block">
           <span className="mb-1.5 block font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-            Limits (JSON Object)
+            {t("admin:plan_limits")}
           </span>
           <textarea
             name="limits"
@@ -204,7 +209,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
             placeholder={'{ "repos": 3, "seats": 1 }'}
           />
           <span className="mt-1 block text-[10px] text-ink-500">
-            Configurable limits JSONB stored with plan. Leave blank if unlimited.
+            {t("admin:plan_limits_hint")}
           </span>
         </label>
       </div>
@@ -217,17 +222,17 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       ) : null}
       {state?.ok ? (
         <p className="rounded-lg border border-signal-500/30 bg-signal-500/10 px-4 py-3 text-xs font-medium text-signal-300">
-          Plan configuration saved successfully.
+          {t("admin:plan_saved")}
         </p>
       ) : null}
 
       {/* Form Action Buttons */}
       <div className="flex items-center gap-3 border-t border-white/[0.06] pt-4">
         <button type="submit" className="btn btn-primary btn-sm">
-          {plan ? "Save Changes" : "Create Plan"}
+          {plan ? t("admin:plan_save_changes") : t("admin:plan_create")}
         </button>
         <a href="/admin/plans" className="btn btn-ghost btn-sm">
-          Cancel
+          {t("messaging:cancel")}
         </a>
       </div>
     </form>

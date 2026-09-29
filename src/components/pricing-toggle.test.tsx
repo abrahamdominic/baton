@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { screen, fireEvent, cleanup } from "@testing-library/react";
 import { PricingView } from "./pricing-view";
+import { renderWithI18n } from "@/lib/i18n/test-render";
 
 afterEach(cleanup);
 
 describe("PricingView billing toggle", () => {
   it("switches the Team price between $15 monthly and $150 annual and updates the checkout link", () => {
-    render(<PricingView />);
+    renderWithI18n(<PricingView />);
 
     expect(screen.getAllByText("$15").length).toBeGreaterThan(0);
     expect(screen.queryByText("$150")).toBeNull();
@@ -33,7 +34,7 @@ describe("PricingView billing toggle", () => {
   });
 
   it("marks the selected tab and switches Organization price between $49 monthly and $490 annual", () => {
-    render(<PricingView />);
+    renderWithI18n(<PricingView />);
 
     const monthlyTab = screen.getByRole("tab", { name: /monthly billing/i });
     const annualTab = screen.getByRole("tab", { name: /annual billing/i });
@@ -51,7 +52,7 @@ describe("PricingView billing toggle", () => {
     expect(screen.queryByText("$49")).toBeNull();
   });
   it("prices the free comparison column at $0 forever, not 'Custom'", () => {
-    render(<PricingView />);
+    renderWithI18n(<PricingView />);
 
     // The free column has no `plans` row, so the header derived its price from a
     // null plan. That branch returned "Custom", which rendered the public

@@ -7,7 +7,7 @@ import { getCurrentSubscription, listSubscriptionsForUser } from "@/lib/billing/
 import { listPaymentsForUser, findOpenPaymentForSubscription } from "@/lib/billing/payments";
 import { publicPlans } from "@/lib/billing/plans";
 import { listSubscriptionEvents } from "@/lib/billing/events";
-import { SUBSCRIPTION_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "@/lib/billing/types";
+import { paymentStatusLabel, subscriptionStatusLabel } from "@/lib/i18n/billing-label";
 import {
   IconCheck,
   IconClock,
@@ -22,19 +22,13 @@ import { PendingCheckoutControls } from "./pending-checkout-controls";
 import { CancelPlanButton, ReactivateButton } from "./billing-buttons";
 import { ResumeCheckoutButton } from "./resume-checkout-button";
 import { PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-  title: "Billing & Plans: Baton",
-};
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "N/A";
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(
-    new Date(iso),
-  );
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslatorForRequest();
+  return { robots: { index: false, follow: false }, title: t("billing:meta_title") };
 }
 
 function statusTone(status: string): string {
@@ -62,6 +56,7 @@ function statusTone(status: string): string {
 }
 
 export default async function BillingPage() {
+  const { t, formatDateTime: formatDate, formatCurrency } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard/billing");
 
@@ -92,23 +87,23 @@ export default async function BillingPage() {
 
   const availablePlans = await publicPlans();
 
-  const formatMoney = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const formatMoney = (cents: number) => formatCurrency(cents, "USD");
 
   const pendingStatusLabel = pendingCheckout
     ? pendingCheckout.status === "payment_failed"
-      ? "Payment failed"
-      : "Pending checkout"
+      ? subscriptionStatusLabel("payment_failed", t)
+      : subscriptionStatusLabel("pending", t)
     : null;
 
   return (
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        title="Billing &amp; Subscription"
-        description="Manage your Baton subscription plan, invoice history, and crypto payment options."
+        title={t("billing:page_title")}
+        description={t("billing:page_description")}
         actions={
           <Link href="/pricing" className="btn btn-primary btn-sm">
-            <span>{status === "none" ? "Upgrade to Team" : "View Plans"}</span>
+            <span>{t(status === "none" ? "billing:upgrade_to_team" : "billing:view_plans")}</span>
             <IconArrowRight className="h-3 w-3" />
           </Link>
         }
@@ -118,10 +113,10 @@ export default async function BillingPage() {
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            Active Plan Status
+            {t("billing:active_plan_status")}
           </span>
           <span className="font-mono text-[11px] text-ink-500">
-            {entitlement.hasPaidAccess ? "Paid Access Enabled" : "Free Individual Tier"}
+            {t(entitlement.hasPaidAccess ? "billing:paid_enabled" : "billing:free_tier")}
           </span>
         </div>
 
@@ -130,34 +125,34 @@ export default async function BillingPage() {
             <div className="space-y-3 flex-1">
               <div className="flex flex-wrap items-center gap-2.5">
                 <h2 className="text-xl font-bold text-white sm:text-2xl">
-                  {plan?.name ?? "Individual Free"}
+                  {plan?.name ?? t("billing:individual_free")}
                 </h2>
                 <span
                   className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
                     status,
                   )}`}
                 >
-                  {SUBSCRIPTION_STATUS_LABELS[status] ?? status}
+                  {subscriptionStatusLabel(status, t)}
                 </span>
                 {cancelRequested ? (
                   <span className="inline-flex items-center rounded-md border border-warn-500/30 bg-warn-500/10 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-warn-300">
-                    Cancels at period end
+                    {t("billing:cancels_at_period_end")}
                   </span>
                 ) : null}
                 {isGifted ? (
                   <span className="inline-flex items-center gap-1 rounded-md border border-brand-500/30 bg-brand-500/10 px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300">
                     <IconGift className="h-3 w-3" />
-                    Admin-gifted
+                    {t("billing:admin_gifted")}
                   </span>
                 ) : null}
               </div>
 
               <p className="text-xs leading-relaxed text-ink-300 sm:text-sm">
                 {status === "none"
-                  ? "You are on the free tier (up to 3 repositories with status cards, labels, and personal queue)."
+                  ? t("billing:desc_free_tier")
                   : isGifted
-                    ? `${plan?.name ?? "This"} plan was granted to you by an administrator. No payment is collected and it never renews automatically.`
-                    : plan?.description ?? "Baton Team subscription."}
+                    ? t("billing:desc_gifted", { plan: plan?.name ?? t("billing:desc_this") })
+                    : plan?.description ?? t("billing:desc_team")}
               </p>
 
               {periodEnd ? (
@@ -165,15 +160,17 @@ export default async function BillingPage() {
                   <IconClock className="h-3.5 w-3.5 text-ink-500" />
                   {isGifted ? (
                     <>
-                      <span>Gifted access ends</span>
+                      <span>{t("billing:gifted_access_ends")}</span>
                       <span className="font-bold text-white">{formatDate(periodEnd)}</span>
                     </>
                   ) : (
                     <>
-                      <span>Current billing period ends</span>
+                      <span>{t("billing:period_ends")}</span>
                       <span className="font-bold text-white">{formatDate(periodEnd)}</span>
                       {cancelRequested ? (
-                        <span className="text-warn-300 font-semibold">(access ends on this date)</span>
+                        <span className="text-warn-300 font-semibold">
+                          ({t("billing:access_ends_on_this_date")})
+                        </span>
                       ) : null}
                     </>
                   )}
@@ -183,41 +180,44 @@ export default async function BillingPage() {
               {subscription?.payment_provider === "usdc" ? (
                 <p className="flex items-center gap-1.5 pt-1 font-mono text-xs text-brand-300">
                   <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-                  <span>Paid via USDC on Base &middot; renews manually per billing period.</span>
+                  <span>{t("billing:paid_via_usdc")}</span>
                 </p>
               ) : null}
 
               {status === "payment_failed" || status === "past_due" ? (
                 <div className="flex items-start gap-2.5 rounded-lg border border-danger-500/30 bg-danger-500/10 p-3 text-xs font-medium text-danger-300">
                   <IconAlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>
-                    Your previous payment did not clear. Please renew your subscription to prevent
-                    service interruption.
-                  </span>
+                  <span>{t("billing:payment_not_cleared")}</span>
                 </div>
               ) : null}
 
               {/* Plan Features Checklist */}
               <div className="pt-2">
                 <p className="font-mono text-[10px] uppercase font-semibold text-ink-500 mb-2">
-                  Plan Entitlements:
+                  {t("billing:plan_entitlements")}
                 </p>
                 <ul className="grid gap-2 sm:grid-cols-2 text-xs text-ink-300">
                   <li className="flex items-center gap-2">
                     <IconCheck className="h-3.5 w-3.5 text-signal-400 shrink-0" />
-                    <span>{entitlement.hasPaidAccess ? "Unlimited tracked repositories" : "Up to 3 tracked repositories"}</span>
+                    <span>
+                      {t(
+                        entitlement.hasPaidAccess
+                          ? "billing:ent_unlimited_repos"
+                          : "billing:ent_three_repos",
+                      )}
+                    </span>
                   </li>
                   <li className="flex items-center gap-2">
                     <IconCheck className="h-3.5 w-3.5 text-signal-400 shrink-0" />
-                    <span>Automated status cards on pull requests</span>
+                    <span>{t("billing:ent_status_cards")}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <IconCheck className="h-3.5 w-3.5 text-signal-400 shrink-0" />
-                    <span>Custom per-repo inactivity nudge thresholds</span>
+                    <span>{t("billing:ent_custom_thresholds")}</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <IconCheck className="h-3.5 w-3.5 text-signal-400 shrink-0" />
-                    <span>Real-time repo board Kanban lanes</span>
+                    <span>{t("billing:ent_kanban")}</span>
                   </li>
                 </ul>
               </div>
@@ -230,7 +230,7 @@ export default async function BillingPage() {
               ) : null}
 
               <Link href="/pricing" className="btn btn-ghost btn-sm">
-                <span>{status === "none" ? "Upgrade to Team" : "Change Plan"}</span>
+                <span>{t(status === "none" ? "billing:upgrade_to_team" : "billing:change_plan")}</span>
                 <IconArrowRight className="h-3 w-3" />
               </Link>
 
@@ -242,7 +242,7 @@ export default async function BillingPage() {
                   href={`/dashboard/billing/checkout?plan=${plan.id}&billing=monthly`}
                   className="btn btn-ghost btn-sm"
                 >
-                  <span>Renew (USDC)</span>
+                  <span>{t("billing:renew_usdc")}</span>
                   <IconArrowRight className="h-3 w-3" />
                 </Link>
               ) : null}
@@ -250,7 +250,7 @@ export default async function BillingPage() {
               {!isGifted && status === "active" ? (
                 <CancelPlanButton
                   subscriptionId={subscription!.id}
-                  planName={plan?.name ?? "this plan"}
+                  planName={plan?.name ?? t("billing:this_plan")}
                   periodEnd={periodEnd}
                 />
               ) : null}
@@ -269,7 +269,7 @@ export default async function BillingPage() {
             </span>
             <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-500">
               <IconClock className="h-3 w-3" />
-              started {formatDate(pendingCheckout.created_at)}
+              {t("billing:started", { date: formatDate(pendingCheckout.created_at) })}
             </span>
           </div>
 
@@ -278,14 +278,14 @@ export default async function BillingPage() {
               <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-center gap-2.5">
                   <h3 className="text-lg font-bold text-white">
-                    {pendingCheckout.plan?.name ?? "Plan"}
+                    {pendingCheckout.plan?.name ?? t("billing:plan_fallback")}
                   </h3>
                   <span
                     className={`inline-flex items-center rounded-md border px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${statusTone(
                       pendingCheckout.status,
                     )}`}
                   >
-                    {SUBSCRIPTION_STATUS_LABELS[pendingCheckout.status] ?? pendingCheckout.status}
+                    {subscriptionStatusLabel(pendingCheckout.status, t)}
                   </span>
                   {pendingPayment ? (
                     <span
@@ -293,29 +293,25 @@ export default async function BillingPage() {
                         pendingPayment.status,
                       )}`}
                     >
-                      {PAYMENT_STATUS_LABELS[pendingPayment.status] ?? pendingPayment.status}
+                      {paymentStatusLabel(pendingPayment.status, t)}
                     </span>
                   ) : null}
                 </div>
 
                 <p className="max-w-xl text-xs leading-relaxed text-ink-300">
                   {pendingCheckout.status === "payment_failed" ? (
-                    <>
-                      Your payment for this checkout did not clear. Retry it now or cancel it and
-                      start fresh. This never blocks you from switching plans.
-                    </>
+                    <>{t("billing:pending_failed")}</>
                   ) : pendingPayment?.status === "confirmed" ? (
-                    <>This checkout's payment is confirmed and being activated. If it does not
-                      resolve shortly, contact support.</>
+                    <>{t("billing:pending_activating")}</>
                   ) : (
                     <>
-                      You started this {pendingInterval} checkout on{" "}
+                      {t("billing:pending_unfinished_before", { interval: t(`billing:interval_${pendingInterval}`) })}{" "}
                       <span className="font-mono text-ink-200">
                         {formatDate(pendingCheckout.created_at)}
                       </span>{" "}
-                      but have not finished paying yet. Continue it to activate{" "}
-                      {pendingCheckout.plan?.name ?? "your plan"}, or cancel it and choose something
-                      different.
+                      {t("billing:pending_unfinished_after", {
+                        plan: pendingCheckout.plan?.name ?? t("billing:your_plan"),
+                      })}
                     </>
                   )}
                 </p>
@@ -328,23 +324,28 @@ export default async function BillingPage() {
                     <span className="text-[11px] font-normal text-ink-400">
                       {pendingPayment.payment_provider === "usdc" ? (
                         <>
-                          via USDC on {pendingPayment.crypto_network ?? "Base"} &middot;{" "}
-                          {pendingInterval}
+                          {t("billing:via_usdc", {
+                            network: pendingPayment.crypto_network ?? "Base",
+                          })}{" "}
+                          &middot; {t(`billing:interval_${pendingInterval}`)}
                         </>
                       ) : (
-                        <>via card (Stripe) &middot; {pendingInterval}</>
+                        <>
+                          {t("billing:via_card")} &middot;{" "}
+                          {t(`billing:interval_${pendingInterval}`)}
+                        </>
                       )}
                     </span>
                     {pendingPayment.crypto_transaction_hash ? (
                       <span className="inline-flex items-center gap-1.5 rounded-md border border-brand-500/30 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-brand-300">
                         <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-                        hash submitted
+                        {t("billing:hash_submitted")}
                       </span>
                     ) : null}
                   </div>
                 ) : (
                   <p className="font-mono text-[11px] text-ink-500">
-                    No payment created yet. Checkout will collect it when you continue.
+                    {t("billing:no_payment_created")}
                   </p>
                 )}
               </div>
@@ -356,16 +357,18 @@ export default async function BillingPage() {
                 />
                 <PendingCheckoutControls
                   subscriptionId={pendingCheckout.id}
-                  planName={pendingCheckout.plan?.name ?? "this plan"}
+                  planName={pendingCheckout.plan?.name ?? t("billing:this_plan")}
                   interval={pendingInterval}
                   hasSubmittedCryptoTx={Boolean(pendingPayment?.crypto_transaction_hash)}
                   paymentSummary={
                     pendingPayment
                       ? `${formatMoney(pendingPayment.amount)} ${pendingPayment.currency} · ${
                           pendingPayment.payment_provider === "usdc"
-                            ? `USDC on ${pendingPayment.crypto_network ?? "Base"}`
-                            : "Stripe"
-                        } · ${pendingInterval}`
+                            ? t("billing:via_usdc_short", {
+                                network: pendingPayment.crypto_network ?? "Base",
+                              })
+                            : t("billing:stripe")
+                        } · ${t(`billing:interval_${pendingInterval}`)}`
                       : null
                   }
                 />
@@ -392,14 +395,16 @@ export default async function BillingPage() {
                 <h3 className="text-sm font-bold text-white">{p.name}</h3>
                 {isCurrent ? (
                   <span className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
-                    current
+                    {t("billing:current")}
                   </span>
                 ) : null}
               </div>
               <div className="mt-3 flex items-baseline gap-2">
                 <span className="font-mono text-2xl font-bold tabular-nums text-white">{monthly}</span>
-                <span className="text-xs text-ink-400">/month</span>
-                <span className="ml-2 font-mono text-xs text-ink-400">{annual}/year</span>
+                <span className="text-xs text-ink-400">{t("billing:per_month")}</span>
+                <span className="ml-2 font-mono text-xs text-ink-400">
+                  {annual}/{t("billing:per_year")}
+                </span>
               </div>
               <p className="mt-2 flex-1 text-xs leading-relaxed text-ink-400">
                 {p.description?.trim() ? p.description : null}
@@ -409,7 +414,7 @@ export default async function BillingPage() {
                   href={`/dashboard/billing/checkout?plan=${p.id}&billing=monthly`}
                   className={`btn btn-sm ${isCurrent ? "btn-ghost" : "btn-primary"}`}
                 >
-                  <span>{isCurrent ? "Your plan" : "Choose this plan"}</span>
+                  <span>{t(isCurrent ? "billing:your_plan" : "billing:choose_this_plan")}</span>
                   <IconArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -425,10 +430,9 @@ export default async function BillingPage() {
             <IconShield className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-xs font-bold text-white">Payment Security &amp; Privacy</h3>
+            <h3 className="text-xs font-bold text-white">{t("billing:security_title")}</h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
-              Card checkouts are processed directly via Stripe; card details never touch Baton servers.
-              USDC checkouts are verified deterministically on Base.
+              {t("billing:security_body")}
             </p>
           </div>
         </div>
@@ -438,15 +442,16 @@ export default async function BillingPage() {
             <IconCreditCard className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-xs font-bold text-white">Billing &amp; Invoice Support</h3>
+            <h3 className="text-xs font-bold text-white">{t("billing:support_title")}</h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
-              Need custom invoicing, VAT exemption, or enterprise agreements? Contact our team at{" "}
+              {t("billing:support_body_before")}{" "}
               <a
                 href="mailto:billing@baton.dev"
                 className="font-medium text-brand-300 underline hover:text-brand-200"
               >
                 billing@baton.dev
-              </a>.
+              </a>
+              {t("billing:support_body_after")}
             </p>
           </div>
         </div>
@@ -456,17 +461,17 @@ export default async function BillingPage() {
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            Payment &amp; Invoice History
+            {t("billing:history_title")}
           </span>
           <span className="font-mono text-[11px] text-ink-500">
-            {payments.length} record{payments.length === 1 ? "" : "s"}
+            {t("billing:history_records", { count: payments.length })}
           </span>
         </div>
 
         {payments.length === 0 ? (
           <div className="px-5 py-12 text-center">
             <p className="text-xs text-ink-500">
-              No payment transactions on record. Free individual tier requires no payment method.
+              {t("billing:history_empty")}
             </p>
           </div>
         ) : (
@@ -479,12 +484,18 @@ export default async function BillingPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-xs font-semibold text-white">
-                      {p.plan?.name ?? "Team Plan"} &middot; {p.payment_type.replace("_", " ")}
+                      {p.plan?.name ?? t("billing:team_plan")} &middot;{" "}
+                      {t(`billing:payment_type_${p.payment_type}`)}
                     </p>
                   </div>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-400">
                     {formatDate(p.created_at)} &middot;{" "}
-                    {p.payment_provider === "usdc" ? `USDC (${p.crypto_network})` : "Credit Card (Stripe)"}
+                    {t(
+                      p.payment_provider === "usdc"
+                        ? "billing:usdc_network"
+                        : "billing:credit_card_stripe",
+                      p.payment_provider === "usdc" ? { network: p.crypto_network ?? "Base" } : undefined,
+                    )}
                     {p.crypto_transaction_hash ? (
                       <span className="ml-1 inline-flex items-center gap-1">
                         &middot;{" "}
@@ -494,7 +505,7 @@ export default async function BillingPage() {
                           rel="noreferrer"
                           className="text-brand-300 hover:text-brand-200 inline-flex items-center gap-0.5"
                         >
-                          <span>BaseScan</span>
+                          <span>{t("billing:basescan")}</span>
                           <IconExternalLink className="h-3 w-3" />
                         </a>
                       </span>
@@ -508,10 +519,10 @@ export default async function BillingPage() {
                       p.status,
                     )}`}
                   >
-                    {PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                    {paymentStatusLabel(p.status, t)}
                   </span>
                   <span className="font-mono text-sm font-bold tabular-nums text-white">
-                    ${(p.amount / 100).toFixed(2)} {p.currency}
+                    {formatCurrency(p.amount, p.currency)}
                   </span>
                 </div>
               </li>
@@ -525,7 +536,7 @@ export default async function BillingPage() {
         <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-              Subscription Lifecycle Log
+              {t("billing:lifecycle_log")}
             </span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
@@ -535,11 +546,14 @@ export default async function BillingPage() {
                 className="flex items-center justify-between px-5 py-3 text-xs"
               >
                 <span className="font-mono text-[11px] uppercase tracking-wider text-ink-300">
-                  {e.eventType.replace(/_/g, " ")}
+                  {t(`billing:event_${e.eventType}`, e.newStatus ? { status: subscriptionStatusLabel(e.newStatus, t) } : undefined)}
                 </span>
                 {e.newStatus ? (
                   <span className="font-mono text-[11px] text-ink-400">
-                    status &rarr; <span className="text-white font-semibold">{e.newStatus}</span>
+                    {t("billing:status_arrow")}{" "}
+                    <span className="text-white font-semibold">
+                      {subscriptionStatusLabel(e.newStatus, t)}
+                    </span>
                   </span>
                 ) : null}
                 <span className="font-mono text-[11px] text-ink-500">

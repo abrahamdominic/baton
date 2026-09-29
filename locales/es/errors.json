@@ -11,5 +11,7 @@
   "invalid_email": "Introduce una dirección de correo válida.",
   "try_again": "Reintentar",
   "contact_support": "Contactar con soporte",
-  "details": "Detalles técnicos"
+  "details": "Detalles técnicos",
+  "account_suspended_title": "Cuenta suspendida",
+  "account_suspended_body_prefix": "Tu cuenta de Baton ha sido suspendida. Si crees que es un error, contacta con soporte en"
 }

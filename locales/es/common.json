@@ -48,5 +48,11 @@
   "theme_system": "Sistema",
   "theme_dark_title": "Tema oscuro",
   "theme_light_title": "Tema claro",
-  "theme_system_title": "Seguir el tema del sistema (actualmente {{resolved}})"
+  "theme_system_title": "Seguir el tema del sistema (actualmente {{resolved}})",
+  "under_an_hour": "menos de una hora",
+  "hours_short": "{{hours}} h",
+  "day_hours_short": "1 d {{hours}} h",
+  "day_short": "1 d",
+  "days_hours_short": "{{days}} d {{hours}} h",
+  "days_short": "{{days}} d"
 }

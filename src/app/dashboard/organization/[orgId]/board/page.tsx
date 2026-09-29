@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { listUserOrganizations, requireOrganizationMember, workspaceBoard } from "@/lib/workspaces";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { PageHeader } from "@/components/ui";
@@ -15,6 +16,7 @@ export default async function OrganizationBoardPage({
   params: Promise<{ orgId: string }>;
 }) {
   const { orgId } = await params;
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -43,17 +45,17 @@ export default async function OrganizationBoardPage({
           </span>
         }
         title={org ? org.name : "Organization Board"}
-        description="One board for the whole engineering team: stalled review, CI, conflict, and merge work from every shared repository."
+        description={t("workspace:org_board_description")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Link href={`/dashboard/organization/${orgId}`} className="btn btn-ghost btn-sm">
-              <span>Manage org</span>
+              <span>{t("workspace:manage_org")}</span>
               <IconChevronRight className="h-3 w-3" />
             </Link>
             {canExportAudit ? (
               <Link href={`/dashboard/organization/${orgId}/audit`} className="btn btn-ghost btn-sm">
                 <IconDownload className="h-3.5 w-3.5" />
-                <span>Audit Ledger</span>
+                <span>{t("workspace:audit_ledger_link")}</span>
               </Link>
             ) : null}
           </div>

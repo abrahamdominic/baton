@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { confirmWorkSignalAction } from "./actions";
 import { IconAlertCircle, IconBookmark, IconCheck } from "@/components/icons";
+import { useTranslation } from "@/lib/i18n/provider";
 import type { WorkSignal } from "@/lib/intelligence/work-detection";
 
 /**
@@ -28,6 +29,7 @@ export function WorkSignalList({
   repo: string;
   signals: WorkSignal[];
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,10 +56,8 @@ export function WorkSignalList({
   return (
     <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
       <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-        <h2 className="text-sm font-semibold text-white">Possible Unfinished Work</h2>
-        <p className="mt-0.5 text-xs text-ink-500">
-          Inferred from activity Baton has already recorded. Nothing is saved until you choose one.
-        </p>
+        <h2 className="text-sm font-semibold text-white">{t("intelligence:work_title")}</h2>
+        <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:work_subtitle")}</p>
       </div>
 
       {error ? (
@@ -112,12 +112,14 @@ export function WorkSignalList({
                 {isSaved ? (
                   <>
                     <IconCheck className="h-3 w-3" />
-                    <span>Saved</span>
+                    <span>{t("intelligence:work_saved")}</span>
                   </>
                 ) : (
                   <>
                     <IconBookmark className="h-3 w-3" />
-                    <span>{pendingId === s.id ? "Saving…" : "Save context"}</span>
+                    <span>
+                      {pendingId === s.id ? t("intelligence:work_saving") : t("intelligence:work_save")}
+                    </span>
                   </>
                 )}
               </button>

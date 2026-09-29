@@ -19,127 +19,139 @@ import {
 import { PrSimulator } from "@/components/pr-simulator";
 import { StateMatrix } from "@/components/state-matrix";
 import { RoiCalculator } from "@/components/roi-calculator";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-  title: "Baton: Know whose turn it is on every pull request",
-  description:
-    "Deterministic GitHub App that tracks PR review state, surfaces the blocker in the thread, and nudges the right person when work stalls. Includes evidence-backed repository intelligence where every claim cites its source.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslatorForRequest();
+  return {
+    alternates: { canonical: "/" },
+    title: t("marketing:meta_title"),
+    description: t("marketing:meta_description"),
+  };
+}
 
-const SITE_JSON_LD = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebSite",
-      name: "Baton",
-      url: config.SITE_URL,
-      description:
-        "Know whose turn it is on every pull request. Baton tracks PR state, surfaces it in the PR, nudges the right person, and builds evidence-backed repository intelligence where every claim cites its source.",
-    },
-    {
-      "@type": "SoftwareApplication",
-      name: "Baton",
-      applicationCategory: "DeveloperApplication",
-      operatingSystem: "Web",
-      url: config.SITE_URL,
-      offers: {
-        "@type": "Offer",
-        price: "0",
-        priceCurrency: "USD",
-        description: "Free for individuals on up to 3 repositories and free for public open source.",
+/**
+ * Structured data.
+ *
+ * The descriptions come from the resource files rather than a hardcoded literal
+ * so a crawler reading the JSON-LD sees the same language as the page. It is
+ * built per request for that reason and never hoisted to a module constant.
+ */
+function siteJsonLd(t: (key: string) => string) {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        name: "Baton",
+        url: config.SITE_URL,
+        description: t("marketing:jsonld_site_description"),
       },
-    },
-  ],
-};
+      {
+        "@type": "SoftwareApplication",
+        name: "Baton",
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "Web",
+        url: config.SITE_URL,
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+          description: t("marketing:jsonld_offer_description"),
+        },
+      },
+    ],
+  };
+}
 
+/** Numeric headline + two lines of copy. The number itself is data, not copy. */
 const STATS = [
-  {
-    value: "89%",
-    label: "of PR cycle time is spent waiting, not writing code",
-    detail: "Measured across open-source and team repositories",
-  },
+  { value: "89%", labelKey: "marketing:stat_waiting_label", detailKey: "marketing:stat_waiting_detail" },
   {
     value: "2-6 days",
-    label: "the typical wait before the first review lands",
-    detail: "Context decays with every passing day",
+    labelKey: "marketing:stat_first_review_label",
+    detailKey: "marketing:stat_first_review_detail",
   },
-  {
-    value: "0",
-    label: "source files stored by Baton",
-    detail: "Repository structure and manifests are read, never retained",
-  },
+  { value: "0", labelKey: "marketing:stat_stored_label", detailKey: "marketing:stat_stored_detail" },
   {
     value: "100%",
-    label: "deterministic state engine",
-    detail: "Pure state machine without flaky LLM guessing",
+    labelKey: "marketing:stat_engine_label",
+    detailKey: "marketing:stat_engine_detail",
   },
 ];
 
+/** `marketing:feature_*` pairs, in the order the grid renders them. */
 const FEATURES = [
-  {
-    icon: IconBranch,
-    title: "Pinned live status card",
-    body: "Baton maintains one single, always-updated status comment at the top of the pull request. State, current owner, duration in state, and next unblocking action are always visible.",
-  },
-  {
-    icon: IconLayers,
-    title: "State labels on GitHub",
-    body: "One canonical baton:* label mirrors the PR state in real time. Works seamlessly with your existing GitHub search filters, notification routing, and triage workflows.",
-  },
-  {
-    icon: IconBell,
-    title: "Targeted, polite nudges",
-    body: "At most one nudge per state, sent only after your configured grace period (e.g. 24h, 48h). Mentions only the person who can unblock the PR, never spamming the whole team.",
-  },
-  {
-    icon: IconActivity,
-    title: "Deterministic whose-turn engine",
-    body: "Reviews, review requests, CI checks, merge conflicts, and draft status feed into a verifiable finite-state machine. No heuristics, no AI hallucinations in the critical path.",
-  },
-  {
-    icon: IconGauge,
-    title: "Your Move command center",
-    body: "A clean developer dashboard grouping PRs by who needs to act next. Your queue is front and center so you can unblock teammates first thing in the morning.",
-  },
-  {
-    icon: IconLayers,
-    title: "Evidence-backed repository intelligence",
-    body: "Facts collected from the GitHub API, with every claim linked to the file or response it came from. Asking a question the collected evidence cannot answer returns \"no evidence\" rather than a confident guess.",
-  },
-  {
-    icon: IconShield,
-    title: "No source code read access",
-    body: "Baton requests only Pull requests and Issues read/write (for comments/labels), plus read-only Checks and Metadata. It never requests Contents, ASTs, or Secrets.",
-  },
+  { icon: IconBranch, titleKey: "marketing:feature_status_card_title", bodyKey: "marketing:feature_status_card_body" },
+  { icon: IconLayers, titleKey: "marketing:feature_labels_title", bodyKey: "marketing:feature_labels_body" },
+  { icon: IconBell, titleKey: "marketing:feature_nudges_title", bodyKey: "marketing:feature_nudges_body" },
+  { icon: IconActivity, titleKey: "marketing:feature_engine_title", bodyKey: "marketing:feature_engine_body" },
+  { icon: IconGauge, titleKey: "marketing:feature_move_title", bodyKey: "marketing:feature_move_body" },
+  { icon: IconLayers, titleKey: "marketing:feature_intelligence_title", bodyKey: "marketing:feature_intelligence_body" },
+  { icon: IconShield, titleKey: "marketing:feature_permissions_title", bodyKey: "marketing:feature_permissions_body" },
 ];
 
+/** Comparison rows: a dimension plus one cell per competing approach. */
 const COMPARISONS = [
   {
-    dimension: "How it decides ownership",
-    baton: "Deterministic state machine using GitHub review decisions, commits, CI, and mergeability",
-    staleBot: "Blunt time rules (e.g. 'no activity in 30 days')",
-    slackPings: "Manual human memory and ad-hoc Slack reminders",
+    dimensionKey: "marketing:compare_row_1",
+    batonKey: "marketing:compare_row_1_baton",
+    botsKey: "marketing:compare_row_1_bots",
+    slackKey: "marketing:compare_row_1_slack",
   },
   {
-    dimension: "Where the status lives",
-    baton: "Pinned comment and labels inside the PR thread + dashboard",
-    staleBot: "A noisy bot comment after weeks of silence",
-    slackPings: "Lost in Slack threads and direct messages",
+    dimensionKey: "marketing:compare_row_2",
+    batonKey: "marketing:compare_row_2_baton",
+    botsKey: "marketing:compare_row_2_bots",
+    slackKey: "marketing:compare_row_2_slack",
   },
   {
-    dimension: "Who gets nudged",
-    baton: "Exactly the one blocker (reviewer or author) past the threshold",
-    staleBot: "Blames the author regardless of who is stalled",
-    slackPings: "Interrupts whoever checks Slack first",
+    dimensionKey: "marketing:compare_row_3",
+    batonKey: "marketing:compare_row_3_baton",
+    botsKey: "marketing:compare_row_3_bots",
+    slackKey: "marketing:compare_row_3_slack",
   },
   {
-    dimension: "Source code access",
-    baton: "Scoped access (Pull requests, Checks, and read-only repository structure)",
-    staleBot: "Usually requires broad repository access",
-    slackPings: "N/A",
+    dimensionKey: "marketing:compare_row_4",
+    batonKey: "marketing:compare_row_4_baton",
+    botsKey: "marketing:compare_row_4_bots",
+    slackKey: "marketing:compare_row_4_slack",
   },
 ];
+
+const STEPS = [
+  { step: "01", titleKey: "marketing:how_step_1_title", descKey: "marketing:how_step_1_body", badgeKey: "marketing:how_step_1_badge" },
+  { step: "02", titleKey: "marketing:how_step_2_title", descKey: "marketing:how_step_2_body", badgeKey: "marketing:how_step_2_badge" },
+  { step: "03", titleKey: "marketing:how_step_3_title", descKey: "marketing:how_step_3_body", badgeKey: "marketing:how_step_3_badge" },
+];
+
+const PERMISSIONS = [
+  "marketing:security_perm_1",
+  "marketing:security_perm_2",
+  "marketing:security_perm_3",
+  "marketing:security_perm_4",
+  "marketing:security_perm_5",
+  "marketing:security_perm_6",
+  "marketing:security_perm_7",
+];
+
+/**
+ * The reasons `/auth/callback` can set, each with its own copy.
+ *
+ * Listed as full keys rather than a prefix plus a suffix: `t()` on an unknown
+ * key degrades to a humanised label, which for an auth failure would read as
+ * confident nonsense instead of an honest "something went wrong". Unknown
+ * values therefore fall through to the generic banner.
+ */
+const OAUTH_REASONS = [
+  "marketing:oauth_error_exchange_failed",
+  "marketing:oauth_error_github_api",
+  "marketing:oauth_error_state_mismatch",
+  "marketing:oauth_error_iss_mismatch",
+  "marketing:oauth_error_server_error",
+  "marketing:oauth_error_db_misconfigured",
+  "marketing:oauth_error_db_unreachable",
+] as const;
 
 export default async function LandingPage({
   searchParams,
@@ -152,38 +164,30 @@ export default async function LandingPage({
   }>;
 }) {
   const sp = searchParams ? await searchParams : undefined;
+  const { t } = await getTranslatorForRequest();
 
-  const OAUTH_ERROR_MESSAGES: Record<string, string> = {
-    exchange_failed:
-      "GitHub rejected the sign-in credentials. Confirm the OAuth Client ID and Client secret, and that https://baton-xi.vercel.app/auth/callback is registered as the callback URL on the GitHub App.",
-    github_api:
-      "GitHub could not complete the sign-in on its end (GitHub API error). Please try signing in again in a moment.",
-    state_mismatch:
-      "Your sign-in request expired or was replayed. Please sign in again from the header. No harm done, just retry.",
-    iss_mismatch:
-      "Sign-in was rejected for security reasons (unexpected OAuth issuer). Please try signing in again.",
-    server_error:
-      "Sign-in could not be completed because the service database is currently unavailable. Please try again shortly.",
-    db_misconfigured:
-      "Sign-in could not be completed because the service database is not configured on this deployment.",
-    db_unreachable:
-      "Sign-in could not be completed because the service database could not be reached. Please try again shortly.",
-  };
+  // The `reason` value is an enum produced by the auth callback, mapped onto a
+  // stable `marketing:oauth_error_*` key. An unknown reason degrades to the
+  // generic failure banner instead of rendering a raw identifier.
+  const requestedReason = sp?.reason ? `marketing:oauth_error_${sp.reason}` : null;
+  const knownReason = (OAUTH_REASONS as readonly string[]).find(
+    (k) => k === requestedReason,
+  );
+  const reasonMessage = knownReason ? t(knownReason) : null;
 
   const oauthBanner = sp?.oauth_config
-    ? "GitHub sign-in is temporarily unavailable on this deployment because OAuth credentials are not configured. The GitHub App install flow still works."
+    ? t("marketing:oauth_banner_unconfigured")
     : sp?.oauth_error
-      ? (sp.reason && OAUTH_ERROR_MESSAGES[sp.reason]) ||
-        "GitHub sign-in failed. Please try again, or install the GitHub App directly from the header."
+      ? reasonMessage ?? t("marketing:oauth_banner_failed")
       : sp?.oauth_denied
-        ? "GitHub sign-in was cancelled. No problem, you can keep browsing or install Baton from the header."
+        ? t("marketing:oauth_banner_denied")
         : null;
 
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(SITE_JSON_LD) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd(t)) }}
       />
       <MarketingHeader />
 
@@ -201,69 +205,57 @@ export default async function LandingPage({
       <section className="border-b border-white/[0.06] pt-12 pb-20 md:pt-20 md:pb-28">
         <div className="container-wide">
           <div className="mx-auto max-w-3xl text-center">
-            {/* Top Pill */}
             <div className="inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-3.5 py-1 text-xs font-medium text-brand-300">
               <span className="flex h-2 w-2 rounded-full bg-signal-500" />
-              <span>Deterministic GitHub App</span>
+              <span>{t("marketing:hero_badge_app")}</span>
               <span className="text-brand-400/50">·</span>
-              <span className="text-ink-300">AGPL-3.0 Open Source</span>
+              <span className="text-ink-300">{t("marketing:hero_badge_license")}</span>
             </div>
 
-            {/* Main Headline */}
             <h1 className="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl sm:leading-[1.1]">
-              Know whose turn it is on{" "}
-              <span className="text-brand-300">
-                every pull request.
-              </span>
+              {t("marketing:hero_title_lead")}{" "}
+              <span className="text-brand-300">{t("marketing:hero_title_accent")}</span>
             </h1>
 
-            {/* Subhead */}
             <p className="mt-6 text-base text-ink-300 sm:text-lg leading-relaxed max-w-2xl mx-auto">
-              Engineering teams do not lose time writing code. They lose it waiting for reviews.
-              Baton tracks PR state deterministically, surfaces the owner inside the thread, and
-              sends one polite nudge when work stalls.
+              {t("marketing:hero_subtitle")}
             </p>
 
-            {/* CTAs */}
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link href="/install" className="btn btn-primary btn-lg">
                 <IconGitHub className="h-4 w-4" />
-                Install Baton Free
+                {t("marketing:hero_cta_install")}
                 <IconArrowRight className="h-4 w-4" />
               </Link>
               <a href="#simulator" className="btn btn-ghost btn-lg">
                 <IconZap className="h-4 w-4 text-brand-400" />
-                Try Live Simulator
+                {t("marketing:hero_cta_simulator")}
               </a>
               <Link href="/docs" className="btn btn-secondary btn-lg">
-                Documentation
+                {t("marketing:hero_cta_docs")}
               </Link>
             </div>
 
-            {/* Trust points */}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-ink-400">
-              <span className="flex items-center gap-1.5">
-                <IconCheck className="h-3.5 w-3.5 text-signal-400" />
-                No code or diff access
-              </span>
-              <span className="flex items-center gap-1.5">
-                <IconCheck className="h-3.5 w-3.5 text-signal-400" />
-                Installs in 60 seconds
-              </span>
-              <span className="flex items-center gap-1.5">
-                <IconCheck className="h-3.5 w-3.5 text-signal-400" />
-                Free for public repositories
-              </span>
+              {[
+                "marketing:hero_trust_no_code",
+                "marketing:hero_trust_install",
+                "marketing:hero_trust_free",
+              ].map((key) => (
+                <span key={key} className="flex items-center gap-1.5">
+                  <IconCheck className="h-3.5 w-3.5 text-signal-400" />
+                  {t(key)}
+                </span>
+              ))}
             </div>
           </div>
 
-          {/* Hero Interactive PR Simulator */}
           <div id="simulator" className="mt-14 max-w-4xl mx-auto">
-            <div className="mb-3 flex items-center justify-between px-2 text-xs text-ink-400">
+            <div className="mb-3 flex items-center justify-between gap-3 px-2 text-xs text-ink-400">
               <span className="font-mono uppercase tracking-wider text-[11px] text-brand-300">
-                Live Interactive Product Simulator
+                {t("marketing:simulator_label")}
               </span>
-              <span>Click a scenario to see how Baton acts</span>
+              <span>{t("marketing:simulator_hint")}</span>
             </div>
             <PrSimulator />
           </div>
@@ -279,8 +271,8 @@ export default async function LandingPage({
                 <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white font-mono">
                   {s.value}
                 </div>
-                <div className="text-xs font-semibold text-ink-200">{s.label}</div>
-                <div className="text-[11px] text-ink-500 leading-snug">{s.detail}</div>
+                <div className="text-xs font-semibold text-ink-200">{t(s.labelKey)}</div>
+                <div className="text-[11px] text-ink-500 leading-snug">{t(s.detailKey)}</div>
               </div>
             ))}
           </div>
@@ -291,105 +283,59 @@ export default async function LandingPage({
       <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Why pull requests stall in engineering teams
+            {t("marketing:problem_title")}
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">
-            Responsibility on PRs is almost always implicit. Reviewers do not know they are
-            blocking work. Authors do not know when a reviewer is waiting on a reply. The result
-            is days of silent drift.
-          </p>
+          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:problem_subtitle")}</p>
         </div>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-2">
-          {/* Without Baton */}
           <div className="rounded-xl border border-danger-500/20 bg-danger-500/[0.03] p-6 sm:p-7">
-            <div className="flex items-center justify-between border-b border-danger-500/20 pb-4">
+            <div className="flex items-center justify-between gap-3 border-b border-danger-500/20 pb-4">
               <span className="font-mono text-xs font-semibold uppercase tracking-wider text-danger-400">
-                Without Baton (Status Quo)
+                {t("marketing:without_title")}
               </span>
               <span className="rounded bg-danger-500/10 px-2 py-0.5 text-xs text-danger-300 font-mono">
-                ~4-7 days cycle time
+                {t("marketing:without_cycle")}
               </span>
             </div>
             <ul className="mt-6 space-y-4 text-xs text-ink-300">
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400 font-mono text-[10px]">
-                  &times;
-                </span>
-                <div>
-                  <strong className="text-white block font-medium">Reviewer requests drown in email:</strong>
-                  Reviewers receive 20+ GitHub notifications daily and miss the initial request.
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400 font-mono text-[10px]">
-                  &times;
-                </span>
-                <div>
-                  <strong className="text-white block font-medium">Author pushes fixes, reviewer unaware:</strong>
-                  The author fixes comments, but GitHub does not make it clear that the ball is back in the reviewer court.
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400 font-mono text-[10px]">
-                  &times;
-                </span>
-                <div>
-                  <strong className="text-white block font-medium">Ad-hoc Slack interruptions:</strong>
-                  Engineers are forced to play detective in Slack: &ldquo;Hey, can someone review #182?&rdquo;
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400 font-mono text-[10px]">
-                  &times;
-                </span>
-                <div>
-                  <strong className="text-white block font-medium">Merge conflicts creep in:</strong>
-                  While waiting, base branches move, tests rot, and rebases become painful.
-                </div>
-              </li>
+              {[1, 2, 3, 4].map((n) => (
+                <li key={n} className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400 font-mono text-[10px]">
+                    &times;
+                  </span>
+                  <div>
+                    <strong className="text-white block font-medium">
+                      {t(`marketing:without_item_${n}_title`)}
+                    </strong>
+                    {t(`marketing:without_item_${n}_body`)}
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* With Baton */}
           <div className="rounded-xl border border-signal-500/30 bg-signal-500/[0.03] p-6 sm:p-7">
-            <div className="flex items-center justify-between border-b border-signal-500/20 pb-4">
+            <div className="flex items-center justify-between gap-3 border-b border-signal-500/20 pb-4">
               <span className="font-mono text-xs font-semibold uppercase tracking-wider text-signal-400">
-                With Baton (Deterministic Relay)
+                {t("marketing:with_title")}
               </span>
               <span className="rounded bg-signal-500/15 px-2 py-0.5 text-xs text-signal-300 font-mono">
-                ~12-24h cycle time
+                {t("marketing:with_cycle")}
               </span>
             </div>
             <ul className="mt-6 space-y-4 text-xs text-ink-200">
-              <li className="flex items-start gap-3">
-                <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
-                <div>
-                  <strong className="text-white block font-medium">Single source of truth in the PR:</strong>
-                  A pinned card shows state, blocker, and time in state right at the top of the conversation.
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
-                <div>
-                  <strong className="text-white block font-medium">Instant turn transitions:</strong>
-                  When author pushes commits after review, Baton instantly flips the state to &ldquo;Re-review Due&rdquo;.
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
-                <div>
-                  <strong className="text-white block font-medium">Polite, time-boxed notifications:</strong>
-                  Exactly one targeted nudge sent only when the threshold expires. Never spam.
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
-                <div>
-                  <strong className="text-white block font-medium">Your Move dashboard:</strong>
-                  Reviewers see PRs waiting on them in one clean queue. No manual searching needed.
-                </div>
-              </li>
+              {[1, 2, 3, 4].map((n) => (
+                <li key={n} className="flex items-start gap-3">
+                  <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
+                  <div>
+                    <strong className="text-white block font-medium">
+                      {t(`marketing:with_item_${n}_title`)}
+                    </strong>
+                    {t(`marketing:with_item_${n}_body`)}
+                  </div>
+                </li>
+              ))}
             </ul>
           </div>
         </div>
@@ -399,47 +345,25 @@ export default async function LandingPage({
       <section id="how-it-works" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            From GitHub webhook to unblocked PR
+            {t("marketing:how_title")}
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">
-            Baton is purely event-driven. On every pull request action and on a safety sweep schedule,
-            the state is re-evaluated using standard GitHub APIs.
-          </p>
+          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:how_subtitle")}</p>
         </div>
 
         <div className="mt-14 grid gap-8 md:grid-cols-3">
-          {[
-            {
-              step: "01",
-              title: "Observe events",
-              desc: "GitHub webhook fires with HMAC-SHA256 signature verification. Baton reads review states, checks conclusion, and mergeability status. It never requests or reads source diffs.",
-              badge: "HMAC Verified",
-            },
-            {
-              step: "02",
-              title: "Deterministic classify",
-              desc: "A pure state machine determines which of the 8 canonical states applies, who owns the next move, and calculates the exact duration the PR has been waiting in this state.",
-              badge: "0 AI guessing",
-            },
-            {
-              step: "03",
-              title: "Surface & nudge",
-              desc: "Baton updates its pinned comment, synchronizes the baton:* label, and if the time exceeds your configured grace period, sends exactly one polite @-mention to the blocker.",
-              badge: "Configurable grace",
-            },
-          ].map((item) => (
+          {STEPS.map((item) => (
             <div
               key={item.step}
               className="relative rounded-xl border border-white/[0.08] bg-ink-900/60 p-6"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-xs font-bold text-brand-400">{item.step}</span>
                 <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-ink-400">
-                  {item.badge}
+                  {t(item.badgeKey)}
                 </span>
               </div>
-              <h3 className="mt-4 text-base font-bold text-white">{item.title}</h3>
-              <p className="mt-2 text-xs leading-relaxed text-ink-400">{item.desc}</p>
+              <h3 className="mt-4 text-base font-bold text-white">{t(item.titleKey)}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-ink-400">{t(item.descKey)}</p>
             </div>
           ))}
         </div>
@@ -449,12 +373,9 @@ export default async function LandingPage({
       <section id="states" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl mb-12">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Eight canonical states, zero ambiguity
+            {t("marketing:states_title")}
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">
-            Explore the exact rules Baton uses to assign ownership, labels, and thresholds.
-            Every state has a clear definition based entirely on verifiable GitHub data.
-          </p>
+          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:states_subtitle")}</p>
         </div>
 
         <StateMatrix />
@@ -464,24 +385,22 @@ export default async function LandingPage({
       <section id="features" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Built for engineering teams that ship daily
+            {t("marketing:features_title")}
           </h2>
-          <p className="mt-4 text-sm text-ink-300">
-            No fluff, no noisy notifications, no heavy dashboards nobody opens.
-          </p>
+          <p className="mt-4 text-sm text-ink-300">{t("marketing:features_subtitle")}</p>
         </div>
 
         <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <div
-              key={f.title}
+              key={f.titleKey}
               className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-6 transition-all hover:border-white/[0.14] hover:bg-ink-850/70"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-500/30 bg-brand-500/10 text-brand-300">
                 <f.icon className="h-4 w-4" />
               </div>
-              <h3 className="mt-4 text-sm font-bold text-white">{f.title}</h3>
-              <p className="mt-2 text-xs leading-relaxed text-ink-400">{f.body}</p>
+              <h3 className="mt-4 text-sm font-bold text-white">{t(f.titleKey)}</h3>
+              <p className="mt-2 text-xs leading-relaxed text-ink-400">{t(f.bodyKey)}</p>
             </div>
           ))}
         </div>
@@ -491,12 +410,9 @@ export default async function LandingPage({
       <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl mb-12">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            How many hours is your team waiting?
+            {t("marketing:roi_title")}
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">
-            Adjust the sliders to estimate how many hours of PR stall time Baton can eliminate
-            for your engineering team.
-          </p>
+          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:roi_subtitle")}</p>
         </div>
 
         <RoiCalculator />
@@ -506,32 +422,40 @@ export default async function LandingPage({
       <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
         <div className="max-w-2xl mb-12">
           <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            Why teams choose Baton over alternatives
+            {t("marketing:compare_title")}
           </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">
-            See how Baton compares against generic stale bots and manual Slack nudging.
-          </p>
+          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:compare_subtitle")}</p>
         </div>
 
         <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
           <table className="w-full min-w-[600px] text-left text-xs">
             <thead>
               <tr className="border-b border-white/[0.08] bg-ink-900/80 font-mono uppercase text-[11px] text-ink-400">
-                <th className="py-4 pl-6 pr-4 font-semibold">Capability</th>
-                <th className="py-4 px-4 font-semibold text-brand-300">Baton</th>
-                <th className="py-4 px-4 font-semibold">Stale-PR Bots</th>
-                <th className="py-4 pr-6 pl-4 font-semibold">Slack Reminders</th>
+                <th scope="col" className="py-4 ps-6 pe-4 font-semibold">
+                  {t("marketing:compare_capability")}
+                </th>
+                <th scope="col" className="py-4 px-4 font-semibold text-brand-300">
+                  {t("marketing:compare_baton")}
+                </th>
+                <th scope="col" className="py-4 px-4 font-semibold">
+                  {t("marketing:compare_bots")}
+                </th>
+                <th scope="col" className="py-4 pe-6 ps-4 font-semibold">
+                  {t("marketing:compare_slack")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.05] bg-ink-950/40">
               {COMPARISONS.map((row) => (
-                <tr key={row.dimension}>
-                  <td className="py-4 pl-6 pr-4 font-semibold text-white">{row.dimension}</td>
+                <tr key={row.dimensionKey}>
+                  <th scope="row" className="py-4 ps-6 pe-4 text-start font-semibold text-white">
+                    {t(row.dimensionKey)}
+                  </th>
                   <td className="py-4 px-4 font-medium text-brand-200 bg-brand-500/[0.03]">
-                    {row.baton}
+                    {t(row.batonKey)}
                   </td>
-                  <td className="py-4 px-4 text-ink-400">{row.staleBot}</td>
-                  <td className="py-4 pr-6 pl-4 text-ink-400">{row.slackPings}</td>
+                  <td className="py-4 px-4 text-ink-400">{t(row.botsKey)}</td>
+                  <td className="py-4 pe-6 ps-4 text-ink-400">{t(row.slackKey)}</td>
                 </tr>
               ))}
             </tbody>
@@ -546,34 +470,22 @@ export default async function LandingPage({
             <div>
               <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-signal-400">
                 <IconLock className="h-4 w-4" />
-                Requested Permissions, And Nothing More
+                {t("marketing:security_eyebrow")}
               </div>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
-                Baton never stores your source code
+                {t("marketing:security_title")}
               </h2>
               <p className="mt-3 text-xs leading-relaxed text-ink-300 max-w-2xl">
-                Baton requests only the GitHub permissions it uses. Repository intelligence reads
-                the file tree, the package manifest, and CODEOWNERS so it can describe how a
-                repository is built; those reads are used to derive facts and are discarded, and no
-                file contents are retained. Baton does not request Workflows or Secrets. Write
-                access is strictly limited to posting PR comments and managing state labels.
+                {t("marketing:security_body")}
               </p>
 
               <div className="mt-5 flex flex-wrap gap-2">
-                {[
-                  "Pull requests (read/write)",
-                  "Issues (read/write for labels)",
-                  "Checks (read-only)",
-                  "Metadata (read-only)",
-                  "Contents: read-only, never stored",
-                  "Workflows: NO ACCESS",
-                  "Secrets: NO ACCESS",
-                ].map((perm) => (
+                {PERMISSIONS.map((key) => (
                   <span
-                    key={perm}
+                    key={key}
                     className="rounded-md border border-white/[0.08] bg-ink-950 px-2.5 py-1 font-mono text-[11px] text-ink-300"
                   >
-                    {perm}
+                    {t(key)}
                   </span>
                 ))}
               </div>
@@ -581,7 +493,7 @@ export default async function LandingPage({
 
             <div>
               <Link href="/security" className="btn btn-ghost">
-                Read Security Architecture
+                {t("marketing:security_cta")}
                 <IconArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -593,25 +505,23 @@ export default async function LandingPage({
       <section className="border-t border-white/[0.06] bg-ink-900 py-24">
         <div className="container-page text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
-            Stop asking &ldquo;who&apos;s on this?&rdquo; in Slack.
+            {t("marketing:final_title")}
           </h2>
           <p className="mt-4 max-w-xl mx-auto text-sm text-ink-300 leading-relaxed">
-            Install the GitHub App in under two minutes. Free forever for individual developers.
+            {t("marketing:final_subtitle")}
           </p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link href="/install" className="btn btn-primary btn-lg">
               <IconGitHub className="h-4 w-4" />
-              Install Baton Free
+              {t("marketing:hero_cta_install")}
               <IconArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/pricing" className="btn btn-ghost btn-lg">
-              View Team Pricing
+              {t("marketing:final_cta_pricing")}
             </Link>
           </div>
-          <p className="mt-4 font-mono text-[11px] text-ink-500">
-            No credit card required · Uninstall anytime with one click
-          </p>
+          <p className="mt-4 font-mono text-[11px] text-ink-500">{t("marketing:final_fine_print")}</p>
         </div>
       </section>
 

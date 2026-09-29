@@ -28,37 +28,20 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const THRESHOLDS = [
-  {
-    key: "firstResponseHours" as const,
-    label: "First Response",
-    hint: "Initial reviewer response timeout",
-  },
-  {
-    key: "reviewFollowUpHours" as const,
-    label: "Re-review",
-    hint: "Author committed changes, waiting on reviewer",
-  },
-  {
-    key: "changesRequiredHours" as const,
-    label: "Changes Required",
-    hint: "Reviewer requested changes, waiting on author",
-  },
-  {
-    key: "ciFailHours" as const,
-    label: "CI Failing",
-    hint: "Build or test check suite failing",
-  },
-  {
-    key: "conflictHours" as const,
-    label: "Merge Conflicts",
-    hint: "Branch has merge conflicts with base",
-  },
-  {
-    key: "readyToMergeHours" as const,
-    label: "Ready to Merge",
-    hint: "Approved and checks passing, waiting to merge",
-  },
+/**
+ * Threshold rows carry only their key and the `workspace:policy_*` id.
+ *
+ * The same six states appear here, in the organization policy editor, and in
+ * the engine defaults, so the label and hint live in one place rather than
+ * being restated per surface. `id` doubles as the `policy_<id>` key suffix.
+ */
+const THRESHOLDS: { key: keyof typeof REPO_SETTING_DEFAULTS; id: string }[] = [
+  { key: "firstResponseHours", id: "first_response" },
+  { key: "reviewFollowUpHours", id: "rereview" },
+  { key: "changesRequiredHours", id: "changes_required" },
+  { key: "ciFailHours", id: "ci_fail" },
+  { key: "conflictHours", id: "conflict" },
+  { key: "readyToMergeHours", id: "ready_to_merge" },
 ];
 
 export default async function ReposPage() {
@@ -116,8 +99,11 @@ export default async function ReposPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <PageHeader
-        title="Tracked Repositories"
-        description={`${repos.length} repositor${repos.length === 1 ? "y" : "ies"} monitored across ${installations.length} GitHub account${installations.length === 1 ? "" : "s"}.`}
+        title={t("repos:list_title")}
+        description={t("repos:list_description", {
+          count: repos.length,
+          accounts: installations.length,
+        })}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <RepoSyncButton />
@@ -142,14 +128,14 @@ export default async function ReposPage() {
               {activeCount}/{maxRepos}
             </span>
             <div>
-              <p className="font-semibold text-white">Free Plan: {activeCount} of {maxRepos} active repositories tracked</p>
-              <p className="text-[11px] text-ink-400">
-                Upgrade to Team or Organization for unlimited repositories and fully customizable stall thresholds.
+              <p className="font-semibold text-white">
+                {t("repos:list_free_plan", { active: activeCount, max: maxRepos })}
               </p>
+              <p className="text-[11px] text-ink-400">{t("repos:list_free_plan_hint")}</p>
             </div>
           </div>
           <Link href="/dashboard/billing" className="btn btn-secondary btn-sm shrink-0">
-            Upgrade Plan
+            {t("repos:list_upgrade")}
           </Link>
         </div>
       )}
@@ -157,29 +143,29 @@ export default async function ReposPage() {
       {/* Summary KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Total Repositories"
+          label={t("repos:list_stat_total")}
           value={repos.length}
-          detail={`Across ${installations.length} installation${installations.length === 1 ? "" : "s"}`}
+          detail={t("repos:list_stat_total_detail", { count: installations.length })}
           icon={IconBranch}
         />
         <StatCard
-          label="Active Tracking"
+          label={t("repos:list_stat_active")}
           value={activeCount}
-          detail="Webhooks active & nudges enabled"
+          detail={t("repos:list_stat_active_detail")}
           tone="signal"
           icon={IconPlay}
         />
         <StatCard
-          label="Paused Repositories"
+          label={t("repos:list_stat_paused")}
           value={pausedCount}
-          detail={pausedCount > 0 ? "Temporarily halted" : "Zero paused repos"}
+          detail={pausedCount > 0 ? t("repos:list_stat_paused_warn") : t("repos:list_stat_paused_clear")}
           tone={pausedCount > 0 ? "warn" : "default"}
           icon={IconPause}
         />
         <StatCard
-          label="Nudge Protection"
-          value="Active"
-          detail="Targeted @mentions on stall"
+          label={t("repos:list_stat_protection")}
+          value={t("repos:list_stat_protection_value")}
+          detail={t("repos:list_stat_protection_detail")}
           tone="brand"
           icon={IconShield}
         />
@@ -208,16 +194,16 @@ export default async function ReposPage() {
                         {r.owner}/{r.name}
                       </Link>
                       <Badge tone={r.enabled ? "success" : "neutral"}>
-                        {r.enabled ? "tracking" : "paused"}
+                        {t(r.enabled ? "repos:list_tracking" : "repos:list_paused")}
                       </Badge>
                       <span className="rounded border border-white/[0.08] bg-ink-850 px-2 py-0.5 font-mono text-[10px] text-ink-400">
-                        {r.isPrivate ? "private" : "public"}
+                        {t(r.isPrivate ? "repos:list_private" : "repos:list_public")}
                       </span>
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-xs text-ink-400">
-                      <span>Account: @{r.account}</span>
+                      <span>{t("repos:list_account", { account: r.account })}</span>
                       <span className="text-ink-600">&middot;</span>
-                      <span>Default branch: {r.defaultBranch}</span>
+                      <span>{t("repos:list_default_branch", { branch: r.defaultBranch })}</span>
                     </div>
                   </div>
 
@@ -288,7 +274,7 @@ export default async function ReposPage() {
                         title={t("repos:sweep_now")}
                       >
                         <IconRefresh className="h-3 w-3" />
-                        <span>Re-scan</span>
+                        <span>{t("repos:list_rescan")}</span>
                       </button>
                     </form>
                   </div>
@@ -302,13 +288,15 @@ export default async function ReposPage() {
                       <span className="font-mono text-[10px] uppercase font-semibold text-ink-500 mr-1">
                         {t("repos:active_thresholds")}
                       </span>
-                      {THRESHOLDS.map((t) => (
+                      {THRESHOLDS.map((field) => (
                         <span
-                          key={t.key}
+                          key={field.key}
                           className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-ink-950/60 px-2 py-0.5 font-mono text-[11px] text-ink-300"
                         >
-                          <span className="text-ink-400">{t.label}:</span>
-                          <span className="font-bold text-white">{r.setting?.[t.key] ?? 24}h</span>
+                          <span className="text-ink-400">{t(`workspace:policy_${field.id}`)}:</span>
+                          <span className="font-bold text-white">
+                            {r.setting?.[field.key] ?? 24}h
+                          </span>
                         </span>
                       ))}
                     </div>
@@ -338,49 +326,50 @@ export default async function ReposPage() {
                               <span>{t("repos:thresholds_require_plan")}</span>
                             </div>
                             <p className="mt-1.5 text-xs text-ink-400 leading-relaxed">
-                              This repository currently uses Baton&apos;s standard defaults (
-                              {hours(REPO_SETTING_DEFAULTS.firstResponseHours)} first response,{" "}
-                              {hours(REPO_SETTING_DEFAULTS.reviewFollowUpHours)} re-review,{" "}
-                              {hours(REPO_SETTING_DEFAULTS.changesRequiredHours)} changes requested
-                              ). Upgrade your plan to adjust hours per state or configure
-                              organization-wide review policies.
+                              {t("repos:thresholds_defaults_before")} (
+                              {hours(REPO_SETTING_DEFAULTS.firstResponseHours)}{" "}
+                              {t("workspace:policy_first_response")},{" "}
+                              {hours(REPO_SETTING_DEFAULTS.reviewFollowUpHours)}{" "}
+                              {t("workspace:policy_rereview")},{" "}
+                              {hours(REPO_SETTING_DEFAULTS.changesRequiredHours)}{" "}
+                              {t("workspace:policy_changes_required")}
+                              ). {t("repos:thresholds_defaults_after")}
                             </p>
                             <div className="mt-3">
                               <Link href="/dashboard/billing" className="btn btn-secondary btn-sm">
-                                Upgrade Plan
+                                {t("repos:list_upgrade")}
                               </Link>
                             </div>
                           </div>
                         ) : (
                           <>
                             <p className="text-xs text-ink-400 mb-3">
-                              Set the hours of inactivity before Baton automatically leaves a polite @mention
-                              nudge in the PR thread.
+                              {t("repos:thresholds_intro")}
                             </p>
 
                             <div className="grid gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                              {THRESHOLDS.map((t) => (
+                              {THRESHOLDS.map((field) => (
                                 <div
-                                  key={t.key}
+                                  key={field.key}
                                   className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.04] bg-ink-900/60 px-3 py-2.5"
                                 >
                                   <div className="min-w-0 flex-1">
                                     <label
-                                      htmlFor={`${r.id}-${t.key}`}
+                                      htmlFor={`${r.id}-${field.key}`}
                                       className="block cursor-pointer text-xs font-semibold text-ink-200"
                                     >
-                                      {t.label}
+                                      {t(`workspace:policy_${field.id}`)}
                                     </label>
                                     <span className="block truncate text-[10px] text-ink-500">
-                                      {t.hint}
+                                      {t(`workspace:policy_${field.id}_hint`)}
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-1.5">
                                     <input
-                                      id={`${r.id}-${t.key}`}
-                                      name={t.key}
+                                      id={`${r.id}-${field.key}`}
+                                      name={field.key}
                                       form={`settings-${r.id}`}
-                                      defaultValue={r.setting?.[t.key] ?? 24}
+                                      defaultValue={r.setting?.[field.key] ?? 24}
                                       type="number"
                                       min={1}
                                       max={720}

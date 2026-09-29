@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach, vi } from "vitest";
 import React from "react";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { screen, fireEvent, cleanup } from "@testing-library/react";
 import { PricingView } from "./pricing-view";
+import { renderWithI18n } from "@/lib/i18n/test-render";
 import { catalogPlanBySlug } from "@/lib/billing/plan-catalog";
 import { planPriceCents, annualSavingsCents } from "@/lib/billing/pricing";
 import { DEFAULT_PLANS } from "@/lib/billing/plans";
@@ -52,7 +53,7 @@ describe("published pricing is the documented source of truth", () => {
   });
 
   it("renders the correct prices on the pricing page for both intervals", () => {
-    render(<PricingView />);
+    renderWithI18n(<PricingView />);
 
     // Monthly (default) state.
     expect(screen.getAllByText(label(EXPECTED.team.monthly)).length).toBeGreaterThan(0);
@@ -67,7 +68,7 @@ describe("published pricing is the documented source of truth", () => {
   });
 
   it("shows the correct savings copy on the pricing page", () => {
-    render(<PricingView />);
+    renderWithI18n(<PricingView />);
     fireEvent.click(screen.getByRole("tab", { name: /annual billing/i }));
 
     expect(screen.getByText("Billed annually at $150/year (save $30/year)")).toBeTruthy();
@@ -75,7 +76,7 @@ describe("published pricing is the documented source of truth", () => {
   });
 
   it("drives the checkout link from the selected interval for both plans", () => {
-    render(<PricingView />);
+    renderWithI18n(<PricingView />);
 
     const teamMonthly = screen.getByRole("link", { name: /start 14-day free trial \(monthly\)/i });
     const orgMonthly = screen.getByRole("link", { name: /choose organization \(monthly\)/i });
@@ -103,7 +104,7 @@ describe("published pricing is the documented source of truth", () => {
     // The matrix columns are built from the `plans` rows, so the table needs
     // the real plan records - not the catalog fallback - to have Team and
     // Organization columns at all.
-    render(<PricingView plans={DEFAULT_PLANS} />);
+    renderWithI18n(<PricingView plans={DEFAULT_PLANS} />);
 
     const headerFor = (name: string) =>
       screen
@@ -121,7 +122,7 @@ describe("published pricing is the documented source of truth", () => {
 
   it("falls back to the same prices when the plans table is unavailable", () => {
     // `plans={[]}` is the dev/local path where Supabase is not configured.
-    render(<PricingView plans={[]} />);
+    renderWithI18n(<PricingView plans={[]} />);
     expect(screen.getAllByText("$15").length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("tab", { name: /annual billing/i }));
     expect(screen.getAllByText("$150").length).toBeGreaterThan(0);

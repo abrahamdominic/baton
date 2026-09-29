@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { requireTeamMember } from "@/lib/workspaces";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
@@ -17,6 +18,7 @@ export default async function TeamMessagingPage({
 }) {
   const { teamId } = await params;
   const { member } = await searchParams;
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -41,7 +43,7 @@ export default async function TeamMessagingPage({
             Team Workspace
           </span>
         }
-        title="Messaging"
+        title={t("messaging:title")}
         description="Messages are encrypted on your device before they reach Baton. The server stores only ciphertext and per-member key wraps, and it never sees message contents or private keys."
       />
 

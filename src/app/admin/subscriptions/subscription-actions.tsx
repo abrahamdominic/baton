@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslation } from "@/lib/i18n/provider";
 import type { SubscriptionRecord, SubscriptionStatus } from "@/lib/billing/types";
 import {
   overrideSubscriptionAction,
@@ -25,6 +26,7 @@ export function SubscriptionActions({
   canPlanChange: boolean;
   canCancel: boolean;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       {canPlanChange ? (
@@ -34,9 +36,9 @@ export function SubscriptionActions({
         <SelectActionForm
           id={`force-active-${sub.id}`}
           action={overrideSubscriptionAction}
-          actionLabel="Force Active"
+          actionLabel={t("admin:subs_action_force_active")}
           tone="text-signal-300"
-          confirmLabel="Confirm force active"
+          confirmLabel={t("admin:subs_confirm_force_active")}
           hiddenFields={{ subscriptionId: sub.id, to: "active", reason: "admin override to active" }}
         />
       ) : null}
@@ -44,8 +46,8 @@ export function SubscriptionActions({
         <SelectActionForm
           id={`reopen-${sub.id}`}
           action={overrideSubscriptionAction}
-          actionLabel="Reopen Pending"
-          confirmLabel="Confirm reopen"
+          actionLabel={t("admin:subs_action_reopen")}
+          confirmLabel={t("admin:subs_confirm_reopen")}
           hiddenFields={{ subscriptionId: sub.id, to: "pending", reason: "admin reopens subscription for checkout" }}
         />
       ) : null}
@@ -53,9 +55,9 @@ export function SubscriptionActions({
         <SelectActionForm
           id={`uncancel-${sub.id}`}
           action={reactivateSubscriptionAction}
-          actionLabel="Un-cancel"
+          actionLabel={t("admin:subs_action_uncancel")}
           tone="text-signal-300"
-          confirmLabel="Confirm un-cancel"
+          confirmLabel={t("admin:subs_confirm_uncancel")}
           hiddenFields={{ subscriptionId: sub.id }}
         />
       ) : null}
@@ -63,9 +65,9 @@ export function SubscriptionActions({
         <SelectActionForm
           id={`cancel-${sub.id}`}
           action={markCanceledAction}
-          actionLabel="Cancel"
+          actionLabel={t("admin:subs_action_cancel")}
           tone="text-danger-300 hover:border-danger-500/40"
-          confirmLabel="Confirm cancellation"
+          confirmLabel={t("admin:subs_confirm_cancel")}
           hiddenFields={{ subscriptionId: sub.id }}
         />
       ) : null}
@@ -106,6 +108,7 @@ function ChangePlanForm({
   plans: { id: string; slug: string; name: string }[];
   defaultPlanId: string;
 }) {
+  const { t } = useTranslation();
   const [state, action, pending] = useActionState(changePlanAction, initial);
 
   return (
@@ -116,12 +119,12 @@ function ChangePlanForm({
           <input
             type="checkbox"
             name="confirm"
-            aria-label="Confirm plan change"
+            aria-label={t("admin:subs_confirm_plan_change")}
             className="h-3.5 w-3.5 accent-brand-500 rounded"
           />
-          <span className="text-ink-400">Confirm</span>
+          <span className="text-ink-400">{t("admin:confirm")}</span>
         </label>
-        <span className="text-ink-500">plan:</span>
+        <span className="text-ink-500">{t("admin:subs_plan_label")}:</span>
         <select
           name="planId"
           defaultValue={defaultPlanId}
@@ -134,7 +137,7 @@ function ChangePlanForm({
           ))}
         </select>
         <button type="submit" disabled={pending} className="btn btn-ghost btn-sm h-7 text-xs ml-1">
-          Change Plan
+          {t("admin:subs_change_plan")}
         </button>
       </div>
       <Feedback state={state} />

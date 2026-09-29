@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { WorkspaceBoardItem } from "@/lib/workspaces";
-import { Badge, Duration, EmptyState, StateBadge } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
+import { Duration, StateBadge } from "@/components/state-badge";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   IconBranch,
   IconClock,
@@ -8,7 +10,7 @@ import {
   IconGitPullRequest,
 } from "@/components/icons";
 
-export function WorkspaceBoard({
+export async function WorkspaceBoard({
   items,
   installAccounts,
   repos,
@@ -17,15 +19,16 @@ export function WorkspaceBoard({
   installAccounts: string[];
   repos: { id: string; owner: string; name: string }[];
 }) {
+  const { t } = await getTranslatorForRequest();
   if (items.length === 0) {
     return (
       <EmptyState
         icon={IconGitPullRequest}
-        title="No pull requests await action"
+        title={t("workspace:board_empty_title")}
         hint={
           repos.length === 0
-            ? "Share at least one GitHub installation with this workspace so members can see its board here."
-            : "Every open pull request across the shared repositories is moving. New stalled PRs will appear here automatically."
+            ? t("workspace:board_empty_hint_no_repos")
+            : t("workspace:board_empty_hint_clear")
         }
       />
     );
@@ -127,11 +130,12 @@ export function WorkspaceBoard({
   );
 }
 
-export function BoardHeaderLinks({
+export async function BoardHeaderLinks({
   repo,
 }: {
   repo?: { id: string; owner: string; name: string };
 }) {
+  const { t } = await getTranslatorForRequest();
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {repo ? (
@@ -140,7 +144,7 @@ export function BoardHeaderLinks({
           className="btn btn-ghost btn-sm"
         >
           <IconBranch className="h-3.5 w-3.5" />
-          <span>Repo board</span>
+          <span>{t("workspace:repo_board")}</span>
           <IconExternalLink className="h-3 w-3" />
         </Link>
       ) : null}

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { IconRefresh, IconCheckCircle, IconAlertCircle, IconClock } from "@/components/icons";
+import { useTranslation } from "@/lib/i18n/provider";
+import type { Translator } from "@/lib/i18n/translate";
 
 interface PaymentResultClientProps {
   paymentId: string;
@@ -28,53 +30,38 @@ interface Copy {
   extra?: string;
 }
 
-function copyFor(result: VerifyResponse | null): Copy | null {
+function copyFor(result: VerifyResponse | null, t: Translator): Copy | null {
   if (!result) return null;
   if (result.ok && (result.status === "confirmed" || result.code === "verified" || result.code === "already_confirmed")) {
-    return {
-      tone: "good",
-      title: "Payment confirmed",
-      body: "Your payment was verified on-chain and your plan is now active. Head to the dashboard to start using Baton.",
-    };
+    return { tone: "good", title: t("billing:verify_ok_title"), body: t("billing:verify_ok_body") };
   }
   if (result.code === "rpc_unavailable") {
-    return {
-      tone: "warn",
-      title: "We couldn’t reach the chain just yet",
-      body: "Your transaction wasn’t tampered with. Our verifier just couldn’t reach a Base node in time. Tap “Check again” in a minute; no action is needed from you.",
-    };
+    return { tone: "warn", title: t("billing:verify_rpc_title"), body: t("billing:verify_rpc_body") };
   }
   if (result.code === "not_mined") {
-    return {
-      tone: "warn",
-      title: "Your transaction hasn’t hit the chain yet",
-      body: "Base may still be propagating the transfer. Refresh in about a minute and we’ll re-check automatically.",
-    };
+    return { tone: "warn", title: t("billing:verify_not_mined_title"), body: t("billing:verify_not_mined_body") };
   }
   if (result.code === "insufficient_finality") {
-    return {
-      tone: "warn",
-      title: "Almost there: finality pending",
-      body: "Your transaction is confirmed on Base but still needs a few more blocks. This is settled automatically; check again shortly.",
-    };
+    return { tone: "warn", title: t("billing:verify_finality_title"), body: t("billing:verify_finality_body") };
   }
   if (result.code === "already_confirmed") {
     return {
       tone: "good",
-      title: "Payment confirmed",
-      body: "This payment was already verified. Everything is in order.",
+      title: t("billing:verify_ok_title"),
+      body: t("billing:verify_already_body"),
     };
   }
   // All remaining codes are hard failures (amount/token/recipient/network/dup).
   return {
     tone: "bad",
-    title: "Payment could not be verified",
-    body: "The transaction doesn’t match this order (amount, token, recipient or network).",
-    extra: "Do not resend funds. Contact support with your transaction hash before sending anything else.",
+    title: t("billing:verify_bad_title"),
+    body: t("billing:verify_bad_body"),
+    extra: t("billing:verify_bad_extra"),
   };
 }
 
 export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentResultClientProps) {
+  const { t } = useTranslation();
   const [view, setView] = useState<ViewState>(autoVerify ? { status: "verifying" } : { status: "done" });
   const [result, setResult] = useState<VerifyResponse | null>(null);
 
@@ -88,15 +75,15 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
       });
       const body = (await res.json().catch(() => ({}))) as VerifyResponse & { error?: string };
       if (!res.ok) {
-        setView({ status: "error", message: body.error ?? "Could not check your payment right now." });
+        setView({ status: "error", message: body.error ?? t("billing:verify_error_generic") });
         return;
       }
       setResult(body);
       setView({ status: "done" });
     } catch {
-      setView({ status: "error", message: "Could not check your payment right now. Check your connection and retry." });
+      setView({ status: "error", message: t("billing:verify_error_network") });
     }
-  }, [paymentId]);
+  }, [paymentId, t]);
 
   useEffect(() => {
     if (autoVerify) void verify();
@@ -109,10 +96,8 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
           <IconRefresh className="h-6 w-6 animate-spin" />
         </span>
         <div>
-          <h2 className="text-lg font-bold text-white">Verifying your payment on Base…</h2>
-          <p className="mt-1 text-xs text-ink-400">
-            We’re reading the chain to confirm your USDC transfer. This usually takes a few seconds.
-          </p>
+          <h2 className="text-lg font-bold text-white">{t("billing:verifying_title")}</h2>
+          <p className="mt-1 text-xs text-ink-400">{t("billing:verifying_body")}</p>
         </div>
       </div>
     );
@@ -125,11 +110,11 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
           <IconClock className="h-6 w-6" />
         </span>
         <div className="flex-1">
-          <h2 className="text-lg font-bold text-white">We couldn’t verify right now</h2>
+          <h2 className="text-lg font-bold text-white">{t("billing:verify_failed_title")}</h2>
           <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{view.message}</p>
           <div className="mt-4">
             <button type="button" onClick={verify} className="btn btn-ghost btn-sm">
-              <IconRefresh className="h-3.5 w-3.5" /> Check again
+              <IconRefresh className="h-3.5 w-3.5" /> {t("billing:check_again")}
             </button>
           </div>
         </div>
@@ -137,7 +122,7 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
     );
   }
 
-  const copy = copyFor(result);
+  const copy = copyFor(result, t);
   return (
     <div>
       <div
@@ -167,7 +152,7 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
           )}
         </span>
         <div className="flex-1">
-          <h2 className="text-lg font-bold text-white">{copy?.title ?? "Status"}</h2>
+          <h2 className="text-lg font-bold text-white">{copy?.title ?? t("billing:status_generic")}</h2>
           <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{copy?.body}</p>
           {copy?.extra ? (
             <p className="mt-3 rounded-lg bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-200">
@@ -176,15 +161,21 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
           ) : null}
           <div className="mt-5 flex flex-wrap gap-2">
             <button type="button" onClick={verify} className="btn btn-ghost btn-sm">
-              <IconRefresh className="h-3.5 w-3.5" /> Check again
+              <IconRefresh className="h-3.5 w-3.5" /> {t("billing:check_again")}
             </button>
             {copy?.tone === "good" ? (
               <>
-                <Link href="/dashboard" className="btn btn-primary btn-sm">Go to dashboard</Link>
-                <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">View billing</Link>
+                <Link href="/dashboard" className="btn btn-primary btn-sm">
+                  {t("billing:go_to_dashboard")}
+                </Link>
+                <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
+                  {t("billing:view_billing")}
+                </Link>
               </>
             ) : (
-              <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">View billing history</Link>
+              <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
+                {t("billing:view_billing_history")}
+              </Link>
             )}
           </div>
         </div>

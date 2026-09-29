@@ -4,6 +4,8 @@ import { recentSystemEvents } from "@/lib/billing/system-events";
 import { queueSnapshot, jobLatency, recentJobFailures } from "@/lib/engine/queue-metrics";
 import { recentSlowQueries } from "@/lib/db-slow-queries";
 import { StatCard, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { formatTime } from "@/lib/i18n/format";
 import {
   IconAlertCircle,
   IconClock,
@@ -12,16 +14,20 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-  title: "System Health: Baton Admin",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslatorForRequest();
+  return {
+    robots: { index: false, follow: false },
+    title: `${t("admin:health_title")}: Baton Admin`,
+  };
+}
 
 export default async function AdminHealthPage({
   searchParams,
 }: {
   searchParams?: Promise<{ severity?: string }>;
 }) {
+  const { t, locale } = await getTranslatorForRequest();
   const params = searchParams ? await searchParams : undefined;
   const severityFilter = params?.severity ?? "all";
 
@@ -56,13 +62,13 @@ export default async function AdminHealthPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="System Health &amp; Queue Status"
-        description="Real-time error logs, warning telemetry, and background worker queue metrics for continuous operation."
+        title={t("admin:health_title")}
+        description={t("admin:health_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:back_to_control_panel")}</span>
             </Link>
           </div>
         }
@@ -71,37 +77,40 @@ export default async function AdminHealthPage({
       {/* KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Recent Errors (100 Evts)"
+          label={t("admin:health_recent_errors")}
           value={errorCount}
-          detail={errorCount > 0 ? "Requires operator review" : "Zero errors recorded"}
+          detail={errorCount > 0 ? t("admin:health_recent_errors_warn") : t("admin:health_recent_errors_clear")}
           tone={errorCount > 0 ? "danger" : "signal"}
           icon={IconAlertCircle}
         />
         <StatCard
-          label="Warnings"
+          label={t("admin:health_warnings")}
           value={warnCount}
-          detail={warnCount > 0 ? "Degraded operation notes" : "Zero warning flags"}
+          detail={warnCount > 0 ? t("admin:health_warnings_warn") : t("admin:health_warnings_clear")}
           tone={warnCount > 0 ? "warn" : "signal"}
           icon={IconAlertCircle}
         />
         <StatCard
-          label="Failed Jobs (24h)"
+          label={t("admin:health_failed_jobs")}
           value={queue.failedLast24h}
-          detail={queue.failedLast24h > 0 ? "Dead-lettered; see job log" : "No job failures"}
+          detail={queue.failedLast24h > 0 ? t("admin:health_failed_jobs_warn") : t("admin:health_failed_jobs_clear")}
           tone={queue.failedLast24h > 0 ? "danger" : "signal"}
           icon={IconAlertCircle}
         />
         <StatCard
-          label="Oldest Unfinished Job"
+          label={t("admin:health_oldest_job")}
           value={
             queue.oldestPendingAgeSec === null
-              ? "All Clear"
+              ? t("admin:health_all_clear")
               : `${Math.floor(queue.oldestPendingAgeSec / 60)}m`
           }
           detail={
             queue.pending === 0
-              ? "Zero backlogged jobs"
-              : `${queue.runnable} runnable · ${queue.processing} in flight`
+              ? t("admin:health_zero_backlog")
+              : t("admin:health_queue_detail", {
+                  runnable: queue.runnable,
+                  processing: queue.processing,
+                })
           }
           tone={queue.stalled ? "danger" : queue.oldestPendingAgeSec && queue.oldestPendingAgeSec > 300 ? "warn" : "signal"}
           icon={IconClock}
@@ -119,16 +128,18 @@ export default async function AdminHealthPage({
           <div className="flex items-start gap-3">
             <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger-400" />
             <div>
-              <h2 className="font-semibold text-danger-300">Job queue is stalled</h2>
+              <h2 className="font-semibold text-danger-300">{t("admin:health_stalled_title")}</h2>
               <p className="mt-1 text-sm text-danger-200/80">
-                {queue.pending} job{queue.pending === 1 ? "" : "s"} pending, nothing in flight, and the
-                oldest has waited {Math.floor((queue.oldestPendingAgeSec ?? 0) / 60)} minutes. No
-                executor is draining the queue, so PRs are not being classified or nudged.
+                {t("admin:health_stalled_body", {
+                  count: queue.pending,
+                  minutes: Math.floor((queue.oldestPendingAgeSec ?? 0) / 60),
+                })}
               </p>
               <p className="mt-2 text-sm text-danger-200/70">
-                Check that <code className="font-mono">CRON_SECRET</code> is set and that the
-                crons in <code className="font-mono">vercel.json</code> are active, then call{" "}
-                <code className="font-mono">GET /api/cron/drain</code> manually.
+                {t("admin:health_stalled_hint_before")} <code className="font-mono">CRON_SECRET</code>{" "}
+                {t("admin:health_stalled_hint_mid")} <code className="font-mono">vercel.json</code>{" "}
+                {t("admin:health_stalled_hint_after")}{" "}
+                <code className="font-mono">GET /api/cron/drain</code>.
               </p>
             </div>
           </div>
@@ -139,7 +150,7 @@ export default async function AdminHealthPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            Background Worker Job Distribution
+            {t("admin:health_queue_distribution")}
           </span>
         </div>
 
@@ -153,7 +164,9 @@ export default async function AdminHealthPage({
                   key={st}
                   className="rounded-lg border border-white/[0.06] bg-ink-950/60 p-3.5"
                 >
-                  <span className="font-mono text-[10px] uppercase font-semibold text-ink-500">{st}</span>
+                  <span className="font-mono text-[10px] uppercase font-semibold text-ink-500">
+                    {t(`admin:health_queue_${st}`)}
+                  </span>
                   <p
                     className={`mt-1 font-mono text-2xl font-bold tabular-nums ${
                       isDanger && count > 0 ? "text-danger-400" : "text-white"
@@ -172,29 +185,31 @@ export default async function AdminHealthPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            Job Latency &middot; last 24h
+            {t("admin:health_latency")}
           </span>
           {latency.overall ? (
             <span className="font-mono text-[10px] text-ink-500">
-              {latency.overall.samples} completed &middot; p50{" "}
-              {latency.overall.p50Ms === null ? "—" : `${latency.overall.p50Ms}ms`} &middot; p95{" "}
-              {latency.overall.p95Ms === null ? "—" : `${latency.overall.p95Ms}ms`}
+              {t("admin:health_latency_summary", {
+                count: latency.overall.samples,
+                p50: latency.overall.p50Ms === null ? "—" : `${latency.overall.p50Ms}ms`,
+                p95: latency.overall.p95Ms === null ? "—" : `${latency.overall.p95Ms}ms`,
+              })}
             </span>
           ) : null}
         </div>
         {latency.byKind.length === 0 ? (
           <p className="px-5 py-4 text-xs text-ink-500">
-            No jobs completed in the last 24 hours, so there is no latency to report.
+            {t("admin:health_latency_empty")}
           </p>
         ) : (
           <table className="w-full text-left text-xs">
             <thead className="border-b border-white/[0.05] text-ink-500">
               <tr>
-                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Kind</th>
-                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Samples</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_kind")}</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_samples")}</th>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">p50</th>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">p95</th>
-                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">max</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_max")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
@@ -228,7 +243,7 @@ export default async function AdminHealthPage({
           <div className="flex items-center gap-2 border-b border-danger-500/20 bg-danger-500/[0.08] px-5 py-3">
             <IconAlertCircle className="h-4 w-4 text-danger-300" />
             <span className="font-mono text-[11px] uppercase tracking-wider text-danger-300">
-              Most Recent Job Failures
+              {t("admin:health_failures_title")}
             </span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
@@ -237,7 +252,7 @@ export default async function AdminHealthPage({
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs font-semibold text-danger-300">{f.kind}</span>
                   <span className="font-mono text-[10px] text-ink-500">
-                    {f.attempts}/{f.maxAttempts} attempts
+                    {t("admin:health_attempts", { attempts: f.attempts, max: f.maxAttempts })}
                   </span>
                   <span className="font-mono text-[10px] text-ink-500">
                     {f.updatedAt.toISOString().replace("T", " ").slice(0, 19)}Z
@@ -248,7 +263,7 @@ export default async function AdminHealthPage({
                     {f.error}
                   </pre>
                 ) : (
-                  <p className="mt-1 text-[10px] text-ink-500">No error message was recorded.</p>
+                  <p className="mt-1 text-[10px] text-ink-500">{t("admin:health_no_error")}</p>
                 )}
               </li>
             ))}
@@ -260,31 +275,31 @@ export default async function AdminHealthPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            Slow Queries &middot; this instance
+            {t("admin:health_slow_queries")}
           </span>
           <p className="mt-0.5 text-[11px] text-ink-500">
-            Operations over 500ms seen by this server instance. The structured{" "}
-            <code className="font-mono text-ink-400">db-slow-query</code> log line is the durable
-            record across all instances.
+            {t("admin:health_slow_queries_desc_before")}{" "}
+            <code className="font-mono text-ink-400">db-slow-query</code>{" "}
+            {t("admin:health_slow_queries_desc_after")}
           </p>
         </div>
         {slowQueries.length === 0 ? (
           <p className="px-5 py-4 text-xs text-ink-500">
-            No query over 500ms has been recorded on this instance since it started.
+            {t("admin:health_slow_queries_empty")}
           </p>
         ) : (
           <table className="w-full text-left text-xs">
             <thead className="border-b border-white/[0.05] text-ink-500">
               <tr>
-                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Model</th>
-                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Operation</th>
-                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">Duration</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_model")}</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_operation")}</th>
+                <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_duration")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
               {slowQueries.slice(0, 15).map((q, i) => (
                 <tr key={`${q.at}-${i}`}>
-                  <td className="px-5 py-2 font-mono text-ink-300">{q.model ?? "raw"}</td>
+                  <td className="px-5 py-2 font-mono text-ink-300">{q.model ?? t("admin:health_raw_model")}</td>
                   <td className="px-5 py-2 font-mono text-ink-300">{q.operation}</td>
                   <td
                     className={`px-5 py-2 font-mono tabular-nums ${
@@ -313,7 +328,7 @@ export default async function AdminHealthPage({
                   : "text-ink-400 hover:text-white"
               }`}
             >
-              All Events ({events.length})
+              {t("admin:health_filter_all", { count: events.length })}
             </Link>
             <Link
               href="/admin/health?severity=error"
@@ -323,7 +338,7 @@ export default async function AdminHealthPage({
                   : "text-ink-400 hover:text-white"
               }`}
             >
-              Errors ({errorCount})
+              {t("admin:health_filter_error", { count: errorCount })}
             </Link>
             <Link
               href="/admin/health?severity=warn"
@@ -333,7 +348,7 @@ export default async function AdminHealthPage({
                   : "text-ink-400 hover:text-white"
               }`}
             >
-              Warnings ({warnCount})
+              {t("admin:health_filter_warn", { count: warnCount })}
             </Link>
             <Link
               href="/admin/health?severity=info"
@@ -343,18 +358,18 @@ export default async function AdminHealthPage({
                   : "text-ink-400 hover:text-white"
               }`}
             >
-              Info ({infoCount})
+              {t("admin:health_filter_info", { count: infoCount })}
             </Link>
           </div>
 
           <span className="font-mono text-[11px] text-ink-500">
-            {filteredEvents.length} events matching filter
+            {t("admin:health_filter_count", { count: filteredEvents.length })}
           </span>
         </div>
 
         {filteredEvents.length === 0 ? (
           <div className="p-8 text-center text-xs text-ink-500">
-            No system events recorded matching this filter.
+            {t("admin:health_no_events")}
           </div>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
@@ -395,7 +410,7 @@ export default async function AdminHealthPage({
                 </div>
 
                 <span className="shrink-0 font-mono text-[11px] text-ink-500">
-                  {new Date(e.createdAt).toLocaleTimeString()} &middot;{" "}
+                  {formatTime(e.createdAt, locale)} &middot;{" "}
                   {new Date(e.createdAt).toISOString().slice(0, 10)}
                 </span>
               </li>

@@ -1,8 +1,16 @@
 {
   "title": "Notificaciones",
-  "empty_title": "Estás al día",
+  "empty_title": "Todavía no hay notificaciones",
   "empty_description": "No tienes notificaciones sin leer.",
   "mark_all_read": "Marcar todo como leído",
   "unread_one": "{{count}} notificación sin leer",
-  "unread_other": "{{count}} notificaciones sin leer"
+  "unread_other": "{{count}} notificaciones sin leer",
+  "empty_hint": "Aquí aparecerán mensajes, menciones, revisiones e invitaciones.",
+  "mark_as_read": "Marcar como leída",
+  "type_message": "Nuevo mensaje",
+  "type_mention": "Mención",
+  "type_review": "Actualización de revisión",
+  "type_invite": "Invitación",
+  "type_system": "Sistema",
+  "type_update": "Actualización"
 }

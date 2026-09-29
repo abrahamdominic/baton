@@ -1,8 +1,16 @@
 {
   "title": "Notifications",
-  "empty_title": "You are all caught up",
+  "empty_title": "No notifications yet",
   "empty_description": "You have no unread notifications.",
   "mark_all_read": "Mark all as read",
   "unread_one": "{{count}} unread notification",
-  "unread_other": "{{count}} unread notifications"
+  "unread_other": "{{count}} unread notifications",
+  "empty_hint": "Messages, mentions, reviews and invitations will show up here.",
+  "mark_as_read": "Mark as read",
+  "type_message": "New message",
+  "type_mention": "Mention",
+  "type_review": "Review update",
+  "type_invite": "Invitation",
+  "type_system": "System",
+  "type_update": "Update"
 }

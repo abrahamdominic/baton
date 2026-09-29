@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { listUserTeams, requireTeamMember, workspaceBoard } from "@/lib/workspaces";
 import { PageHeader } from "@/components/ui";
 import { IconUsers, IconGitPullRequest } from "@/components/icons";
@@ -14,6 +15,7 @@ export default async function TeamBoardPage({
   params: Promise<{ teamId: string }>;
 }) {
   const { teamId } = await params;
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -35,11 +37,11 @@ export default async function TeamBoardPage({
           </span>
         }
         title={team ? team.name : "Team Board"}
-        description="The board aggregates stalled pull requests from every GitHub account the team shares, so any member can pick work up."
+        description={t("workspace:team_board_description")}
         actions={
           <Link href={`/dashboard/team/${teamId}`} className="btn btn-ghost btn-sm">
             <IconGitPullRequest className="h-3.5 w-3.5" />
-            <span>Manage team</span>
+            <span>{t("workspace:manage_team")}</span>
           </Link>
         }
       />

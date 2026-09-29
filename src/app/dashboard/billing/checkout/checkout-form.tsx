@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 import { IconArrowRight, IconCopy, IconShield, IconAlertCircle, IconCreditCard, IconCoins } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/provider";
 
 interface CheckoutFormProps {
   plan: {
@@ -36,6 +37,7 @@ interface UsdcOrder {
 }
 
 export function CheckoutForm(props: CheckoutFormProps) {
+  const { t, formatCurrency, formatNumber } = useI18n();
   const router = useRouter();
   // Always start on the provider chooser. The USDC order screen is only
   // meaningful once a server-issued order exists (`order` is null until
@@ -54,11 +56,11 @@ export function CheckoutForm(props: CheckoutFormProps) {
       <div className="flex items-start gap-3 rounded-xl border border-signal-500/25 bg-signal-500/[0.05] px-5 py-4 text-xs text-signal-300">
         <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
         <div>
-          You already have access to {props.plan.name}.{" "}
+          {t("billing:checkout_already_active", { plan: props.plan.name })}{" "}
           <Link href="/dashboard/billing" className="font-medium text-brand-300 hover:text-brand-200">
-            View your billing
-          </Link>{" "}
-          instead.
+            {t("billing:view_billing")}
+          </Link>
+          .
         </div>
       </div>
     );
@@ -75,7 +77,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
     const body = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
     if (!res.ok || !body.url) {
       setState("error");
-      setError(body.error ?? "Something went wrong. Please try again or contact support.");
+      setError(body.error ?? t("billing:checkout_error_generic"));
       return;
     }
     setState("idle");
@@ -93,7 +95,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
     const body = (await res.json().catch(() => ({}))) as Partial<UsdcOrder> & { error?: string };
     if (!res.ok || !body.paymentId) {
       setState("error");
-      setError(body.error ?? "Something went wrong. Please try again or contact support.");
+      setError(body.error ?? t("billing:checkout_error_generic"));
       return;
     }
     setOrder({
@@ -120,7 +122,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
     const body = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) {
       setState("error");
-      setError(body.error ?? "We could not record that transaction. Check the hash and try again.");
+      setError(body.error ?? t("billing:checkout_error_tx"));
       return;
     }
     router.push(`/dashboard/billing/result?payment=${order.paymentId}&sent=1`);
@@ -143,8 +145,8 @@ export function CheckoutForm(props: CheckoutFormProps) {
 
   const priceLabel =
     props.plan.priceCustom || props.amountMinor <= 0
-      ? "Custom"
-      : `$${(props.amountMinor / 100).toFixed(2)}`;
+      ? t("billing:price_custom")
+      : formatCurrency(props.amountMinor, "USD");
 
   return (
     <div className="space-y-6">
@@ -154,10 +156,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
       {props.canRenewUsdc ? (
         <div className="flex items-start gap-3 rounded-xl border border-brand-500/25 bg-brand-500/[0.06] px-5 py-4 text-xs text-ink-300">
           <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" />
-          <div>
-            Your USDC plan doesn&apos;t auto-renew. Pay again below to extend your{" "}
-            {props.plan.name} subscription without losing access.
-          </div>
+          <div>{t("billing:checkout_renewal_notice", { plan: props.plan.name })}</div>
         </div>
       ) : null}
 
@@ -165,7 +164,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
       <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-ink-900/60">
         <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
-            Order summary
+            {t("billing:order_summary")}
           </span>
         </div>
         <div className="space-y-3 px-6 py-5">
@@ -174,7 +173,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
             <span className="font-mono text-sm font-extrabold tabular-nums text-white">
               {priceLabel}
               <span className="ml-1 text-[11px] font-medium text-ink-400">
-                /{props.interval === "annual" ? "year" : "month"}
+                {props.interval === "annual" ? `/${t("billing:per_year")}` : `/${t("billing:per_month")}`}
               </span>
             </span>
           </div>
@@ -182,15 +181,14 @@ export function CheckoutForm(props: CheckoutFormProps) {
             <p className="text-xs leading-relaxed text-ink-400">{props.plan.description}</p>
           ) : null}
           {props.interval === "annual" ? (
-            <p className="font-mono text-[11px] text-brand-300">Billed annually.</p>
+            <p className="font-mono text-[11px] text-brand-300">{t("billing:billed_annually")}</p>
           ) : (
-            <p className="font-mono text-[11px] text-ink-500">Billed monthly. Cancel anytime.</p>
+            <p className="font-mono text-[11px] text-ink-500">{t("billing:billed_monthly")}</p>
           )}
           {props.plan.priceCustom ? (
             <div className="flex items-start gap-2 rounded-lg bg-warn-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-warn-200">
               <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              This plan is custom-priced. Self-serve checkout is not available. Email
-              sales@baton.dev to get started.
+              {t("billing:custom_priced_notice")}
             </div>
           ) : null}
         </div>
@@ -209,7 +207,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 className="btn btn-primary btn-lg justify-center"
               >
                 <IconCreditCard className="h-4 w-4" />
-                <span>{state === "creating" ? "Processing..." : "Pay with Credit Card"}</span>
+                <span>{state === "creating" ? t("billing:processing") : t("billing:pay_with_card")}</span>
               </button>
             ) : null}
             {props.providers.usdc ? (
@@ -222,7 +220,9 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 }`}
               >
                 <IconCoins className="h-4 w-4 text-brand-300" />
-                <span>{state === "creating" ? "Generating Order..." : "Pay with USDC on Base"}</span>
+                <span>
+                  {state === "creating" ? t("billing:generating_order") : t("billing:pay_with_usdc")}
+                </span>
               </button>
             ) : null}
           </div>
@@ -231,22 +231,20 @@ export function CheckoutForm(props: CheckoutFormProps) {
                single remaining button is not mistaken for a missing option. */
             props.providers.stripe && !props.providers.usdc ? (
               <p className="text-center text-[11px] text-ink-500">
-                USDC payments are not enabled for this deployment yet. Card checkout is available.
+                {t("billing:usdc_not_enabled")}
               </p>
             ) : !props.providers.stripe && props.providers.usdc ? (
               <p className="text-center text-[11px] text-ink-500">
-                Card checkout is not enabled for this deployment yet. USDC on Base is available.
+                {t("billing:card_not_enabled")}
               </p>
             ) : null
           ) : (
             <div className="rounded-lg border border-warn-500/25 bg-warn-500/[0.07] p-3 text-center text-xs leading-relaxed text-warn-200">
-              No payment method is currently available for this deployment. Please try again later
-              or contact support.
+              {t("billing:no_payment_method")}
             </div>
           )}
           <p className="text-center text-[11px] text-ink-500">
-            Payments are processed by Stripe Checkout or settled on-chain in USDC on Base. Cancel
-            anytime.
+            {t("billing:checkout_provider_note")}
           </p>
         </section>
       ) : null}
@@ -255,21 +253,28 @@ export function CheckoutForm(props: CheckoutFormProps) {
         <section data-testid="usdc-order" className="overflow-hidden rounded-2xl border border-brand-500/25 bg-ink-900/60">
           <div className="border-b border-brand-500/20 bg-brand-500/[0.06] px-6 py-3.5">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
-              {order.renewal ? "Send USDC to extend your plan" : "Send USDC to activate your plan"}
+              {order.renewal
+                ? t("billing:result_usdc_extend_title")
+                : t("billing:result_usdc_title")}
             </span>
           </div>
           <div className="space-y-4 px-6 py-5">
             <div className="flex items-baseline justify-between">
-              <span className="text-xs font-medium text-ink-400">Exact amount to send</span>
+              <span className="text-xs font-medium text-ink-400">{t("billing:exact_amount")}</span>
               <span className="font-mono text-xl font-extrabold tabular-nums text-white">
-                {order.amountMinor > 0 ? `${(order.amountMinor / 100).toFixed(2)} USDC` : "N/A"}
+                {order.amountMinor > 0
+                  ? `${formatNumber(order.amountMinor / 100, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })} ${order.token}`
+                  : t("billing:not_available")}
               </span>
             </div>
 
             <div>
               <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-ink-400">
                 <IconShield className="h-3 w-3 text-signal-400" />
-                Send to this {order.network} address (receiving wallet)
+                {t("billing:send_to_address", { network: order.network })}
               </p>
               <div className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-ink-950 px-3 py-2.5">
                 <code className="min-w-0 flex-1 break-all font-mono text-xs text-white">{order.walletAddress}</code>
@@ -277,23 +282,23 @@ export function CheckoutForm(props: CheckoutFormProps) {
                   type="button"
                   onClick={copyWallet}
                   className="btn btn-ghost btn-sm shrink-0"
-                  aria-label="Copy receiving wallet address"
+                  aria-label={t("billing:copy_wallet_aria")}
                 >
                   <IconCopy className="h-3.5 w-3.5" />
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t("billing:copied") : t("billing:copy")}
                 </button>
               </div>
             </div>
 
             <ul className="space-y-1.5 text-[11px] leading-relaxed text-ink-400">
-              <li>· Network must be {order.network} (mainnet); sending from another chain will lose funds.</li>
-              <li>· Send the exact {order.token} amount shown. Mismatches are rejected.</li>
-              <li>· Confirm in your wallet, then paste the transaction hash below to mark it for verification.</li>
+              <li>{t("billing:usdc_note_network", { network: order.network })}</li>
+              <li>{t("billing:usdc_note_amount", { token: order.token })}</li>
+              <li>{t("billing:usdc_note_confirm")}</li>
             </ul>
 
             <div>
               <label htmlFor="usdc-tx-hash" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-                Transaction hash (0x…)
+                {t("billing:tx_hash_label")}
               </label>
               <input
                 id="usdc-tx-hash"
@@ -315,11 +320,11 @@ export function CheckoutForm(props: CheckoutFormProps) {
               {state === "submitting_tx" ? (
                 <span className="flex items-center gap-2">
                   <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Recording…
+                  {t("billing:recording")}
                 </span>
               ) : (
                 <>
-                  I&apos;ve sent it, verify
+                  {t("billing:sent_verify")}
                   <IconArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -330,7 +335,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
               disabled={state === "submitting_tx"}
               className="w-full text-center text-[11px] font-medium text-ink-400 transition-colors hover:text-white"
             >
-              ← Back to payment options
+              ← {t("billing:back_to_payment_options")}
             </button>
           </div>
         </section>
@@ -345,11 +350,11 @@ export function CheckoutForm(props: CheckoutFormProps) {
 
       {props.providers.usdc && props.usdcWalletAddress ? (
         <p className="text-center text-[11px] text-ink-500">
-          Prefer to skip checkout? Send USDC directly and open a{" "}
+          {t("billing:skip_checkout_prefix")}{" "}
           <Link href="/dashboard/billing" className="text-brand-300 hover:text-brand-200">
-            support ticket
+            {t("billing:support_ticket")}
           </Link>
-          .
+          {t("billing:skip_checkout_suffix")}
         </p>
       ) : null}
     </div>

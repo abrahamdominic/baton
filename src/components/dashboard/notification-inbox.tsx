@@ -12,6 +12,7 @@ import {
 import { notificationHref } from "@/lib/notifications";
 import { IconCheck, IconInbox, IconExternalLink } from "@/components/icons";
 import { EmptyState } from "@/components/ui";
+import { useI18n } from "@/lib/i18n/provider";
 
 function formatRelative(d: Date): string {
   const diff = Date.now() - d.getTime();
@@ -25,15 +26,12 @@ function formatRelative(d: Date): string {
   return `${days}d ago`;
 }
 
+const NOTIFICATION_TYPES = ["message", "mention", "review", "invite", "system"] as const;
+
 function TypeLabel({ type }: { type: string }) {
-  const map: Record<string, string> = {
-    message: "New message",
-    mention: "Mention",
-    review: "Review update",
-    invite: "Invitation",
-    system: "System",
-  };
-  return map[type] ?? "Update";
+  const { t } = useI18n();
+  const key = (NOTIFICATION_TYPES as readonly string[]).includes(type) ? type : "update";
+  return t(`notifications:type_${key}`);
 }
 
 export function NotificationInbox({
@@ -43,6 +41,7 @@ export function NotificationInbox({
   initialItems: NotificationItem[];
   initialUnread: number;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>(initialItems);
   const [unread, setUnread] = useState(initialUnread);
@@ -129,8 +128,8 @@ export function NotificationInbox({
       {items.length === 0 ? (
         <EmptyState
           icon={IconInbox}
-          title="No notifications yet"
-          hint="Messages, mentions, reviews and invitations will show up here."
+          title={t("notifications:empty_title")}
+          hint={t("notifications:empty_hint")}
         />
       ) : (
         <ul className="space-y-2">
@@ -179,7 +178,7 @@ export function NotificationInbox({
                     type="button"
                     onClick={() => markRead(n.id)}
                     disabled={pendingId === n.id}
-                    aria-label="Mark as read"
+                    aria-label={t("notifications:mark_as_read")}
                     className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.1] text-ink-400 transition-colors hover:border-brand-500/40 hover:text-brand-300 disabled:opacity-50"
                   >
                     <IconCheck className="h-3.5 w-3.5" />

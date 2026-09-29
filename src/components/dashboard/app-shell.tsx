@@ -239,8 +239,8 @@ function AccountFooter({ user, onNavigate }: { user: ShellUser; onNavigate?: () 
           href={user.githubUrl}
           target="_blank"
           rel="noopener noreferrer"
-          aria-label={`View ${user.login} on GitHub`}
-          title="View GitHub profile"
+          aria-label={t("navigation:view_github_profile_of", { login: user.login })}
+          title={t("navigation:view_profile")}
           className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-white/[0.06] hover:text-white"
         >
           <IconExternalLink className="h-3.5 w-3.5" />
@@ -368,10 +368,10 @@ export function AppShell({
             href="/dashboard/notifications"
             aria-label={
               unreadNotifications > 0
-                ? `Notifications: ${unreadNotifications} unread`
-                : "Notifications"
+                ? t("navigation:notifications_unread_count", { count: unreadNotifications })
+                : t("navigation:notifications")
             }
-            title="Notifications"
+            title={t("navigation:notifications")}
             className="relative inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-ink-900/60 text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
           >
             <IconBell className="h-3.5 w-3.5" />
@@ -395,7 +395,7 @@ export function AppShell({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Open navigation menu"
+            aria-label={t("navigation:open_menu")}
             aria-expanded={open}
             className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-200 transition-colors hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
           >
@@ -415,7 +415,7 @@ export function AppShell({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Dashboard navigation menu"
+            aria-label={t("navigation:dashboard_navigation_menu")}
             className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-white/[0.1] bg-ink-950 shadow-2xl transition-transform"
           >
             <div className="flex h-14 items-center justify-between border-b border-white/[0.07] px-4">
@@ -423,7 +423,7 @@ export function AppShell({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                aria-label="Close navigation menu"
+                aria-label={t("navigation:close_menu")}
                 className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-300 transition-colors hover:bg-ink-850 hover:text-white"
               >
                 <IconX className="h-4 w-4" />
@@ -457,10 +457,10 @@ export function AppShell({
             href="/dashboard/notifications"
             aria-label={
               unreadNotifications > 0
-                ? `Notifications: ${unreadNotifications} unread`
-                : "Notifications"
+                ? t("navigation:notifications_unread_count", { count: unreadNotifications })
+                : t("navigation:notifications")
             }
-            title="Notifications"
+            title={t("navigation:notifications")}
             className="relative inline-flex items-center justify-center rounded-md border border-white/[0.08] bg-ink-900/60 p-2 text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
           >
             <IconBell className="h-3.5 w-3.5" />

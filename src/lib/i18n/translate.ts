@@ -102,6 +102,9 @@ function variant(tree: FlatTree, key: string, category: string): string | undefi
 
 export type TranslateValues = Record<string, string | number>;
 
+/** The translator returned by {@link createTranslator}. */
+export type Translator = (key: string, values?: TranslateValues) => string;
+
 /**
  * Translate `namespace:key` for a locale bundle.
  *
@@ -116,16 +119,18 @@ export type TranslateValues = Record<string, string | number>;
 export function createTranslator(
   bundles: Record<string, FlatTree>,
   locale: string,
-) {
+): Translator {
   const fallback = bundles[DEFAULT_LOCALE] ?? {};
   const active = bundles[locale] ?? {};
 
-  return function t(key: string, values: TranslateValues = {}): string {
+  const t = function (key: string, values: TranslateValues = {}): string {
     const template = active[key] ?? fallback[key];
 
     if (template === undefined) return missingKeyLabel(key, locale, values);
     return interpolate(template, values, locale);
   };
+
+  return t;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
-import ReactDOMServer from "react-dom/server";
 import { PricingView } from "./pricing-view";
+import { renderToStringWithI18n } from "@/lib/i18n/test-render";
 import type { PlanRecord } from "@/lib/billing/types";
 
 const FIXTURE_PLANS: PlanRecord[] = [
@@ -54,7 +54,7 @@ const FIXTURE_PLANS: PlanRecord[] = [
 describe("PricingView component", () => {
   it("renders valid table markup without nested tr or DOM errors", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const html = ReactDOMServer.renderToString(<PricingView />);
+    const html = renderToStringWithI18n(<PricingView />);
 
     // "Free" is the customer-facing label; "individual" is only the stored slug.
     expect(html).toContain("Free");
@@ -82,7 +82,7 @@ describe("PricingView component", () => {
   });
 
   it("derives the compare matrix from real plan caps (free = up to 3 repos, paid = unlimited)", () => {
-    const html = ReactDOMServer.renderToString(<PricingView plans={FIXTURE_PLANS} />);
+    const html = renderToStringWithI18n(<PricingView plans={FIXTURE_PLANS} />);
 
     expect(html).toContain("Up to 3");
     expect(html).toContain("Unlimited");
@@ -94,7 +94,7 @@ describe("PricingView component", () => {
   });
 
   it("renders the plans table even when no plan rows are passed (hardcoded fallback)", () => {
-    const html = ReactDOMServer.renderToString(<PricingView plans={[]} />);
+    const html = renderToStringWithI18n(<PricingView plans={[]} />);
     expect(html).toContain("<table");
     // "Free" is the customer-facing label; "Individual" is only the stored slug.
     expect(html).toContain("Free");
@@ -103,7 +103,7 @@ describe("PricingView component", () => {
   });
 
   it("never contains em dashes", () => {
-    const html = ReactDOMServer.renderToString(<PricingView />);
+    const html = renderToStringWithI18n(<PricingView />);
     expect(html.includes("\u2014")).toBe(false);
   });
 });

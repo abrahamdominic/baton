@@ -1,7 +1,14 @@
 import { ImageResponse } from "next/og";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
+
+/**
+ * The file convention requires `alt` to be a static export, so it cannot be
+ * translated. Everything a reader actually sees on the card below is localized,
+ * which is what the social preview renders.
+ */
 export const alt = "Baton: Know whose turn it is on every pull request";
 
 const INK_950 = "#08090C";
@@ -11,7 +18,9 @@ const INK_100 = "#E3EBF6";
 const BRAND_500 = "#6366F1";
 const SIGNAL_400 = "#10B981";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  const { t } = await getTranslatorForRequest();
+
   return new ImageResponse(
     (
       <div
@@ -157,7 +166,7 @@ export default function OpengraphImage() {
           }}
         >
           <span style={{ width: 10, height: 10, borderRadius: 5, background: SIGNAL_400 }} />
-          <span>Deterministic PR Workflow · Evidence You Can Check</span>
+          <span>{t("marketing:og_kicker")}</span>
         </div>
       </div>
     ),

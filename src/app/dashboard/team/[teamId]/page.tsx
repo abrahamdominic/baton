@@ -17,6 +17,7 @@ import {
   IconSend,
 } from "@/components/icons";
 import { updateTeam } from "../actions";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   InviteForm,
   RoleSelectForm,
@@ -36,6 +37,7 @@ export default async function TeamDetailPage({
 }: {
   params: Promise<{ teamId: string }>;
 }) {
+  const { t } = await getTranslatorForRequest();
   const { teamId } = await params;
   const user = await currentUser();
   if (!user) return null;
@@ -80,9 +82,9 @@ export default async function TeamDetailPage({
   const slotLeft = memberCap === null ? null : memberCap - team.members.length - team.invites.length;
 
   const tabs = [
-    { href: `/dashboard/team/${team.id}`, label: "Overview", active: true },
-    { href: `/dashboard/team/${team.id}/board`, label: "Team Board" },
-    { href: `/dashboard/team/${team.id}/messaging`, label: "Messages" },
+    { href: `/dashboard/team/${team.id}`, label: t("workspace:tab_overview"), active: true },
+    { href: `/dashboard/team/${team.id}/board`, label: t("workspace:tab_board") },
+    { href: `/dashboard/team/${team.id}/messaging`, label: t("workspace:tab_messages") },
   ];
 
   return (
@@ -91,14 +93,17 @@ export default async function TeamDetailPage({
         eyebrow={
           <span className="inline-flex items-center gap-1.5 font-mono">
             <IconUsers className="h-3 w-3" />
-            Team Workspace
+            {t("workspace:eyebrow_team")}
           </span>
         }
         title={team.name}
-        description={`Shared by ${team.members.length} member${team.members.length === 1 ? "" : "s"} under @${team.owner.login}'s plan.`}
+        description={t("workspace:header_description", {
+          count: team.members.length,
+          owner: team.owner.login,
+        })}
         badge={
           <Badge tone={paid ? "success" : "warn"}>
-            {paid ? "Owner plan active" : "Owner plan inactive"}
+            {t(paid ? "workspace:owner_plan_active" : "workspace:owner_plan_inactive")}
           </Badge>
         }
         actions={
@@ -126,35 +131,35 @@ export default async function TeamDetailPage({
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full bg-warn-400" />
             <p className="leading-relaxed">
-              <span className="font-semibold text-white">This team is in free mode.</span> Members
-              only get free-tier access until the owner activates a paid plan.
+              <span className="font-semibold text-white">{t("workspace:free_mode_lead")}</span>{" "}
+              {t("workspace:free_mode_tail")}
             </p>
           </div>
           <Link href="/dashboard/billing" className="btn btn-secondary btn-sm shrink-0">
-            Activate Team plan
+            {t("workspace:activate_plan")}
           </Link>
         </div>
       ) : null}
 
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Members" value={team.members.length} icon={IconUsers} />
+        <StatCard label={t("workspace:stat_members")} value={team.members.length} icon={IconUsers} />
         <StatCard
-          label="Shared Accounts"
+          label={t("workspace:stat_shared_accounts")}
           value={team.installations.length}
-          detail={`${sharedRepos} repos visible on the board`}
+          detail={t("workspace:repos_on_board", { count: sharedRepos })}
           tone={team.installations.length > 0 ? "brand" : "default"}
           icon={IconGitHub}
         />
         <StatCard
-          label="Pending Invites"
+          label={t("workspace:stat_pending_invites")}
           value={team.invites.length}
           tone={team.invites.length > 0 ? "warn" : "default"}
           icon={IconGitPullRequest}
         />
         <StatCard
-          label="Plan Slot"
-          value={slotLeft === null ? "Unlimited" : Math.max(0, slotLeft)}
-          detail={slotLeft === null ? "No member cap" : "max members per your plan"}
+          label={t("workspace:stat_plan_slot")}
+          value={slotLeft === null ? t("workspace:unlimited") : Math.max(0, slotLeft)}
+          detail={t(slotLeft === null ? "workspace:no_member_cap" : "workspace:max_members_per_plan")}
           icon={IconUsers}
         />
       </section>
@@ -163,11 +168,14 @@ export default async function TeamDetailPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-            Members
+            {t("workspace:members")}
           </span>
           {isAdmin && canShare ? (
             <span className="font-mono text-[11px] text-ink-500">
-              {slotLeft === null ? "unlimited cap" : `${Math.max(0, slotLeft)} slots left`}
+              {t(
+                slotLeft === null ? "workspace:unlimited_cap" : "workspace:slots_left",
+                slotLeft === null ? undefined : { count: Math.max(0, slotLeft) },
+              )}
             </span>
           ) : null}
         </div>
@@ -195,7 +203,9 @@ export default async function TeamDetailPage({
                   <div className="min-w-0">
                     <p className="truncate text-xs font-semibold text-white">
                       {m.user.name ?? m.user.login}
-                      {isMe ? <span className="ml-1.5 text-ink-500">(you)</span> : null}
+                      {isMe ? (
+                        <span className="ml-1.5 text-ink-500">{t("workspace:you_suffix")}</span>
+                      ) : null}
                     </p>
                     <a
                       href={`https://github.com/${encodeURIComponent(m.user.login)}`}
@@ -213,15 +223,15 @@ export default async function TeamDetailPage({
                     <Link
                       href={`/dashboard/team/${team.id}/messaging?member=${encodeURIComponent(m.userId)}`}
                       className="btn btn-ghost btn-sm"
-                      aria-label={`Message @${m.user.login}`}
+                      aria-label={t("workspace:message_aria", { login: m.user.login })}
                     >
                       <IconSend className="h-3.5 w-3.5" />
-                      <span>Message</span>
+                      <span>{t("workspace:message")}</span>
                     </Link>
                   ) : null}
                   {isOwner ? (
                     <span className="rounded-full border border-brand-500/25 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
-                      Owner
+                      {t("workspace:role_owner")}
                     </span>
                   ) : isAdmin ? (
                     <RoleSelectForm
@@ -263,10 +273,9 @@ export default async function TeamDetailPage({
 
       {/* Invitations */}
       <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-white">Invitations</h2>
+        <h2 className="text-sm font-bold text-white">{t("workspace:invitations")}</h2>
         <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
-          Invite by GitHub username. The invited developer accepts from their own Baton Teams page;
-          invitations expire after 14 days.
+          {t("workspace:invitations_hint")}
         </p>
         {isAdmin ? (
           <div className="mb-5 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4">
@@ -274,7 +283,7 @@ export default async function TeamDetailPage({
           </div>
         ) : null}
         {team.invites.length === 0 ? (
-          <p className="text-xs text-ink-500">No pending invitations.</p>
+          <p className="text-xs text-ink-500">{t("workspace:no_pending_invitations")}</p>
         ) : (
           <ul className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.06]">
             {team.invites.map((inv) => (
@@ -282,7 +291,8 @@ export default async function TeamDetailPage({
                 <div className="min-w-0">
                   <p className="font-mono text-xs font-semibold text-white">@{inv.githubLogin}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {inv.role} &middot; invited by @{inv.invitedBy.login}
+                    {t(`workspace:role_${inv.role}`)} &middot;{" "}
+                    {t("workspace:invited_by", { login: inv.invitedBy.login })}
                   </p>
                 </div>
                 {isAdmin ? (
@@ -301,23 +311,23 @@ export default async function TeamDetailPage({
 
       {/* Shared repositories */}
       <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-white">Shared Board Scope</h2>
+        <h2 className="text-sm font-bold text-white">{t("workspace:shared_board_scope")}</h2>
         <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
-          Every member sees the pull requests from these GitHub accounts on the team board.
+          {t("workspace:shared_board_scope_hint")}
         </p>
         {isAdmin ? (
           <div className="mb-5 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4">
             {myInstalls.length === 0 ? (
               <p className="text-xs text-ink-500">
-                No GitHub installations on your account yet.{" "}
+                {t("workspace:no_installations")}{" "}
                 <Link href="/dashboard/repos" className="font-semibold text-brand-300 hover:text-brand-200">
-                  Connect one first
+                  {t("workspace:connect_one_first")}
                 </Link>
                 .
               </p>
             ) : !canShare ? (
               <p className="text-xs text-ink-500">
-                Sharing repositories is available while the owner&apos;s Team/Organization plan is active.
+                {t("workspace:sharing_requires_plan")}
               </p>
             ) : (
               <ShareInstallForm
@@ -335,12 +345,10 @@ export default async function TeamDetailPage({
         {team.installations.length === 0 ? (
           <EmptyState
             icon={IconBranch}
-            title="Nothing shared yet"
-            hint={
-              isAdmin
-                ? "Share an installation above to bring its repositories into the team board."
-                : "An admin needs to share a GitHub installation before this board has data."
-            }
+            title={t("workspace:nothing_shared_title")}
+            hint={t(
+              isAdmin ? "workspace:nothing_shared_admin" : "workspace:nothing_shared_member",
+            )}
           />
         ) : (
           <ul className="space-y-2">
@@ -354,8 +362,7 @@ export default async function TeamDetailPage({
                     @{link.installation.accountLogin}
                   </p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {link.installation.repos.length} repositor
-                    {link.installation.repos.length === 1 ? "y" : "ies"} shared
+                    {t("workspace:repos_shared", { count: link.installation.repos.length })}
                   </p>
                 </div>
                 {isAdmin ? (
@@ -376,7 +383,7 @@ export default async function TeamDetailPage({
         <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-sm font-bold text-white">
             <IconSettings className="h-4 w-4 text-ink-400" />
-            Team Settings
+            {t("workspace:settings_title")}
           </h2>
           <form
             action={async (formData) => {
@@ -391,7 +398,7 @@ export default async function TeamDetailPage({
           >
             <div className="flex-1 min-w-52">
               <label htmlFor="team-name" className="mb-1 block text-[11px] font-semibold text-ink-400">
-                Team name
+                {t("workspace:name_label")}
               </label>
               <input
                 id="team-name"
@@ -403,7 +410,7 @@ export default async function TeamDetailPage({
             </div>
             <div className="flex-1 min-w-40">
               <label htmlFor="team-slug" className="mb-1 block text-[11px] font-semibold text-ink-400">
-                Slug
+                {t("workspace:slug_label")}
               </label>
               <input
                 id="team-slug"
@@ -414,7 +421,7 @@ export default async function TeamDetailPage({
               />
             </div>
             <button type="submit" className="btn btn-secondary btn-sm h-9">
-              Save changes
+              {t("workspace:save_changes")}
             </button>
           </form>
         </section>
@@ -424,13 +431,15 @@ export default async function TeamDetailPage({
       <section className="rounded-xl border border-danger-500/20 bg-danger-500/[0.03] p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
           <IconArrowRight className="h-4 w-4 text-ink-500" />
-          Danger Zone
+          {t("workspace:danger_zone")}
         </h2>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
           <p className="text-ink-400">
-            {role === "owner"
-              ? "Delete this team permanently. Members lose access and shared boards are removed."
-              : "Leave this team. The owner and admins keep managing the board."}
+            {t(
+              role === "owner"
+                ? "workspace:danger_delete_owner"
+                : "workspace:danger_leave_member",
+            )}
           </p>
           <div className="flex items-center gap-2">
             {role === "owner" ? (

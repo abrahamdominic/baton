@@ -21,5 +21,17 @@
   "create_team_action": "Create team",
   "no_teams_yet": "No teams yet",
   "no_teams_yet_hint": "Create your first team above, then share a GitHub installation so members can collaborate on the same board.",
-  "manage": "Manage"
+  "manage": "Manage",
+  "workspaces_badge": "Team Workspaces",
+  "index_description": "A team shares a review board across its members' GitHub accounts, while the team owner's subscription unlocks plan entitlements for everyone.",
+  "invitations_for_you": "Team invitations for you",
+  "invited_by_as": "Invited by @{{login}} as {{role}}",
+  "accept": "Accept",
+  "stat_your_teams": "Your Teams",
+  "stat_your_teams_detail": "Across your memberships",
+  "stat_team_members": "Team Members",
+  "stat_team_members_detail": "Total across your teams",
+  "stat_pending_invites": "Pending Invites",
+  "stat_pending_invites_detail": "Awaiting your decision",
+  "stat_pending_invites_empty": "Nothing to review"
 }

@@ -37,7 +37,7 @@
  */
 
 /** Broad grouping for the Language page, so a long list stays scannable. */
-export type LanguageGroup = "europe" | "americas" | "asia" | "africa" | "middle-east";
+export type LanguageGroup = "europe" | "americas" | "asia" | "africa" | "middle_east";
 
 export interface LocaleDefinition {
   /** Stable id used in the cookie, localStorage, and the `dir`/`lang` attributes. */
@@ -94,7 +94,7 @@ const EUROPE: LanguageGroup = "europe";
 const AMERICAS: LanguageGroup = "americas";
 const ASIA: LanguageGroup = "asia";
 const AFRICA: LanguageGroup = "africa";
-const MIDDLE_EAST: LanguageGroup = "middle-east";
+const MIDDLE_EAST: LanguageGroup = "middle_east";
 
 /**
  * Every locale Baton knows about.

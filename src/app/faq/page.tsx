@@ -3,135 +3,101 @@ import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { IconGitHub, IconArrowRight } from "@/components/icons";
 import { GITHUB_ISSUES_URL } from "@/lib/site";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  alternates: { canonical: "/faq" },
-  title: "Frequently Asked Questions: Baton",
-  description: "Common technical questions about Baton, the deterministic GitHub App that unblocks stalled pull requests.",
-};
-
-interface FAQItem {
-  category: string;
-  q: string;
-  a: string;
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslatorForRequest();
+  return {
+    alternates: { canonical: "/faq" },
+    title: t("faq:meta_title"),
+    description: t("faq:meta_description"),
+  };
 }
 
-const FAQ_ITEMS: FAQItem[] = [
-  // Core Mechanics
+/**
+ * The questions, in the order they are rendered.
+ *
+ * Only the category and the question ids live here. The prose is a resource
+ * string so the page, the JSON-LD, and every translation all read from one
+ * source; the same `faq:` key resolves all three.
+ */
+const FAQ_GROUPS = [
+  { ns: "core", categoryKey: "faq:cat_core", items: ["q1", "q2", "q3"] },
   {
-    category: "Core Mechanics",
-    q: "What exactly does Baton do once installed?",
-    a: "For every open pull request in a repository you install it on, Baton continuously evaluates the PR's state: what it is blocked on and who needs to act next. It maintains one pinned status comment and a matching baton:* label on the PR. If the PR exceeds your configured grace period (e.g. 24 hours), it sends a single targeted @-mention to the person who can unblock it.",
+    ns: "security",
+    categoryKey: "faq:cat_security",
+    items: ["q1", "q2", "q3"],
   },
-  {
-    category: "Core Mechanics",
-    q: "How does Baton determine whose turn it is?",
-    a: "A pure deterministic state machine. It combines GitHub review decisions (Approved, Changes Requested, Commented), pending review requests, CI check conclusions, merge-conflict status, draft state, and latest activity timestamps. Every state has an explicit mathematical definition; no LLM guesswork is involved in determining who acts next.",
-  },
-  {
-    category: "Core Mechanics",
-    q: "How is this different from generic stale-PR bots?",
-    a: "Stale-PR bots use blunt time rules (e.g. 'mark as stale after 30 days of inactivity') and almost always blame the author, even if the PR has been sitting waiting on a reviewer for weeks. Baton distinguishes between awaiting initial review, re-review after fixes, changes required, CI failing, and merge conflicts, directing attention to the actual blocker.",
-  },
+  { ns: "nudges", categoryKey: "faq:cat_nudges", items: ["q1", "q2"] },
+  { ns: "billing", categoryKey: "faq:cat_billing", items: ["q1", "q2"] },
+] as const;
 
-  // Security & Privacy
-  {
-    category: "Security & Permissions",
-    q: "Does Baton read, analyze, or store my source code?",
-    a: "Baton does not store your source code. Workflow orchestration needs only Pull requests (read/write for status comments), Issues (read/write for state labels), Checks (read-only), and Metadata. Repository intelligence additionally reads your file tree, the package manifest, and CODEOWNERS so it can describe how a repository is built. Those reads are used to derive facts, cited back to their source, and are then discarded. Baton does not request Workflows or Secrets access, and it never retains file contents.",
-  },
-  {
-    category: "Security & Permissions",
-    q: "Does Baton work on private repositories?",
-    a: "Yes. You choose exactly which repositories Baton can access during GitHub App installation. You can grant access to individual repos or all repos, and modify permissions or revoke access at any time in your GitHub organization settings.",
-  },
-  {
-    category: "Security & Permissions",
-    q: "What happens to our data if we uninstall Baton?",
-    a: "Uninstalling the GitHub App immediately terminates polling and permanently deletes stored PR snapshots and repository settings for that installation within seconds. Webhook delivery logs are retained for 30 days for operational debugging, then expired.",
-  },
+export default async function FaqPage() {
+  const { t } = await getTranslatorForRequest();
 
-  // Nudges & Etiquette
-  {
-    category: "Nudges & Politeness",
-    q: "Will Baton spam my engineering team with notifications?",
-    a: "No. Baton enforces strict politeness limits: at most one nudge per state per pull request. A nudge is only triggered after the PR has outlived that repo's configured grace period (by default 24h to 48h). You can adjust thresholds per repository or set maximum nudges to zero for a completely silent, comment-only setup.",
-  },
-  {
-    category: "Nudges & Politeness",
-    q: "What happens when CI checks fail?",
-    a: "Reviewers are never nudged for PRs with failing checks. Baton automatically flips the state to 'CI failing' with ownership assigned to the author. Reviewers are only alerted once the build is green.",
-  },
-
-  // Billing & Licensing
-  {
-    category: "Billing & Licensing",
-    q: "Is Baton really free for open-source repositories?",
-    a: "The free plan covers individual developers with up to 3 repositories, with no credit card and no time limit. Team and Organization capabilities — unlimited repositories, team workspaces, organization policies, and audit export — are paid plans, and a repository's visibility does not change which plan it is on. If you maintain an open-source project that needs more than the free plan covers, contact us.",
-  },
-  {
-    category: "Billing & Licensing",
-    q: "Can we self-host Baton on our own servers?",
-    a: "Yes. Baton is AGPL-3.0 open source. The entire codebase, database migrations, and deployment configs are public. You can run it on your own PostgreSQL infrastructure without external dependencies.",
-  },
-];
-
-const FAQ_JSON_LD = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: FAQ_ITEMS.map((item) => ({
-    "@type": "Question",
-    name: item.q,
-    acceptedAnswer: { "@type": "Answer", text: item.a },
-  })),
-};
-
-export default function FaqPage() {
-  const categories = Array.from(new Set(FAQ_ITEMS.map((i) => i.category)));
+  /**
+   * Built per request so the structured data a crawler reads is in the same
+   * language as the visible page, rather than always English.
+   */
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQ_GROUPS.flatMap((group) =>
+      group.items.map((id) => ({
+        "@type": "Question",
+        name: t(`faq:${group.ns}_${id}_q`),
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: t(`faq:${group.ns}_${id}_a`),
+        },
+      })),
+    ),
+  };
 
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <MarketingHeader />
 
       <main className="container-page py-16 md:py-24">
         <div className="max-w-2xl">
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
-            Frequently Asked Questions
+            {t("faq:h1")}
           </h1>
-          <p className="mt-4 text-sm sm:text-base text-ink-300 leading-relaxed">
-            Everything you need to know about how Baton tracks pull requests, respects developer focus,
-            and handles permissions.
+          <p className="mt-4 text-sm leading-relaxed text-ink-300 sm:text-base">
+            {t("faq:intro")}
           </p>
         </div>
 
         <div className="mt-14 space-y-12">
-          {categories.map((cat) => {
-            const items = FAQ_ITEMS.filter((i) => i.category === cat);
+          {FAQ_GROUPS.map((group) => {
             return (
-              <div key={cat} className="space-y-4">
+              <div key={group.categoryKey} className="space-y-4">
                 <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-300">
-                  {cat}
+                  {t(group.categoryKey)}
                 </h2>
                 <div className="space-y-3">
-                  {items.map((item) => (
+                  {group.items.map((id) => (
                     <details
-                      key={item.q}
+                      key={id}
                       className="group rounded-xl border border-white/[0.08] bg-ink-900/60 transition-all hover:border-white/[0.14] open:border-brand-500/40 open:bg-ink-850"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-semibold text-white transition-colors group-hover:text-brand-200 [&::-webkit-details-marker]:hidden">
-                        <span>{item.q}</span>
-                        <span className="ml-4 font-mono text-lg text-ink-500 transition-transform duration-200 group-open:rotate-45 group-open:text-brand-400">
+                        <span>{t(`faq:${group.ns}_${id}_q`)}</span>
+                        <span
+                          aria-hidden="true"
+                          className="ml-4 font-mono text-lg text-ink-500 transition-transform duration-200 group-open:rotate-45 group-open:text-brand-400"
+                        >
                           +
                         </span>
                       </summary>
-                      <div className="border-t border-white/[0.06] px-6 pb-5 pt-3.5 text-xs sm:text-sm leading-relaxed text-ink-300">
-                        {item.a}
+                      <div className="border-t border-white/[0.06] px-6 pb-5 pt-3.5 text-xs leading-relaxed text-ink-300 sm:text-sm">
+                        {t(`faq:${group.ns}_${id}_a`)}
                       </div>
                     </details>
                   ))}
@@ -141,15 +107,14 @@ export default function FaqPage() {
           })}
         </div>
 
-        {/* Bottom Help Box */}
-        <div className="mt-16 rounded-2xl border border-white/[0.08] bg-ink-900/40 p-8 text-center sm:text-left sm:flex sm:items-center sm:justify-between gap-6">
+        <div className="mt-16 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-white/[0.08] bg-ink-900/40 p-8 text-center sm:text-left">
           <div>
-            <h3 className="text-base font-bold text-white">Have a specific question not covered here?</h3>
-            <p className="mt-1 text-xs text-ink-400">
-              Open an issue on GitHub, or read the source code to see how it works.
-            </p>
+            <h2 className="text-base font-bold text-white">
+              {t("faq:help_title")}
+            </h2>
+            <p className="mt-1 text-xs text-ink-400">{t("faq:help_body")}</p>
           </div>
-          <div className="mt-4 sm:mt-0 flex flex-wrap items-center gap-3">
+          <div className="mt-4 flex flex-wrap items-center gap-3 sm:mt-0">
             <a
               href={GITHUB_ISSUES_URL}
               target="_blank"
@@ -157,10 +122,10 @@ export default function FaqPage() {
               className="btn btn-ghost btn-sm"
             >
               <IconGitHub className="h-3.5 w-3.5" />
-              Open an issue
+              {t("faq:help_action")}
             </a>
             <Link href="/docs" className="btn btn-primary btn-sm">
-              Read the Docs
+              {t("faq:help_docs")}
               <IconArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>

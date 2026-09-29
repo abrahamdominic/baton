@@ -39,5 +39,8 @@
   "skip_to_content": "Ir al contenido principal",
   "view_profile": "Ver perfil",
   "signed_in_as": "Sesión iniciada como {{login}}",
-  "subscriptions": "Suscripciones"
+  "subscriptions": "Suscripciones",
+  "view_github_profile_of": "Ver {{login}} en GitHub",
+  "notifications_unread_count": "Notificaciones: {{count}} sin leer",
+  "dashboard_navigation_menu": "Menú de navegación del panel"
 }

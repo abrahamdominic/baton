@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { askAboutRepository } from "./actions";
 import { IconSearch, IconAlertCircle, IconExternalLink } from "@/components/icons";
+import { useTranslation } from "@/lib/i18n/provider";
 
 /**
  * Grounded question form.
@@ -22,6 +23,7 @@ interface Claim {
 }
 
 export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo: string }) {
+  const { t } = useTranslation();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<{ answered: boolean; claims: Claim[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,11 +56,8 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
   return (
     <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
       <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-        <h2 className="text-sm font-semibold text-white">Understand this repository</h2>
-        <p className="mt-0.5 text-xs text-ink-500">
-          Answers are retrieved from the evidence listed on this page. Anything not covered is
-          reported as not covered rather than guessed.
-        </p>
+        <h2 className="text-sm font-semibold text-white">{t("intelligence:ask_title")}</h2>
+        <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:ask_subtitle")}</p>
       </div>
 
       <div className="space-y-4 px-5 py-4">
@@ -77,12 +76,12 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             maxLength={300}
-            placeholder="Who should review a change here?"
+            placeholder={t("intelligence:ask_placeholder")}
             className="flex-1 rounded-lg border border-white/[0.08] bg-ink-950/60 px-3 py-2 text-sm text-white placeholder:text-ink-500 focus:border-brand-400 focus:outline-none"
           />
           <button type="submit" disabled={pending || question.trim().length < 3} className="btn btn-ghost btn-sm">
             <IconSearch className="h-3.5 w-3.5" />
-            <span>{pending ? "Searching\u2026" : "Search evidence"}</span>
+            <span>{pending ? t("intelligence:ask_searching") : t("intelligence:ask_search")}</span>
           </button>
         </form>
 

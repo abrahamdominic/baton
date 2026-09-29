@@ -6,6 +6,7 @@ import {
 } from "@/lib/billing/analytics";
 import { SUBSCRIPTION_STATUSES } from "@/lib/billing/types";
 import { StatCard, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   IconActivity,
   IconShield,
@@ -17,6 +18,7 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function AdminAnalyticsPage() {
+  const { t } = await getTranslatorForRequest();
   const [counts, metrics] = await Promise.all([
     subscriptionStatusCounts(),
     adminDashboardMetrics(),
@@ -38,13 +40,13 @@ export default async function AdminAnalyticsPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="Analytics &amp; Conversion Funnels"
-        description="Lifecycle distribution for customer subscriptions, conversion checkpoints, and payment confirmation status."
+        title={t("admin:analytics_title")}
+        description={t("admin:analytics_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -53,21 +55,21 @@ export default async function AdminAnalyticsPage() {
       {/* Summary KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">
         <StatCard
-          label="Total Subscriptions"
+          label={t("admin:analytics_stat_subscriptions")}
           value={totalSubscriptions}
           detail={`${metrics.activeSubscriptions} active entitlements`}
           tone="signal"
           icon={IconShield}
         />
         <StatCard
-          label="Pending Checkout"
+          label={t("admin:analytics_stat_pending")}
           value={metrics.pendingSubscriptions}
           detail="Incomplete checkout flow"
           tone={metrics.pendingSubscriptions > 0 ? "brand" : "default"}
           icon={IconClock}
         />
         <StatCard
-          label="Confirmed Revenue"
+          label={t("admin:analytics_stat_revenue")}
           value={revenueSummary}
           detail={
             revenueByCurrency.length > 1
@@ -78,7 +80,7 @@ export default async function AdminAnalyticsPage() {
           icon={IconActivity}
         />
         <StatCard
-          label="Total Payment Events"
+          label={t("admin:analytics_stat_events")}
           value={totalPayments}
           detail="Processed transactions"
           icon={IconLayers}

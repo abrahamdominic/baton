@@ -36,5 +36,6 @@
   "unknown_device": "Unknown device",
   "device": "Device",
   "sessions_section": "Sessions",
-  "revoke_session": "Revoke session"
+  "revoke_session": "Revoke session",
+  "description": "Manage your authenticated GitHub profile, connected repositories, and active browser sessions."
 }

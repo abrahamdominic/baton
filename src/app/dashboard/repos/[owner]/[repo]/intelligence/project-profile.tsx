@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { IconAlertCircle, IconBranch } from "@/components/icons";
 import type { RepositoryProfile } from "@/lib/intelligence/profile";
 
@@ -16,46 +17,56 @@ import type { RepositoryProfile } from "@/lib/intelligence/profile";
  * Rendering the third as the second would send someone to fix a repository that
  * Baton simply could not read.
  */
-export function ProjectProfilePanel({ profile }: { profile: RepositoryProfile }) {
+export async function ProjectProfilePanel({ profile }: { profile: RepositoryProfile }) {
+  const { t, formatNumber } = await getTranslatorForRequest();
   const facts: { label: string; value: string }[] = [];
 
-  if (profile.packageManager) facts.push({ label: "Package manager", value: profile.packageManager });
+  if (profile.packageManager) facts.push({ label: t("intelligence:profile_package_manager"), value: profile.packageManager });
   if (profile.manifests.length > 0) {
-    facts.push({ label: "Manifests", value: profile.manifests.join(", ") });
+    facts.push({ label: t("intelligence:profile_manifests"), value: profile.manifests.join(", ") });
   }
   if (profile.frameworks.length > 0) {
-    facts.push({ label: "Frameworks", value: profile.frameworks.join(", ") });
+    facts.push({ label: t("intelligence:profile_frameworks"), value: profile.frameworks.join(", ") });
   }
   if (profile.dependencyCount !== null) {
-    facts.push({ label: "Direct dependencies", value: String(profile.dependencyCount) });
+    facts.push({
+      label: t("intelligence:profile_direct_deps"),
+      value: formatNumber(profile.dependencyCount),
+    });
   }
-  if (profile.apiStyle) facts.push({ label: "HTTP surface", value: profile.apiStyle });
-  if (profile.hasTypeScript) facts.push({ label: "Type safety", value: profile.typeConfig ?? "tsconfig.json" });
-  if (profile.orm) facts.push({ label: "Data access", value: profile.orm });
-  if (profile.hasMigrations) facts.push({ label: "Schema changes", value: "Tracked as migrations" });
-  if (profile.lintTool) facts.push({ label: "Linting", value: profile.lintTool });
-  if (profile.formatTool) facts.push({ label: "Formatting", value: profile.formatTool });
+  if (profile.apiStyle) facts.push({ label: t("intelligence:profile_http_surface"), value: profile.apiStyle });
+  if (profile.hasTypeScript) facts.push({ label: t("intelligence:profile_type_safety"), value: profile.typeConfig ?? "tsconfig.json" });
+  if (profile.orm) facts.push({ label: t("intelligence:profile_data_access"), value: profile.orm });
+  if (profile.hasMigrations) facts.push({ label: t("intelligence:profile_schema_changes"), value: "Tracked as migrations" });
+  if (profile.lintTool) facts.push({ label: t("intelligence:profile_linting"), value: profile.lintTool });
+  if (profile.formatTool) facts.push({ label: t("intelligence:profile_formatting"), value: profile.formatTool });
   if (profile.monorepoTools.length > 0) {
-    facts.push({ label: "Monorepo tooling", value: profile.monorepoTools.join(", ") });
+    facts.push({ label: t("intelligence:profile_monorepo_tooling"), value: profile.monorepoTools.join(", ") });
   }
   if (profile.deploymentTargets.length > 0) {
-    facts.push({ label: "Deployment", value: profile.deploymentTargets.join(", ") });
+    facts.push({ label: t("intelligence:profile_deployment"), value: profile.deploymentTargets.join(", ") });
   }
-  if (profile.hasDocker) facts.push({ label: "Container build", value: "Dockerfile present" });
+  if (profile.hasDocker) facts.push({ label: t("intelligence:profile_container_build"), value: "Dockerfile present" });
   if (profile.securityTooling.length > 0) {
-    facts.push({ label: "Dependency security", value: profile.securityTooling.join(", ") });
+    facts.push({ label: t("intelligence:profile_dependency_security"), value: profile.securityTooling.join(", ") });
   }
-  facts.push({ label: "Files in default branch", value: String(profile.totalFileCount) });
+  facts.push({
+    label: t("intelligence:profile_file_count"),
+    value: formatNumber(profile.totalFileCount),
+  });
 
   const churnKnown = profile.commitSampleSize > 0;
 
   return (
     <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
       <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
-        <h2 className="text-sm font-semibold text-white">Derived Project Profile</h2>
+        <h2 className="text-sm font-semibold text-white">{t("intelligence:profile_title")}</h2>
         <p className="mt-0.5 text-xs text-ink-500">
-          Read directly from the repository tree
-          {churnKnown ? ` and the last ${profile.commitSampleSize} commits` : ""}.
+          {churnKnown
+            ? t("intelligence:profile_subtitle_with_commits", {
+                count: formatNumber(profile.commitSampleSize),
+              })
+            : t("intelligence:profile_subtitle")}
         </p>
       </div>
 
@@ -72,29 +83,38 @@ export function ProjectProfilePanel({ profile }: { profile: RepositoryProfile })
 
       <div className="grid gap-0 border-t border-white/[0.05] sm:grid-cols-3">
         <div className="p-4">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">Test setup</span>
+          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            {t("intelligence:profile_test_setup")}
+          </span>
           {profile.testFramework ? (
             <p className="mt-1 text-xs text-ink-200">
-              Runs on <span className="text-brand-300">{profile.testFramework}</span>
+              {t("intelligence:profile_runs_on")}{" "}
+              <span className="text-brand-300">{profile.testFramework}</span>
               {profile.testFileCount > 0 ? (
-                <span className="text-ink-400"> &middot; {profile.testFileCount} test files</span>
+                <span className="text-ink-400">
+                  {" "}
+                  &middot;{" "}
+                  {t("intelligence:profile_test_files", { count: profile.testFileCount })}
+                </span>
               ) : null}
             </p>
           ) : profile.hasTests ? (
             <p className="mt-1 flex items-start gap-1.5 text-xs text-warn-300">
               <IconAlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-              Test files exist but no runner is configured in the repository root.
+              {t("intelligence:profile_tests_no_runner")}
             </p>
           ) : (
             <p className="mt-1 flex items-start gap-1.5 text-xs text-signal-300">
               <IconAlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
-              No test files found in the default branch.
+              {t("intelligence:profile_no_test_files")}
             </p>
           )}
         </div>
 
         <div className="border-t border-white/[0.05] p-4 sm:border-l sm:border-t-0">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">Highest churn</span>
+          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            {t("intelligence:profile_highest_churn")}
+          </span>
           {churnKnown && profile.highChurnAreas.length > 0 ? (
             <ul className="mt-1 space-y-0.5">
               {profile.highChurnAreas.slice(0, 3).map((a) => (
@@ -108,13 +128,17 @@ export function ProjectProfilePanel({ profile }: { profile: RepositoryProfile })
             </ul>
           ) : (
             <p className="mt-1 text-xs text-ink-500">
-              {churnKnown ? "No commits in the sample touched a shared area." : "Change history was not readable."}
+              {churnKnown
+                ? t("intelligence:profile_no_churn")
+                : t("intelligence:profile_history_unreadable")}
             </p>
           )}
         </div>
 
         <div className="border-t border-white/[0.05] p-4 sm:border-l sm:border-t-0">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">Quiet areas</span>
+          <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            {t("intelligence:profile_quiet_areas")}
+          </span>
           {churnKnown && profile.staleAreas.length > 0 ? (
             <ul className="mt-1 space-y-0.5">
               {profile.staleAreas.slice(0, 3).map((a) => (
@@ -128,7 +152,9 @@ export function ProjectProfilePanel({ profile }: { profile: RepositoryProfile })
             </ul>
           ) : (
             <p className="mt-1 text-xs text-ink-500">
-              {churnKnown ? "No area in the sample has been quiet for six months." : "Change history was not readable."}
+              {churnKnown
+                ? t("intelligence:profile_no_quiet_areas")
+                : t("intelligence:profile_history_unreadable")}
             </p>
           )}
         </div>
@@ -137,7 +163,7 @@ export function ProjectProfilePanel({ profile }: { profile: RepositoryProfile })
       {profile.hasEnvExample ? null : (
         <p className="flex items-start gap-2 border-t border-white/[0.05] px-5 py-3 text-[11px] text-ink-400">
           <IconBranch className="mt-0.5 h-3 w-3 shrink-0" />
-          No example environment file is published, so required configuration has to be confirmed with a maintainer.
+          {t("intelligence:profile_no_env_example")}
         </p>
       )}
     </section>

@@ -13,5 +13,12 @@
   "save_failed": "El idioma se ha cambiado en este dispositivo, pero no se ha podido guardar en tu cuenta. Se sincronizará más tarde.",
   "language_list": "Idiomas disponibles",
   "results_one": "{{count}} idioma",
-  "results_other": "{{count}} idiomas"
+  "results_other": "{{count}} idiomas",
+  "rtl_badge": "RTL",
+  "no_results_hint": "Prueba otra ortografía o busca por el código del idioma.",
+  "group_europe": "Europa",
+  "group_americas": "América",
+  "group_asia": "Asia",
+  "group_middle_east": "Oriente Medio",
+  "group_africa": "África"
 }

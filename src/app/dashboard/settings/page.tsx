@@ -72,7 +72,7 @@ export default async function SettingsPage() {
       {/* Page Header */}
       <PageHeader
         title={`${t("settings:title")} & Access`}
-        description="Manage your authenticated GitHub profile, connected repositories, and active browser sessions."
+        description={t("settings:description")}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             {/* lan.md §4: Settings -> Language, integrated into the existing

@@ -30,7 +30,7 @@ function fold(value: string): string {
     .toLowerCase();
 }
 
-const GROUP_ORDER = ["europe", "americas", "asia", "middle-east", "africa"] as const;
+const GROUP_ORDER = ["europe", "americas", "asia", "middle_east", "africa"] as const;
 
 export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
   const { locale, setLocale, t, tc, loading, saveError } = useI18n();

@@ -15,7 +15,8 @@ import {
 import { config } from "@/lib/env-boot";
 import { recentContexts } from "@/lib/intelligence/context";
 import { resumeContextAction } from "./actions";
-import { Duration, EmptyState, StateBadge, Badge, StatCard, PageHeader } from "@/components/ui";
+import { EmptyState, Badge, StatCard, PageHeader } from "@/components/ui";
+import { Duration, StateBadge } from "@/components/state-badge";
 import {
   IconArrowRight,
   IconGitPullRequest,
@@ -32,9 +33,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
-function ActivityRow({ item }: { item: ActivityItem }) {
+async function ActivityRow({ item }: { item: ActivityItem }) {
+  const { t, formatRelative } = await getTranslatorForRequest();
   const isNudge = item.type === "nudge";
-  const hoursAgo = (Date.now() - item.createdAt.getTime()) / 3_600_000;
 
   return (
     <li className="flex items-start gap-3.5 px-5 py-3.5 transition-colors hover:bg-white/[0.02]">
@@ -61,11 +62,11 @@ function ActivityRow({ item }: { item: ActivityItem }) {
             {item.owner}/{item.repo}
           </Link>
           <span className="text-ink-600"> &middot; </span>
-          <span className="text-ink-400">PR #{item.prNumber}</span>
+          <span className="text-ink-400">{t("repos:pr_number", { number: item.prNumber })}</span>
         </p>
       </div>
       <span className="shrink-0 font-mono text-[11px] text-ink-500">
-        <Duration hours={hoursAgo} /> ago
+        {formatRelative(item.createdAt)}
       </span>
     </li>
   );
@@ -82,7 +83,7 @@ export default async function DashboardPage({
 
   // Server-rendered copy is translated on the server, so the first paint is
   // already in the user's language instead of flashing English.
-  const { t, tc, formatNumber, formatDate } = await getTranslatorForRequest();
+  const { t, tc, formatNumber, formatDate, formatRelative } = await getTranslatorForRequest();
 
   const planParam = resolvedParams?.plan;
   const billing = resolvedParams?.billing === "annual" ? "annual" : "monthly";
@@ -341,7 +342,7 @@ export default async function DashboardPage({
                   <div className="flex items-center justify-between">
                     <Badge tone="neutral">{ctx.kind.toUpperCase()}</Badge>
                     <span className="font-mono text-[10px] text-ink-500">
-                      <Duration hours={(Date.now() - ctx.lastUsedAt.getTime()) / 3_600_000} /> ago
+                      {formatRelative(ctx.lastUsedAt)}
                     </span>
                   </div>
                   <p className="text-xs font-semibold text-white mt-2 truncate">{ctx.label}</p>

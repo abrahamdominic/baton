@@ -1,0 +1,12 @@
+{
+  "draft": "Draft",
+  "awaiting_review": "Waiting for review",
+  "awaiting_review_after_fix": "Fix pushed, waiting on re-review",
+  "changes_required": "Changes required",
+  "ci_failing": "CI failing",
+  "blocked_on_checks": "Checks pending",
+  "conflicts": "Merge conflicts",
+  "ready_to_merge": "Ready to merge",
+  "merged": "Merged",
+  "closed": "Closed"
+}

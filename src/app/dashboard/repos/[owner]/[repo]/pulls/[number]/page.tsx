@@ -19,6 +19,7 @@ import {
 import { SaveContextButton } from "./context-button";
 import { intelligenceAccess, UPGRADE_HREF } from "@/lib/intelligence/access";
 import { FEATURE_KEYS } from "@/lib/billing/types";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ export default async function SmartPrContextPage({
   params: Promise<{ owner: string; repo: string; number: string }>;
 }) {
   const { owner, repo, number: rawNumber } = await params;
+  const { t } = await getTranslatorForRequest();
+
   const prNumber = parseInt(rawNumber, 10);
   if (Number.isNaN(prNumber) || prNumber <= 0) notFound();
 
@@ -48,11 +51,11 @@ export default async function SmartPrContextPage({
       <div className="space-y-6">
         <PageHeader title={`#${prNumber} ${view.pr.title}`} description={`${owner}/${repo}`} />
         <EmptyState
-          title="Pull request context is a paid capability"
-          hint={`${intelAccess.label} is included with the Team plan. Your current plan does not include it.`}
+          title={t("intelligence:pr_paid_title")}
+          hint={t("intelligence:pr_paid_hint", { plan: intelAccess.label })}
           action={
             <Link href={UPGRADE_HREF} className="btn btn-primary btn-sm">
-              View plans
+              {t("intelligence:pr_paid_action")}
             </Link>
           }
         />
@@ -81,7 +84,7 @@ export default async function SmartPrContextPage({
             <span>{owner}/{repo}</span>
           </Link>
           <span className="text-ink-600">/</span>
-          <span className="text-ink-400">pulls</span>
+          <span className="text-ink-400">{t("intelligence:pr_breadcrumb_pulls")}</span>
           <span className="text-ink-600">/</span>
           <span className="font-semibold text-white">#{prNumber}</span>
         </div>
@@ -89,7 +92,12 @@ export default async function SmartPrContextPage({
         <PageHeader
           badge={<Badge tone={meta.tone}>{meta.label}</Badge>}
           title={`#${prNumber} ${view.pr.title}`}
-          description={`Opened by @${view.pr.authorLogin} &middot; ${view.pr.headRef} into ${view.pr.baseRef} &middot; In state for ${hoursInState}h`}
+          description={t("intelligence:pr_description", {
+            author: view.pr.authorLogin,
+            head: view.pr.headRef,
+            base: view.pr.baseRef,
+            count: hoursInState,
+          })}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <SaveContextButton
@@ -107,7 +115,7 @@ export default async function SmartPrContextPage({
                 className="btn btn-ghost btn-sm"
               >
                 <IconGitHub className="h-3.5 w-3.5" />
-                <span>GitHub PR</span>
+                <span>{t("intelligence:pr_github_action")}</span>
                 <IconExternalLink className="h-3 w-3" />
               </a>
             </div>
@@ -121,24 +129,24 @@ export default async function SmartPrContextPage({
         <div className="rounded-lg border border-white/[0.08] bg-ink-900/60 px-4 py-3">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-ink-500">
             <IconGitPullRequest className="h-3 w-3" />
-            <span>GitHub state</span>
+            <span>{t("intelligence:pr_github_state")}</span>
           </div>
           <p className="mt-1 font-mono text-sm text-white">
             {view.pr.githubState}
-            {view.pr.isDraft ? " (draft)" : ""}
+            {view.pr.isDraft ? t("intelligence:pr_draft") : ""}
           </p>
         </div>
         <div className="rounded-lg border border-white/[0.08] bg-ink-900/60 px-4 py-3">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-ink-500">
             <IconClock className="h-3 w-3" />
-            <span>Time in state</span>
+            <span>{t("intelligence:pr_time_in_state")}</span>
           </div>
           <p className="mt-1 font-mono text-sm text-white">{hoursInState}h</p>
         </div>
         <div className="rounded-lg border border-white/[0.08] bg-ink-900/60 px-4 py-3">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-ink-500">
             <IconBranch className="h-3 w-3" />
-            <span>Branch</span>
+            <span>{t("intelligence:pr_branch")}</span>
           </div>
           <p className="mt-1 truncate font-mono text-sm text-white">
             {view.pr.headRef} &rarr; {view.pr.baseRef}
@@ -147,7 +155,7 @@ export default async function SmartPrContextPage({
         <div className="rounded-lg border border-white/[0.08] bg-ink-900/60 px-4 py-3">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-ink-500">
             <IconActivity className="h-3 w-3" />
-            <span>Last GitHub update</span>
+            <span>{t("intelligence:pr_last_github_update")}</span>
           </div>
           <p className="mt-1 font-mono text-sm text-white">
             {view.pr.githubUpdatedAt.toISOString().slice(0, 10)}
@@ -170,7 +178,7 @@ export default async function SmartPrContextPage({
         <section className="overflow-hidden rounded-xl border border-brand-500/20 bg-brand-500/[0.04]">
           <div className="flex items-center gap-2.5 border-b border-brand-500/20 bg-brand-500/10 px-5 py-3">
             <IconActivity className="h-4 w-4 text-brand-300" />
-            <h2 className="text-sm font-semibold text-white">Recommended Next Action</h2>
+            <h2 className="text-sm font-semibold text-white">{t("intelligence:pr_next_action_title")}</h2>
           </div>
           <div className="divide-y divide-white/[0.05]">
             {view.nextActions.map((action, i) => (
@@ -185,7 +193,7 @@ export default async function SmartPrContextPage({
                   rel="noopener noreferrer"
                   className="btn btn-primary btn-sm shrink-0"
                 >
-                  <span>Take Action</span>
+                  <span>{t("intelligence:pr_take_action")}</span>
                   <IconExternalLink className="h-3 w-3" />
                 </a>
               </div>
@@ -201,7 +209,7 @@ export default async function SmartPrContextPage({
             <IconLayers className="h-4 w-4 text-brand-300" />
             <h2 className="text-sm font-semibold text-white">{view.reviewBrief.title}</h2>
             <span className="ml-auto font-mono text-[10px] text-ink-500">
-              evidence-backed review context
+              {t("intelligence:pr_brief_badge")}
             </span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
@@ -228,9 +236,9 @@ export default async function SmartPrContextPage({
         <section className="overflow-hidden rounded-xl border border-warn-500/30 bg-warn-500/[0.04]">
           <div className="flex items-center gap-2.5 border-b border-warn-500/20 bg-warn-500/10 px-5 py-3">
             <IconAlertCircle className="h-4 w-4 text-warn-300" />
-            <h2 className="text-sm font-semibold text-white">What Broke? CI Failure Investigation</h2>
+            <h2 className="text-sm font-semibold text-white">{t("intelligence:pr_what_broke_title")}</h2>
             <span className="ml-auto font-mono text-[10px] text-warn-300">
-              {view.whatBroke.failedChecks.length} failing check run{view.whatBroke.failedChecks.length === 1 ? "" : "s"}
+              {t("intelligence:pr_failed_runs", { count: view.whatBroke.failedChecks.length })}
             </span>
           </div>
           <div className="p-5 space-y-4">
@@ -248,7 +256,7 @@ export default async function SmartPrContextPage({
                   <div key={i} className="flex items-center justify-between p-3 text-xs">
                     <div>
                       <span className="font-semibold text-white">{c.name}</span>
-                      {c.appSlug ? <span className="ml-2 text-ink-500">via {c.appSlug}</span> : null}
+                      {c.appSlug ? <span className="ml-2 text-ink-500">{t("intelligence:pr_via", { app: c.appSlug })}</span> : null}
                       <span className="ml-2 text-warn-400 font-mono">({c.conclusion})</span>
                     </div>
                     {c.detailsUrl ? (
@@ -258,7 +266,7 @@ export default async function SmartPrContextPage({
                         rel="noopener noreferrer"
                         className="btn btn-ghost btn-sm text-[11px]"
                       >
-                        <span>View Build Log</span>
+                        <span>{t("intelligence:pr_view_build_log")}</span>
                         <IconExternalLink className="h-2.5 w-2.5" />
                       </a>
                     ) : null}
@@ -276,7 +284,7 @@ export default async function SmartPrContextPage({
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <div className="flex items-center gap-2">
               <IconBranch className="h-4 w-4 text-brand-300" />
-              <h2 className="text-sm font-semibold text-white">Change Impact Analysis</h2>
+              <h2 className="text-sm font-semibold text-white">{t("intelligence:pr_impact_title")}</h2>
             </div>
             <Badge
               tone={
@@ -287,7 +295,7 @@ export default async function SmartPrContextPage({
                   : "neutral"
               }
             >
-              Risk: {view.impactAnalysis.overallRisk.toUpperCase()}
+              {t("intelligence:pr_impact_risk", { risk: view.impactAnalysis.overallRisk.toUpperCase() })}
             </Badge>
           </div>
           <div className="p-5 space-y-4">
@@ -298,7 +306,7 @@ export default async function SmartPrContextPage({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-white">{area.name}</span>
                     <span className="font-mono text-[10px] uppercase text-ink-400">
-                      {area.files.length} file{area.files.length === 1 ? "" : "s"}
+                      {t("intelligence:pr_files", { count: area.files.length })}
                     </span>
                   </div>
                   <ul className="space-y-1">
@@ -313,7 +321,7 @@ export default async function SmartPrContextPage({
                       {/* Inferred from naming convention, never verified to
                           exist -- so this is worded as a place to look. */}
                       <span className="text-[10px] font-mono text-ink-500">
-                        Tests likely covering this (inferred, unverified):
+                        {t("intelligence:pr_tests_inferred")}
                       </span>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {area.affectedTests.map((t, ti) => (
@@ -331,12 +339,12 @@ export default async function SmartPrContextPage({
         </section>
       ) : !impactAccess.allowed ? (
         <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 px-5 py-4">
-          <h2 className="text-sm font-semibold text-white">Change impact analysis</h2>
+          <h2 className="text-sm font-semibold text-white">{t("intelligence:pr_impact_locked_title")}</h2>
           <p className="mt-1.5 text-xs text-ink-400">
-            {impactAccess.label} is included with the Organization plan.
+            {t("intelligence:pr_impact_locked_hint", { plan: impactAccess.label })}
           </p>
           <Link href={UPGRADE_HREF} className="btn btn-ghost btn-sm mt-3">
-            View plans
+            {t("intelligence:pr_paid_action")}
           </Link>
         </section>
       ) : null}
@@ -348,14 +356,14 @@ export default async function SmartPrContextPage({
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-signal-400" />
-              <h2 className="text-sm font-semibold text-white">Confirmed Facts</h2>
+              <h2 className="text-sm font-semibold text-white">{t("intelligence:pr_facts_title")}</h2>
             </div>
-            <span className="font-mono text-[10px] text-ink-500">Verifiable GitHub data</span>
+            <span className="font-mono text-[10px] text-ink-500">{t("intelligence:pr_facts_badge")}</span>
           </div>
           {view.facts.length === 0 ? (
             <EmptyState
-              title="No confirmed facts recorded"
-              hint="Nothing has been collected for this pull request yet, so there is nothing to state as fact."
+              title={t("intelligence:pr_facts_empty_title")}
+              hint={t("intelligence:pr_facts_empty_hint")}
             />
           ) : (
             <dl className="divide-y divide-white/[0.05]">
@@ -391,13 +399,13 @@ export default async function SmartPrContextPage({
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <div className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-brand-400" />
-              <h2 className="text-sm font-semibold text-white">Architectural Inferences</h2>
+              <h2 className="text-sm font-semibold text-white">{t("intelligence:pr_inferences_title")}</h2>
             </div>
-            <span className="font-mono text-[10px] text-brand-300">Derived heuristics</span>
+            <span className="font-mono text-[10px] text-brand-300">{t("intelligence:pr_inferences_badge")}</span>
           </div>
           {view.inferences.length === 0 ? (
             <p className="p-5 text-xs text-ink-500">
-              No architectural inferences or risk markers derived for this pull request.
+              {t("intelligence:pr_inferences_empty")}
             </p>
           ) : (
             <ul className="divide-y divide-white/[0.05]">
@@ -406,13 +414,13 @@ export default async function SmartPrContextPage({
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-white">{inf.claim}</span>
                     <span className="font-mono text-[10px] text-brand-300 uppercase">
-                      {inf.confidence} confidence
+                      {t("intelligence:pr_confidence", { confidence: inf.confidence })}
                     </span>
                   </div>
-                  <p className="text-ink-400 leading-relaxed text-[11px]">&bull; Basis: {inf.basis}</p>
+                  <p className="text-ink-400 leading-relaxed text-[11px]">&bull; {t("intelligence:pr_basis", { basis: inf.basis })}</p>
                   {inf.suggestedAction ? (
                     <p className="text-brand-300/90 text-[11px] font-medium">
-                      &rarr; Suggestion: {inf.suggestedAction}
+                      &rarr; {t("intelligence:pr_suggestion", { action: inf.suggestedAction })}
                     </p>
                   ) : null}
                 </li>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { prisma } from "@/lib/db";
 import { PageHeader, Badge } from "@/components/ui";
 import { IconBell } from "@/components/icons";
@@ -8,6 +9,7 @@ import { NotificationInbox } from "@/components/dashboard/notification-inbox";
 export const dynamic = "force-dynamic";
 
 export default async function NotificationsPage() {
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard/notifications");
 
@@ -32,7 +34,7 @@ export default async function NotificationsPage() {
             Activity
           </span>
         }
-        title="Notifications"
+        title={t("notifications:title")}
         description={
           unreadCount > 0
             ? `You have ${unreadCount} unread notification${unreadCount === 1 ? "" : "s"}.`

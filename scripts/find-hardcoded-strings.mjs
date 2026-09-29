@@ -67,6 +67,9 @@ const ALLOW_PATTERNS = [
   /^\d{4}-\d{2}-\d{2}/,             // dates
   /^[a-z]+(-[a-z]+)+$/,             // slugs / css-like
   /^[a-z0-9]+$/,                    // codes
+  /^[A-Z][A-Za-z]*(<[a-z]+>)?$/,    // TS type expressions: Promise, Promise<void>
+  /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) \/\S+$/, // documented HTTP route literals
+  /^[A-Z][A-Za-z0-9]*-[0-9](\.[0-9]+)?(-[A-Za-z]+)?$/, // SPDX license ids: AGPL-3.0
 ];
 
 /**
@@ -111,6 +114,16 @@ const CALL =
 
 const findings = new Map();
 
+/**
+ * Files whose copy is structurally untranslatable.
+ *
+ * Next.js image-file conventions (`opengraph-image`, `twitter-image`, and the
+ * icon set) require `alt` to be a static module-level export, so it cannot be
+ * routed through the translator. Everything rendered inside the image itself is
+ * localized normally.
+ */
+const STATIC_EXPORT_ALT = /(^|\/)(opengraph-image|twitter-image)\.tsx$/;
+
 function collect(file, kind, line, text) {
   const key = `${file}`;
   if (!findings.has(key)) findings.set(key, []);
@@ -152,6 +165,8 @@ for (const file of walk(ROOT)) {
       if (!looksLikeCopy(value)) continue;
       // Skip anything already routed through the translation system.
       if (/\bt\(["']/.test(value) || /\btc\(["']/.test(value)) continue;
+      // Skip copy that a framework requires to stay a static export.
+      if (STATIC_EXPORT_ALT.test(relative(process.cwd(), file))) continue;
       collect(relative(process.cwd(), file), kind, at(m.index), value);
     }
   }

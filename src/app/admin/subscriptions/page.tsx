@@ -8,9 +8,11 @@ import { adminTargets } from "@/lib/billing/subscription-machine";
 import type { SubscriptionRecord } from "@/lib/billing/types";
 import { formatMoney } from "@/lib/billing/amounts";
 import { SubscriptionActions } from "./subscription-actions";
+import { paymentStatusLabel, subscriptionStatusLabel } from "@/lib/i18n/billing-label";
 import { SUBSCRIPTION_STATUSES, type SubscriptionStatus } from "@/lib/billing/types";
 import { IconArrowLeft, IconLayers } from "@/components/icons";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,7 @@ export default async function AdminSubscriptionsPage({
 }: {
   searchParams?: Promise<{ status?: string; user?: string }>;
 }) {
+  const { t } = await getTranslatorForRequest();
   const params = searchParams ? await searchParams : undefined;
   const filterStatus = (params?.status as SubscriptionStatus | undefined) ?? null;
   const filterUser = params?.user ?? null;
@@ -76,13 +79,13 @@ export default async function AdminSubscriptionsPage({
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="Subscription Records"
-        description="Lifecycle state machine and entitlement overrides. All administrative modifications are audited to the security log."
+        title={t("admin:subs_title")}
+        description={t("admin:subs_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -99,7 +102,7 @@ export default async function AdminSubscriptionsPage({
                 : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
             }`}
           >
-            All Subscriptions
+            {t("admin:subs_filter_all")}
           </Link>
           {SUBSCRIPTION_STATUSES.map((s) => (
             <Link
@@ -111,13 +114,13 @@ export default async function AdminSubscriptionsPage({
                   : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
               }`}
             >
-              {s.replace(/_/g, " ")}
+              {subscriptionStatusLabel(s, t)}
             </Link>
           ))}
         </div>
 
         <span className="font-mono text-[11px] text-ink-500">
-          Showing newest records
+          {t("admin:subs_showing_newest")}
         </span>
       </div>
 
@@ -125,7 +128,7 @@ export default async function AdminSubscriptionsPage({
       <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
         <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            {subscriptions.length} Subscriptions on record
+            {t("admin:subs_on_record", { count: subscriptions.length })}
           </span>
         </div>
 
@@ -133,12 +136,12 @@ export default async function AdminSubscriptionsPage({
           <div className="p-8">
             <EmptyState
               icon={IconLayers}
-              title="No subscriptions match this filter"
-              hint="Try clearing your status filter to view all subscriptions on record."
+              title={t("admin:subs_empty_title")}
+              hint={t("admin:subs_empty_hint")}
               action={
                 filterStatus ? (
                   <Link href="/admin/subscriptions" className="btn btn-ghost btn-sm">
-                    Clear filter
+                    {t("admin:clear_filter")}
                   </Link>
                 ) : undefined
               }
@@ -163,6 +166,7 @@ interface RowProps {
 }
 
 async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
+  const { t, formatDate } = await getTranslatorForRequest();
   const payments = await listPaymentsForSubscription(sub.id, 3).catch(() => []);
   const targets = adminTargets(sub.status);
   const canPlanChange = targets.includes("active");
@@ -194,13 +198,13 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
                 sub.status,
               )}`}
             >
-              {sub.status.replace(/_/g, " ")}
+              {subscriptionStatusLabel(sub.status, t)}
             </span>
             <span className="text-base font-bold text-white">
               {sub.plan?.name ?? sub.plan_id.slice(0, 8)}
             </span>
             <span className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
-              {sub.payment_provider ?? "manual"}
+              {sub.payment_provider ?? t("admin:subs_provider_manual")}
             </span>
           </div>
 
@@ -210,15 +214,23 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
               <img src={user.avatarUrl} alt="" width={24} height={24} className="h-6 w-6 rounded-full ring-1 ring-white/10" />
             ) : null}
             <div className="min-w-0">
-              <p className="truncate font-semibold text-ink-100">{user?.name ?? user?.login ?? "Unknown user"}</p>
+              <p className="truncate font-semibold text-ink-100">
+                {user?.name ?? user?.login ?? t("admin:subs_unknown_user")}
+              </p>
               <p className="truncate font-mono text-[11px] text-ink-400">
-                {user ? `@${user.login}${user.email ? ` · ${user.email}` : ""}` : `User ID: ${sub.user_id}`}
+                {user
+                  ? `@${user.login}${user.email ? ` · ${user.email}` : ""}`
+                  : t("admin:subs_user_id", { id: sub.user_id })}
               </p>
             </div>
           </div>
           <p className="mt-1 font-mono text-[11px] text-ink-500">
-            Started: {sub.started_at?.slice(0, 10) ?? new Date(sub.created_at).toISOString().slice(0, 10)}
-            {" · "}Subscription ID: <span className="text-ink-400">{sub.id}</span>
+            {t("admin:subs_started")}{" "}
+            {sub.started_at
+              ? formatDate(sub.started_at, { year: "numeric", month: "short", day: "numeric" })
+              : formatDate(sub.created_at, { year: "numeric", month: "short", day: "numeric" })}
+            {" · "}
+            {t("admin:subs_subscription_id")} <span className="text-ink-400">{sub.id}</span>
           </p>
 
           <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-ink-400">
@@ -228,26 +240,39 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
                   amountCents,
                   sub.payment_provider === "usdc" ? "USDC" : "USD",
                 )}
-                {interval ? ` / ${interval === "annual" ? "year" : "month"}` : ""}
+                {interval
+                  ? t("admin:subs_per_interval", {
+                      interval: interval === "annual" ? t("admin:interval_year") : t("admin:interval_month"),
+                    })
+                  : ""}
               </span>
             ) : null}
             {sub.current_period_start ? (
               <span>
-                Period: {sub.current_period_start.slice(0, 10)} &rarr; {sub.current_period_end?.slice(0, 10)}
+                {t("admin:subs_period", {
+                  from: formatDate(sub.current_period_start, { year: "numeric", month: "short", day: "numeric" }),
+                  to: sub.current_period_end
+                    ? formatDate(sub.current_period_end, { year: "numeric", month: "short", day: "numeric" })
+                    : "—",
+                })}
               </span>
             ) : null}
             {sub.cancel_at_period_end ? (
-              <span className="text-warn-300 font-semibold">(Cancels at period end)</span>
+              <span className="text-warn-300 font-semibold">
+                ({t("admin:subs_cancels_at_period_end")})
+              </span>
             ) : null}
             {sub.provider_subscription_id ? (
-              <span>Provider ID: {sub.provider_subscription_id}</span>
+              <span>{t("admin:subs_provider_id", { id: sub.provider_subscription_id })}</span>
             ) : null}
           </div>
 
           {/* Associated Recent Payments */}
           {payments.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="font-mono text-[10px] uppercase text-ink-500 self-center">Payments:</span>
+              <span className="font-mono text-[10px] uppercase text-ink-500 self-center">
+                {t("admin:subs_payments")}
+              </span>
               {payments.map((p) => (
                 <span
                   key={p.id}
@@ -256,7 +281,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
                   <span className="uppercase text-ink-500">{p.payment_provider}</span>
                   <span>${(p.amount / 100).toFixed(2)}</span>
                   <span className="capitalize text-ink-500">{(p.metadata as { interval?: string } | null)?.interval ?? "—"}</span>
-                  <span className="text-ink-500">({p.status.replace("_", " ")})</span>
+                  <span className="text-ink-500">({paymentStatusLabel(p.status, t)})</span>
                   {p.crypto_transaction_hash ? (
                     <a
                       href={`https://basescan.org/tx/${p.crypto_transaction_hash}`}
@@ -264,7 +289,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
                       rel="noreferrer"
                       className="text-brand-300 hover:text-brand-200"
                     >
-                      tx &rarr;
+                      {t("admin:subs_tx_link")} &rarr;
                     </a>
                   ) : null}
                 </span>

@@ -21,5 +21,17 @@
   "create_team_action": "Crear equipo",
   "no_teams_yet": "Todavía no hay equipos",
   "no_teams_yet_hint": "Crea tu primer equipo arriba y luego comparte una instalación de GitHub para que los miembros puedan colaborar en el mismo tablero.",
-  "manage": "Gestionar"
+  "manage": "Gestionar",
+  "workspaces_badge": "Espacios de trabajo en equipo",
+  "index_description": "Un equipo comparte un tablero de revisión entre las cuentas de GitHub de sus miembros, y la suscripción del propietario del equipo desbloquea los beneficios del plan para todos.",
+  "invitations_for_you": "Invitaciones de equipo para ti",
+  "invited_by_as": "Invitado por @{{login}} como {{role}}",
+  "accept": "Aceptar",
+  "stat_your_teams": "Tus equipos",
+  "stat_your_teams_detail": "Entre todas tus pertenencias",
+  "stat_team_members": "Miembros del equipo",
+  "stat_team_members_detail": "Total en tus equipos",
+  "stat_pending_invites": "Invitaciones pendientes",
+  "stat_pending_invites_detail": "Esperando tu decisión",
+  "stat_pending_invites_empty": "Nada que revisar"
 }

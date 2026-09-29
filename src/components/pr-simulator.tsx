@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { IconCheckCircle, IconClock, IconGitPullRequest, IconBell } from "@/components/icons";
 import { REPO_SETTING_DEFAULTS } from "@/lib/engine/thresholds";
+import { useI18n } from "@/lib/i18n/provider";
+import type { BatonState } from "@/lib/engine/types";
 
 /** Which built-in threshold the scenario demonstrates. */
 type ThresholdField = keyof typeof REPO_SETTING_DEFAULTS;
@@ -11,123 +13,108 @@ interface Scenario {
   id: string;
   /** Derived from REPO_SETTING_DEFAULTS so the demo cannot contradict the engine. */
   thresholdField: ThresholdField;
-  tabLabel: string;
-  stateBadge: string;
+  /** The engine state this scenario is in; drives the badge and its copy. */
+  state: BatonState;
+  /** Whose turn it is, as a `marketing:states_owner_*` key. */
+  turnKey: string;
   badgeTone: "info" | "warn" | "danger" | "success";
+  /** Mock data: a GitHub handle, a duration, a check summary. */
   whoseTurn: string;
-  turnRole: "Reviewers" | "Author" | "Maintainer";
   blockedFor: string;
-  nextAction: string;
-  triggerEvent: string;
   labelApplied: string;
   nudgeSent: boolean;
-  nudgeText: string;
-  ruleExplanation: string;
-  checksStatus: string;
-}
-
-function hours(n: number): string {
-  return n === 1 ? "1h" : `${n}h`;
+  /** 1-5, used to build this scenario's `marketing:sim_*` keys. */
+  n: 1 | 2 | 3 | 4 | 5;
 }
 
 const SCENARIOS: Scenario[] = [
   {
     id: "stalled-review",
     thresholdField: "firstResponseHours",
-    tabLabel: "1. Review Stalled",
-    stateBadge: "Waiting for review",
+    state: "awaiting_review",
+    turnKey: "marketing:states_owner_reviewers",
     badgeTone: "info",
     whoseTurn: "@sarah-chen",
-    turnRole: "Reviewers",
     blockedFor: "48h 12m",
-    nextAction: "Review the latest changes (3 commits, +142 -18)",
-    triggerEvent: "PR opened 2 days ago; review requested from @sarah-chen; no review submitted yet.",
     labelApplied: "baton:awaiting-review",
     nudgeSent: true,
-    nudgeText: "Friendly nudge: PR #247 has been awaiting review for 48h. @sarah-chen could you take a look when you have a moment?",
-    ruleExplanation: "Deterministic Rule: Open + Non-Draft + Pending Reviewer Request + Checks Green → State = AWAITING_REVIEW. The first-response threshold elapsed, so exactly 1 nudge dispatched.",
-    checksStatus: "4/4 passing",
+    n: 1,
   },
   {
     id: "changes-requested",
     thresholdField: "changesRequiredHours",
-    tabLabel: "2. Changes Requested",
-    stateBadge: "Changes required",
+    state: "changes_required",
+    turnKey: "marketing:states_owner_author",
     badgeTone: "warn",
     whoseTurn: "@dev-alex (Author)",
-    turnRole: "Author",
     blockedFor: "6h 40m",
-    nextAction: "Address feedback on auth middleware in src/auth/session.ts",
-    triggerEvent: "@sarah-chen submitted review with 'Request changes': 'Please ensure token expiry handles UTC timezone skew'.",
     labelApplied: "baton:changes-required",
     nudgeSent: false,
-    nudgeText: "Timer active. The author is reminded once the grace period expires without new commits.",
-    ruleExplanation: "Deterministic Rule: Latest review decision is CHANGES_REQUESTED. The baton immediately passes back to the author. Reviewers will NOT be nudged.",
-    checksStatus: "4/4 passing",
+    n: 2,
   },
   {
     id: "re-review",
     thresholdField: "reviewFollowUpHours",
-    tabLabel: "3. Fix Pushed (Re-review)",
-    stateBadge: "Fix pushed, re-review due",
+    state: "awaiting_review_after_fix",
+    turnKey: "marketing:states_owner_reviewers",
     badgeTone: "info",
     whoseTurn: "@sarah-chen",
-    turnRole: "Reviewers",
     blockedFor: "3h 15m",
-    nextAction: "Verify fix commit 4d92fa1 for UTC timezone skew",
-    triggerEvent: "@dev-alex pushed new commit 4d92fa1 ('fix: enforce UTC epoch in session verification').",
     labelApplied: "baton:re-review",
     nudgeSent: false,
-    nudgeText: "Within the grace period, so no reminder is sent yet.",
-    ruleExplanation: "Deterministic Rule: Previous review was CHANGES_REQUESTED, but author pushed new commits. State flips to RE_REVIEW. Timer resets to 0.",
-    checksStatus: "4/4 passing",
+    n: 3,
   },
   {
     id: "ci-failing",
     thresholdField: "ciFailHours",
-    tabLabel: "4. CI Failing (Checks Red)",
-    stateBadge: "CI failing",
+    state: "ci_failing",
+    turnKey: "marketing:states_owner_author",
     badgeTone: "danger",
     whoseTurn: "@dev-alex (Author)",
-    turnRole: "Author",
     blockedFor: "1h 05m",
-    nextAction: "Fix failing integration suite: test:integration (exit 1)",
-    triggerEvent: "GitHub Actions run failed on 'test:integration'.",
     labelApplied: "baton:ci-failing",
     nudgeSent: false,
-    nudgeText: "Reviewers spared. Baton prevents premature review requests while CI is red.",
-    ruleExplanation: "Deterministic Rule: Regardless of review requests, if required check suites are failing, the PR is blocked on the author. Never ping reviewers for broken builds.",
-    checksStatus: "1 failed, 3 passed",
+    n: 4,
   },
   {
     id: "ready-to-merge",
     thresholdField: "readyToMergeHours",
-    tabLabel: "5. Approved & Ready to Merge",
-    stateBadge: "Ready to merge",
+    state: "ready_to_merge",
+    turnKey: "marketing:states_owner_maintainer",
     badgeTone: "success",
     whoseTurn: "@dev-alex or Maintainer",
-    turnRole: "Maintainer",
     blockedFor: "18h 30m",
-    nextAction: "Squash and merge into main",
-    triggerEvent: "@sarah-chen approved the pull request. All 4 CI checks are green, zero merge conflicts.",
     labelApplied: "baton:ready-to-merge",
     nudgeSent: false,
-    nudgeText: "PR is green and unblocked. Once the ready-to-merge window elapses, Baton reminds the author or a maintainer.",
-    ruleExplanation: "Deterministic Rule: Review approved + Checks success + Mergeable. No more review needed, someone just needs to press the green button.",
-    checksStatus: "All checks green",
+    n: 5,
   },
 ];
 
+const BADGE_TONE_CLASS: Record<Scenario["badgeTone"], string> = {
+  warn: "border-warn-400/40 bg-warn-500/15 text-warn-300",
+  danger: "border-danger-400/40 bg-danger-500/15 text-danger-300",
+  success: "border-signal-400/40 bg-signal-500/15 text-signal-300",
+  info: "border-brand-400/40 bg-brand-500/15 text-brand-300",
+};
+
+const BADGE_DOT_CLASS: Record<Scenario["badgeTone"], string> = {
+  warn: "bg-warn-400",
+  danger: "bg-danger-400",
+  success: "bg-signal-400",
+  info: "bg-brand-400",
+};
+
 export function PrSimulator() {
+  const { t, tc } = useI18n();
   const [activeId, setActiveId] = useState("stalled-review");
-  const current = SCENARIOS.find((s) => s.id === activeId) ?? SCENARIOS[0];
+  const current = SCENARIOS.find((s) => s.id === activeId) ?? SCENARIOS[0]!;
+  const n = current.n;
 
   return (
     <div className="rounded-2xl border border-white/[0.1] bg-ink-900/90">
-      {/* Interactive Scenario Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-white/[0.08] bg-ink-950/60 p-2.5">
         <span className="px-2 font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-          Scenarios:
+          {t("marketing:sim_scenarios_label")}
         </span>
         {SCENARIOS.map((s) => {
           const isActive = s.id === activeId;
@@ -135,6 +122,7 @@ export function PrSimulator() {
             <button
               key={s.id}
               type="button"
+              aria-pressed={isActive}
               onClick={() => setActiveId(s.id)}
               className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all ${
                 isActive
@@ -142,22 +130,19 @@ export function PrSimulator() {
                   : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
               }`}
             >
-              {s.tabLabel}
+              {t(`marketing:sim_${s.n}_tab`)}
             </button>
           );
         })}
       </div>
 
-      {/* GitHub PR Header Bar */}
       <div className="border-b border-white/[0.07] px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-signal-500/20 text-signal-400">
               <IconGitPullRequest className="h-3 w-3" />
             </span>
-            <span className="font-semibold text-white">
-              feat(billing): idempotent webhook processor
-            </span>
+            <span className="font-semibold text-white">feat(billing): idempotent webhook processor</span>
             <span className="font-mono text-xs text-ink-400">#247</span>
           </div>
           <div className="flex items-center gap-2">
@@ -170,31 +155,29 @@ export function PrSimulator() {
         <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-ink-400">
           <span className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-signal-500" />
-            Open
+            {t("marketing:sim_pr_state_open")}
           </span>
-          <span>·</span>
-          <span>Opened 2 days ago by @dev-alex</span>
-          <span>·</span>
+          <span>&middot;</span>
+          <span>{t("marketing:sim_opened_line")}</span>
+          <span>&middot;</span>
           <span className="font-mono text-[11px] text-signal-400">+142</span>
           <span className="font-mono text-[11px] text-danger-400">-18</span>
         </div>
       </div>
 
-      {/* PR Timeline: Pinned Baton Card */}
       <div className="p-4 sm:p-5">
         <div className="rounded-xl border border-brand-500/30 bg-ink-850">
-          {/* Pinned Baton Status Comment Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-2.5 bg-brand-500/5">
+          <div className="flex items-center justify-between border-b border-white/[0.08] bg-brand-500/5 px-4 py-2.5">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-6 w-6 items-center justify-center rounded-md border border-brand-400/40 bg-brand-600 text-on-brand text-[10px] font-bold">
+              <div className="flex h-6 w-6 items-center justify-center rounded-md border border-brand-400/40 bg-brand-600 text-[10px] font-bold text-on-brand">
                 B
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-white">baton</span>
                 <span className="rounded border border-white/10 bg-white/[0.06] px-1.5 py-0.2 text-[9px] font-semibold text-ink-300">
-                  BOT
+                  {t("marketing:sim_bot_badge")}
                 </span>
-                <span className="text-[11px] text-ink-400">pinned status comment</span>
+                <span className="text-[11px] text-ink-400">{t("marketing:sim_pinned_status")}</span>
               </div>
             </div>
 
@@ -205,102 +188,92 @@ export function PrSimulator() {
             </div>
           </div>
 
-          {/* Card Body */}
           <div className="p-4 sm:p-5">
-            {/* Status Pill & Turn Banner */}
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-xs font-medium ${
-                    current.badgeTone === "warn"
-                      ? "border-warn-400/40 bg-warn-500/15 text-warn-300"
-                      : current.badgeTone === "danger"
-                      ? "border-danger-400/40 bg-danger-500/15 text-danger-300"
-                      : current.badgeTone === "success"
-                      ? "border-signal-400/40 bg-signal-500/15 text-signal-300"
-                      : "border-brand-400/40 bg-brand-500/15 text-brand-300"
-                  }`}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-xs font-medium ${BADGE_TONE_CLASS[current.badgeTone]}`}
                 >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      current.badgeTone === "warn"
-                        ? "bg-warn-400"
-                        : current.badgeTone === "danger"
-                        ? "bg-danger-400"
-                        : current.badgeTone === "success"
-                        ? "bg-signal-400"
-                        : "bg-brand-400"
-                    }`}
-                  />
-                  {current.stateBadge}
+                  <span className={`h-1.5 w-1.5 rounded-full ${BADGE_DOT_CLASS[current.badgeTone]}`} />
+                  {t(`marketing:matrix_${current.state}_label`)}
                 </span>
 
                 <span className="rounded-full border border-white/[0.08] bg-ink-800 px-2.5 py-0.5 font-mono text-[11px] text-ink-300">
-                  Turn: {current.turnRole}
+                  {t("marketing:turn_prefix")} {t(current.turnKey)}
                 </span>
               </div>
 
               <div className="flex items-center gap-1.5 text-xs text-ink-400">
                 <IconClock className="h-3.5 w-3.5 text-ink-400" />
-                <span>Blocked: <strong className="text-white font-mono">{current.blockedFor}</strong></span>
+                <span>
+                  {t("marketing:sim_blocked_prefix")}{" "}
+                  <strong className="font-mono text-white">{current.blockedFor}</strong>
+                </span>
               </div>
             </div>
 
-            {/* Grid of details */}
-            <div className="mt-4 grid gap-3 rounded-lg border border-white/[0.06] bg-ink-950/40 p-3 sm:grid-cols-3 text-xs">
+            <div className="mt-4 grid gap-3 rounded-lg border border-white/[0.06] bg-ink-950/40 p-3 text-xs sm:grid-cols-3">
               <div>
-                <span className="block font-mono text-[10px] uppercase text-ink-500">Whose Turn</span>
+                <span className="block font-mono text-[10px] uppercase text-ink-500">
+                  {t("marketing:sim_whose_turn_heading")}
+                </span>
                 <span className="mt-0.5 font-semibold text-white">{current.whoseTurn}</span>
               </div>
               <div>
-                <span className="block font-mono text-[10px] uppercase text-ink-500">CI Checks</span>
-                <span className="mt-0.5 font-medium text-ink-200">{current.checksStatus}</span>
+                <span className="block font-mono text-[10px] uppercase text-ink-500">
+                  {t("marketing:sim_ci_checks_heading")}
+                </span>
+                <span className="mt-0.5 font-medium text-ink-200">{t(`marketing:sim_${n}_checks`)}</span>
               </div>
               <div>
-                <span className="block font-mono text-[10px] uppercase text-ink-500">Threshold Policy</span>
-                <span className="mt-0.5 font-mono text-ink-300">{hours(REPO_SETTING_DEFAULTS[current.thresholdField])} threshold</span>
+                <span className="block font-mono text-[10px] uppercase text-ink-500">
+                  {t("marketing:sim_threshold_heading")}
+                </span>
+                <span className="mt-0.5 font-mono text-ink-300">
+                  {tc("marketing:sim_threshold_value", REPO_SETTING_DEFAULTS[current.thresholdField])}
+                </span>
               </div>
             </div>
 
-            {/* Next Unblocking Action */}
             <div className="mt-3.5 flex items-start gap-2.5 rounded-lg border border-signal-500/20 bg-signal-500/5 p-3 text-xs">
               <IconCheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
               <div>
-                <span className="font-semibold text-signal-300">Unblocking action:</span>
-                <p className="mt-0.5 text-ink-200">{current.nextAction}</p>
+                <span className="font-semibold text-signal-300">
+                  {t("marketing:sim_unblocking_label")}
+                </span>
+                <p className="mt-0.5 text-ink-200">{t(`marketing:sim_${n}_next`)}</p>
               </div>
             </div>
 
-            {/* Automated Nudge Status */}
             {current.nudgeSent ? (
               <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-brand-500/30 bg-brand-500/10 p-3 text-xs">
                 <IconBell className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" />
                 <div>
-                  <span className="font-semibold text-brand-200">Dispatched Polite Nudge (Threshold Exceeded):</span>
-                  <p className="mt-1 font-mono text-[11px] text-brand-100 bg-brand-950/40 p-2 rounded border border-brand-500/20">
-                    &ldquo;{current.nudgeText}&rdquo;
+                  <span className="font-semibold text-brand-200">
+                    {t("marketing:sim_nudge_dispatched")}
+                  </span>
+                  <p className="mt-1 rounded border border-brand-500/20 bg-brand-950/40 p-2 font-mono text-[11px] text-brand-100">
+                    &ldquo;{t(`marketing:sim_${n}_nudge`)}&rdquo;
                   </p>
                 </div>
               </div>
             ) : null}
           </div>
 
-          {/* Footer note */}
-          <div className="flex items-center justify-between border-t border-white/[0.06] px-4 py-2 text-[11px] text-ink-500 bg-ink-950/30">
-            <span>Deterministic state machine · Updates automatically</span>
-            <span>0 code diffs read</span>
+          <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] bg-ink-950/30 px-4 py-2 text-[11px] text-ink-500">
+            <span>{t("marketing:sim_footer_left")}</span>
+            <span>{t("marketing:sim_footer_right")}</span>
           </div>
         </div>
 
-        {/* Technical Explainer Callout */}
         <div className="mt-3 rounded-lg border border-white/[0.06] bg-ink-950/50 p-3 text-xs">
           <div className="flex items-center gap-2 font-mono text-[11px] text-ink-400">
             <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
-            <span className="text-white font-semibold">Under the hood:</span>
-            <span className="text-ink-400">{current.triggerEvent}</span>
+            <span className="font-semibold text-white">{t("marketing:sim_under_hood")}</span>
+            <span className="text-ink-400">{t(`marketing:sim_${n}_trigger`)}</span>
           </div>
-          <p className="mt-1.5 text-ink-400 leading-relaxed font-mono text-[11px]">
-            {current.ruleExplanation}
+          <p className="mt-1.5 font-mono text-[11px] leading-relaxed text-ink-400">
+            {t(`marketing:sim_${n}_rule`)}
           </p>
         </div>
       </div>

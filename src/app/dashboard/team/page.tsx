@@ -39,11 +39,11 @@ export default async function TeamsPage() {
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
             <IconUsers className="h-3 w-3" />
-            Team Workspaces
+            {t("teams:workspaces_badge")}
           </span>
         }
         title={t("teams:teams")}
-        description="A team shares a review board across its members' GitHub accounts, while the team owner's subscription unlocks plan entitlements for everyone."
+        description={t("teams:index_description")}
         actions={
           canUseTeams ? (
             <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
@@ -58,7 +58,7 @@ export default async function TeamsPage() {
         <section className="overflow-hidden rounded-xl border border-brand-500/25 bg-ink-900/50 shadow-sm">
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
-              Team invitations for you
+              {t("teams:invitations_for_you")}
             </span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
@@ -70,14 +70,17 @@ export default async function TeamsPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-white">{inv.team.name}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-400">
-                    Invited by @{inv.invitedBy.login} as {inv.role}
+                    {t("teams:invited_by_as", {
+                      login: inv.invitedBy.login,
+                      role: t(`workspace:role_${inv.role}`),
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <AcceptInviteButton
                     kind="team"
                     workspaceId={inv.teamId}
-                    label="Accept"
+                    label={t("teams:accept")}
                   />
                   <DeclineInviteButton kind="team" workspaceId={inv.teamId} />
                 </div>
@@ -218,22 +221,26 @@ export default async function TeamsPage() {
 
           <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
             <StatCard
-              label="Your Teams"
+              label={t("teams:stat_your_teams")}
               value={teams.length}
-              detail="Across your memberships"
+              detail={t("teams:stat_your_teams_detail")}
               icon={IconUsers}
             />
             <StatCard
-              label="Team Members"
+              label={t("teams:stat_team_members")}
               value={totalMembers}
-              detail="Total across your teams"
+              detail={t("teams:stat_team_members_detail")}
               tone="brand"
               icon={IconUsers}
             />
             <StatCard
-              label="Pending Invites"
+              label={t("teams:stat_pending_invites")}
               value={invites.length}
-              detail={invites.length > 0 ? "Awaiting your decision" : "Nothing to review"}
+              detail={
+                invites.length > 0
+                  ? t("teams:stat_pending_invites_detail")
+                  : t("teams:stat_pending_invites_empty")
+              }
               tone={invites.length > 0 ? "warn" : "default"}
               icon={IconGitPullRequest}
             />

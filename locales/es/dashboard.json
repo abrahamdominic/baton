@@ -77,5 +77,6 @@
   "all_prs": "Todos los PR ({{count}})",
   "stalled_24h": "Detenidos 24 h o más ({{count}})",
   "flagged_stalled_one": "{{count}} marcado como detenido",
-  "flagged_stalled_other": "{{count}} marcados como detenidos"
+  "flagged_stalled_other": "{{count}} marcados como detenidos",
+  "loading_view": "Cargando vista del dashboard"
 }

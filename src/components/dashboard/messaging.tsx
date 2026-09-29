@@ -12,6 +12,7 @@ import {
   listTeamDeviceKeysAction,
   listOrgDeviceKeysAction,
 } from "@/app/dashboard/team/[teamId]/messaging/actions";
+import { useTranslation } from "@/lib/i18n/provider";
 import { ensureDevice, buildConversationWraps } from "@/lib/messaging/client";
 import { normalizeParticipantIds } from "@/lib/messaging/participants";
 import { Dialog } from "@/components/confirm-dialog";
@@ -24,12 +25,12 @@ import {
   IconCheckCircle,
 } from "@/components/icons";
 
-function formatTime(d: Date): string {
+function formatTime(d: Date, locale: string): string {
   const now = new Date();
   const sameDay = d.toDateString() === now.toDateString();
   return sameDay
-    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString([], { month: "short", day: "numeric" });
+    ? d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 
 function MembersRow({
@@ -39,6 +40,7 @@ function MembersRow({
   members: ConversationSummary["members"];
   currentUserId: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex min-w-0 items-center gap-2">
       <div className="flex -space-x-1.5">
@@ -55,7 +57,7 @@ function MembersRow({
         {members
           .filter((m) => m.userId !== currentUserId)
           .map((m) => m.name ?? m.login)
-          .join(", ") || "You"}
+          .join(", ") || t("messaging:you")}
       </p>
     </div>
   );
@@ -74,18 +76,16 @@ export function ConversationList({
   currentUserId: string;
   initialMemberId?: string;
 }) {
+  const { t, locale } = useTranslation();
   const [open, setOpen] = useState(Boolean(initialMemberId));
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs leading-relaxed text-ink-400">
-          Client-encrypted conversations. Messages are encrypted before they ever leave
-          your device; the server stores only ciphertext and per-member key wraps.
-        </p>
+        <p className="text-xs leading-relaxed text-ink-400">{t("messaging:encryption_note")}</p>
         <button type="button" onClick={() => setOpen(true)} className="btn btn-primary btn-sm">
           <IconPlus className="h-3.5 w-3.5" />
-          <span>New conversation</span>
+          <span>{t("messaging:new_conversation")}</span>
         </button>
       </div>
 
@@ -94,9 +94,9 @@ export function ConversationList({
           <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.1] bg-ink-850/80 text-ink-300">
             <IconUsers className="h-6 w-6" />
           </div>
-          <p className="text-sm font-semibold text-white">No conversations yet</p>
+          <p className="text-sm font-semibold text-white">{t("messaging:list_empty_title")}</p>
           <p className="max-w-md text-xs leading-relaxed text-ink-400">
-            Start one to share encrypted messages with fellow workspace members.
+            {t("messaging:list_empty_hint")}
           </p>
         </div>
       ) : (
@@ -115,7 +115,9 @@ export function ConversationList({
                   <MembersRow members={c.members} currentUserId={currentUserId} />
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="font-mono text-[11px] text-ink-500">
-                      {c.lastMessageAt ? formatTime(c.lastMessageAt) : "no messages"}
+                      {c.lastMessageAt
+                        ? formatTime(c.lastMessageAt, locale)
+                        : t("messaging:no_messages")}
                     </span>
                     {unread ? (
                       <span className="h-2 w-2 rounded-full bg-brand-400" />
@@ -155,6 +157,7 @@ function NewConversationDialog({
   initialMemberId?: string;
   onClose: () => void;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [members, setMembers] = useState<
     Array<{ userId: string; login: string; name: string | null; avatarUrl: string | null; devices: Array<{ id: string; publicKeyB64: string }> }> | null
@@ -171,7 +174,7 @@ function NewConversationDialog({
       ? listTeamDeviceKeysAction({ teamId })
       : orgId
       ? listOrgDeviceKeysAction({ orgId })
-      : Promise.resolve({ ok: false as const, error: "No workspace specified." });
+      : Promise.resolve({ ok: false as const, error: t("messaging:no_workspace") });
 
     fetcher
       .then((res) => {
@@ -179,11 +182,11 @@ function NewConversationDialog({
         if (res.ok) setMembers(res.members);
         else setError(res.error);
       })
-      .catch(() => !cancelled && setError("Could not load workspace members."));
+      .catch(() => !cancelled && setError(t("messaging:error_load_members")));
     return () => {
       cancelled = true;
     };
-  }, [teamId, orgId]);
+  }, [teamId, orgId, t]);
 
   const toggle = (userId: string) => {
     // Never add the creator to `selected`: they are inserted server-side as the
@@ -203,7 +206,7 @@ function NewConversationDialog({
     try {
       const device = await ensureDevice(currentUserId);
       if (!device) {
-        setError("Could not set up your device key. Please try again.");
+        setError(t("messaging:error_device_key"));
         return;
       }
       // The creator is always a participant (inserted server-side as the owner),
@@ -211,19 +214,19 @@ function NewConversationDialog({
       // collapses any duplicate selection, so a user can never be sent twice.
       const memberIds = normalizeParticipantIds([...selected], currentUserId);
       if (memberIds.length === 0) {
-        setError("Select at least one teammate to start a conversation.");
+        setError(t("messaging:error_no_selection"));
         return;
       }
       // The creator's own device must also be wrapped so they can decrypt.
       const memberSet = new Set<string>([currentUserId, ...memberIds]);
       const chosen = (members ?? []).filter((m) => memberSet.has(m.userId));
       if (chosen.some((m) => m.devices.length === 0)) {
-        setError("Every selected member needs a registered device key. Ask them to sign in to Baton once on their device.");
+        setError(t("messaging:error_missing_device"));
         return;
       }
       const wraps = await buildConversationWraps({ device, members: chosen });
       if (!wraps) {
-        setError("Could not wrap the thread key for the selected members.");
+        setError(t("messaging:error_wrap"));
         return;
       }
       const result: CreateConversationResult = await createConversationAction({
@@ -245,28 +248,27 @@ function NewConversationDialog({
       router.push(targetUrl);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(e instanceof Error ? e.message : t("messaging:error_unknown"));
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <Dialog open onClose={onClose} size="lg" bare label="New conversation">
+    <Dialog open onClose={onClose} size="lg" bare label={t("messaging:new_conversation")}>
       <div className="border-b border-white/[0.07] px-5 py-4">
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
           <IconSend className="h-4 w-4 text-brand-400" />
-          New conversation
+          {t("messaging:new_conversation")}
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-400">
-          Pick team members. A fresh thread key is generated on your device and wrapped for
-          every participant&apos;s registered device.
+          {t("messaging:new_conversation_hint")}
         </p>
       </div>
 
       <div className="max-h-72 overflow-y-auto p-4">
         {!members ? (
-          <p className="text-xs text-ink-500">Loading team devices…</p>
+          <p className="text-xs text-ink-500">{t("messaging:loading_devices")}</p>
         ) : (
           <ul className="space-y-1">
             {members.map((m) => {
@@ -294,11 +296,16 @@ function NewConversationDialog({
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-semibold text-white">
                         {m.name ?? m.login}
-                        {isMe ? <span className="ml-1.5 text-ink-500">(you)</span> : null}
+                        {isMe ? (
+                          <span className="ml-1.5 text-ink-500">{t("messaging:you")}</span>
+                        ) : null}
                       </span>
                       <span className="block font-mono text-[10px] text-ink-500">
-                        @{m.login} · {m.devices.length} device{m.devices.length === 1 ? "" : "s"}
-                        {locked ? <span className="ml-1.5">· always included</span> : null}
+                        @{m.login} ·{" "}
+                        {t("messaging:device_count", { count: m.devices.length })}
+                        {locked ? (
+                          <span className="ml-1.5">· {t("messaging:always_included")}</span>
+                        ) : null}
                       </span>
                     </span>
                     {noDevice ? (
@@ -328,7 +335,7 @@ function NewConversationDialog({
         </p>
         <div className="flex items-center gap-2">
           <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
-            Cancel
+            {t("messaging:cancel")}
           </button>
           <button
             type="button"
@@ -336,7 +343,7 @@ function NewConversationDialog({
             disabled={pending || selected.size === 0}
             className="btn btn-primary btn-sm"
           >
-            {pending ? "Creating…" : "Create"}
+            {pending ? t("messaging:creating") : t("messaging:create")}
           </button>
         </div>
       </div>
@@ -347,11 +354,8 @@ function NewConversationDialog({
 }
 
 function IconLockHint() {
-  return (
-    <>
-      The server never sees your message contents or private keys.
-    </>
-  );
+  const { t } = useTranslation();
+  return <>{t("messaging:server_blind_hint")}</>;
 }
 
 function ErrorBanner({ message }: { message: string }) {

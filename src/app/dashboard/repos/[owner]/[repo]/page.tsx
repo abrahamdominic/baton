@@ -3,7 +3,10 @@ import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
 import { repoBoard } from "@/lib/queries/dashboard";
 import { STATE_META, ORDERED_STATES } from "@/lib/engine/types";
-import { Duration, EmptyState, Badge, PageHeader } from "@/components/ui";
+import { EmptyState, Badge, PageHeader } from "@/components/ui";
+import { Duration } from "@/components/state-badge";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { stateLabel } from "@/lib/i18n/state-label";
 import {
   IconArrowLeft,
   IconGitPullRequest,
@@ -22,6 +25,7 @@ export default async function RepoPage({
   params: Promise<{ owner: string; repo: string }>;
 }) {
   const { owner, repo } = await params;
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) return null;
 
@@ -48,7 +52,7 @@ export default async function RepoPage({
             className="flex items-center gap-1 text-ink-400 transition-colors hover:text-white"
           >
             <IconArrowLeft className="h-3 w-3" />
-            <span>Repositories</span>
+            <span>{t("repos:board_breadcrumb")}</span>
           </Link>
           <span className="text-ink-600">/</span>
           <span className="text-ink-400">{owner}</span>
@@ -58,21 +62,21 @@ export default async function RepoPage({
 
         <PageHeader
           title={`${owner}/${repo}`}
-          description={`${board.prs.length} open pull request${board.prs.length === 1 ? "" : "s"} tracked across review lifecycle states.`}
+          description={t("repos:board_description", { count: board.prs.length })}
           actions={
             <div className="flex items-center gap-2">
               <Link
                 href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=onboarding`}
                 className="btn btn-ghost btn-sm"
               >
-                <span>Onboarding Guide</span>
+                <span>{t("repos:board_onboarding")}</span>
               </Link>
               <Link
                 href={`/dashboard/repos/${owner}/${repo}/intelligence`}
                 className="btn btn-ghost btn-sm"
               >
                 <IconLayers className="h-3.5 w-3.5" />
-                <span>Intelligence</span>
+                <span>{t("repos:board_intelligence")}</span>
               </Link>
               <a
                 href={githubRepoUrl}
@@ -93,18 +97,17 @@ export default async function RepoPage({
       {board.prs.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-ink-900/40 p-3 sm:p-4">
           <span className="font-mono text-[10px] uppercase font-semibold text-ink-500 mr-1">
-            Distribution:
+            {t("repos:board_distribution")}
           </span>
           {openStates.map((st) => {
             const count = byState.get(st)?.length ?? 0;
-            const meta = STATE_META[st];
             return (
               <span
                 key={st}
                 className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/80 px-2.5 py-1 text-xs font-medium text-ink-300"
               >
                 <span className="text-white font-bold font-mono">{count}</span>
-                <span>{meta?.label ?? st}</span>
+                <span>{stateLabel(st, t)}</span>
               </span>
             );
           })}
@@ -115,11 +118,11 @@ export default async function RepoPage({
       {board.prs.length === 0 ? (
         <EmptyState
           icon={IconCheckCircle}
-          title="Zero open pull requests"
-          hint="All pull requests on this repository are merged or closed. When new pull requests are opened, they will be classified here in real time."
+          title={t("repos:board_empty_title")}
+          hint={t("repos:board_empty_hint")}
           action={
             <Link href="/dashboard/repos" className="btn btn-ghost btn-sm">
-              &larr; Back to all repositories
+              &larr; {t("repos:board_empty_back")}
             </Link>
           }
         />
@@ -137,7 +140,7 @@ export default async function RepoPage({
                 {/* State Section Header */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
                   <div className="flex items-center gap-2.5">
-                    <Badge tone={meta.tone}>{meta.label}</Badge>
+                    <Badge tone={meta.tone}>{stateLabel(state, t)}</Badge>
                     <span className="font-mono text-xs font-bold text-ink-300">
                       ({prs.length})
                     </span>
@@ -180,30 +183,32 @@ export default async function RepoPage({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-ink-500 hover:text-white transition-colors"
-                                  title="Open on GitHub"
+                                  title={t("repos:board_open_on_github")}
                                 >
                                   <IconExternalLink className="h-3 w-3" />
                                 </a>
                               </div>
 
                               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-ink-400">
-                                <span>by @{pr.authorLogin}</span>
+                                <span>{t("repos:board_by_author", { login: pr.authorLogin })}</span>
                                 <span className="text-ink-600">&middot;</span>
                                 <span className="flex items-center gap-1 text-[11px]">
                                   <IconClock className="h-3 w-3 text-ink-500" />
-                                  <span>waiting</span>
+                                  <span>{t("repos:board_waiting")}</span>
                                   <span className={isStalled ? "font-bold text-warn-300" : "text-white"}>
                                     <Duration hours={hours} />
                                   </span>
                                   {isStalled ? (
-                                    <span className="text-warn-400 font-semibold">(stalled)</span>
+                                    <span className="text-warn-400 font-semibold">
+                                      {t("repos:board_stalled")}
+                                    </span>
                                   ) : null}
                                 </span>
                                 {pr.reviewDecision?.startsWith("APPROVED") ? (
                                   <>
                                     <span className="text-ink-600">&middot;</span>
                                     <span className="font-sans font-semibold text-signal-400">
-                                      &check; Approved
+                                      {t("repos:board_approved")}
                                     </span>
                                   </>
                                 ) : null}
@@ -217,7 +222,7 @@ export default async function RepoPage({
                             rel="noopener noreferrer"
                             className="btn btn-ghost btn-sm"
                           >
-                            <span>Open on GitHub</span>
+                            <span>{t("repos:board_open_on_github")}</span>
                             <IconExternalLink className="h-3 w-3" />
                           </a>
                         </div>

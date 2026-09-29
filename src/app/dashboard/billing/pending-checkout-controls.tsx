@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { cancelPendingCheckoutAction, type CancelCheckoutActionState } from "./actions";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { IconAlertCircle, IconShield } from "@/components/icons";
+import { useI18n } from "@/lib/i18n/provider";
 
 /**
  * Cancel-checkout action + confirmation dialog.
@@ -29,6 +30,7 @@ export function PendingCheckoutControls({
   interval: string;
   paymentSummary?: string | null;
 }) {
+  const { t } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -79,12 +81,12 @@ export function PendingCheckoutControls({
               <IconAlertCircle className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white">Cancel this checkout?</p>
+              <p className="text-sm font-semibold text-white">{t("billing:cancel_checkout_title")}</p>
               <p className="mt-1 text-xs leading-relaxed text-ink-400">
-                Your <span className="font-semibold text-ink-200">{planName}</span>{" "}
-                {interval === "annual" ? "annual" : "monthly"} checkout will be closed. Nothing is
-                charged until you pay, and you can start a fresh checkout immediately after
-                cancellation.
+                {t("billing:cancel_checkout_body", {
+                  plan: planName,
+                  interval: t(`billing:interval_${interval}`).toLowerCase(),
+                })}
               </p>
             </div>
           </div>
@@ -97,8 +99,7 @@ export function PendingCheckoutControls({
 
           {hasSubmittedCryptoTx ? (
             <p className="mt-3 rounded-lg border border-warn-500/25 bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-300">
-              You submitted a USDC transaction hash for this checkout. Cancelling does not move
-              on-chain funds; if your transfer already settled, contact billing@baton.dev.
+              {t("billing:cancel_checkout_usdc_warning")}
             </p>
           ) : null}
 
@@ -112,9 +113,7 @@ export function PendingCheckoutControls({
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
             />
-            <span>
-              I understand this cancels my pending checkout and I can start a new one after.
-            </span>
+            <span>{t("billing:cancel_checkout_ack")}</span>
           </label>
 
           {!state.ok && state.error ? (
@@ -133,14 +132,14 @@ export function PendingCheckoutControls({
               disabled={pending}
               className="btn btn-ghost btn-sm"
             >
-              Keep checkout
+              {t("billing:keep_checkout")}
             </button>
             <button
               type="submit"
               disabled={pending || !confirmed}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-danger-500/40 bg-danger-500/15 px-3 py-1.5 text-xs font-semibold text-danger-200 transition-colors hover:bg-danger-500/25 focus-visible:ring-2 focus-visible:ring-danger-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {pending ? "Cancelling…" : "Confirm cancel checkout"}
+              {pending ? t("billing:cancelling") : t("billing:confirm_cancel_checkout")}
             </button>
           </div>
         </form>
@@ -151,10 +150,11 @@ export function PendingCheckoutControls({
 
 /** Compact success banner shown after a successful cancellation. */
 export function CheckoutCancelledBanner() {
+  const { t } = useI18n();
   return (
     <p className="flex items-center gap-1.5 rounded-lg border border-signal-500/25 bg-signal-500/10 px-3 py-1.5 text-xs font-medium text-signal-300">
       <IconShield className="h-3.5 w-3.5" />
-      Checkout cancelled. You can start a new one anytime.
+      {t("billing:checkout_cancelled_banner")}
     </p>
   );
 }

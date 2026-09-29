@@ -40,11 +40,11 @@ export default async function OrganizationsPage() {
         badge={
           <span className="inline-flex items-center gap-1.5 rounded-full border border-brand-500/30 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
             <IconBuilding className="h-3 w-3" />
-            Organization Workspaces
+            {t("organizations:eyebrow")}
           </span>
         }
         title={t("organizations:organizations")}
-        description="Heads of engineering run organization-wide review stall policies and export a full audit trail, while members share a single board."
+        description={t("organizations:description")}
         actions={
           canUseOrgs ? (
             <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
@@ -59,7 +59,7 @@ export default async function OrganizationsPage() {
         <section className="overflow-hidden rounded-xl border border-brand-500/25 bg-ink-900/50 shadow-sm">
           <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
-              Organization invitations for you
+              {t("organizations:invites_for_you")}
             </span>
           </div>
           <ul className="divide-y divide-white/[0.05]">
@@ -71,14 +71,17 @@ export default async function OrganizationsPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-white">{inv.organization.name}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-400">
-                    Invited by @{inv.invitedBy.login} as {inv.role}
+                    {t("organizations:invited_by_as", {
+                      login: inv.invitedBy.login,
+                      role: t(`workspace:role_${inv.role}`),
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <AcceptInviteButton
                     kind="organization"
                     workspaceId={inv.organizationId}
-                    label="Accept"
+                    label={t("organizations:accept")}
                   />
                   <DeclineInviteButton kind="organization" workspaceId={inv.organizationId} />
                 </div>
@@ -92,7 +95,7 @@ export default async function OrganizationsPage() {
         <EmptyState
           icon={IconBuilding}
           title={t("organizations:orgs_require_plan")}
-          hint="Unlock organization-wide review stall policies, roles and invitations, shared boards, and an exportable audit trail."
+          hint={t("organizations:require_plan_hint")}
           action={
             <Link href="/dashboard/billing" className="btn btn-primary btn-sm">
               <span>{t("organizations:upgrade_to_org")}</span>
@@ -106,8 +109,7 @@ export default async function OrganizationsPage() {
           <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
             <h2 className="text-sm font-bold text-white">{t("organizations:create_org")}</h2>
             <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
-              Organization owners set stall policies that apply across every shared repository, and
-              the audit log records member, invite, policy, and installation changes.
+              {t("organizations:create_org_hint")}
             </p>
             <form
               action={async (formData) => {
@@ -121,12 +123,12 @@ export default async function OrganizationsPage() {
             >
               <div className="flex-1 min-w-52">
                 <label htmlFor="org-name" className="mb-1 block text-[11px] font-semibold text-ink-400">
-                  Organization name
+                  {t("workspace:name_label_org")}
                 </label>
                 <input
                   id="org-name"
                   name="name"
-                  placeholder="e.g. Acme Engineering"
+                  placeholder={t("organizations:name_placeholder")}
                   autoComplete="off"
                   className="input h-9 w-full text-sm"
                   required
@@ -134,7 +136,8 @@ export default async function OrganizationsPage() {
               </div>
               <div className="flex-1 min-w-40">
                 <label htmlFor="org-slug" className="mb-1 block text-[11px] font-semibold text-ink-400">
-                  Slug <span className="text-ink-500">(optional)</span>
+                  {t("workspace:slug_label")}{" "}
+                  <span className="text-ink-500">({t("organizations:optional")})</span>
                 </label>
                 <input
                   id="org-slug"
@@ -156,7 +159,7 @@ export default async function OrganizationsPage() {
             <EmptyState
               icon={IconBuilding}
               title={t("organizations:no_orgs_yet")}
-              hint="Create your first organization above to set org-wide policies and share boards with your engineering team."
+              hint={t("organizations:no_orgs_hint")}
             />
           ) : (
             <ul className="space-y-4">
@@ -178,16 +181,19 @@ export default async function OrganizationsPage() {
                           {org.slug}
                         </span>
                         <Badge tone={org.paid ? "success" : "warn"}>
-                          {org.paid ? "owner plan active" : "owner plan inactive"}
+                          {t(org.paid ? "workspace:owner_plan_active" : "workspace:owner_plan_inactive")}
                         </Badge>
                       </div>
                       <p className="mt-1 font-mono text-xs text-ink-400">
-                        @{org.ownerLogin} &middot; <span className="text-ink-200">{org.memberCount}</span>{" "}
-                        member{org.memberCount === 1 ? "" : "s"}
+                        @{org.ownerLogin} &middot;{" "}
+                        <span className="text-ink-200">{org.memberCount}</span>{" "}
+                        {t("organizations:members_count", { count: org.memberCount })}
                         {org.role !== "member" ? (
                           <>
                             <span className="text-ink-600"> &middot; </span>
-                            <span className="font-semibold text-brand-300">{org.role}</span>
+                            <span className="font-semibold text-brand-300">
+                              {t(`workspace:role_${org.role}`)}
+                            </span>
                           </>
                         ) : null}
                       </p>
@@ -195,7 +201,7 @@ export default async function OrganizationsPage() {
                     <div className="flex items-center gap-2">
                       {org.pendingInvites > 0 ? (
                         <span className="rounded-full border border-brand-500/25 bg-brand-500/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-brand-300">
-                          {org.pendingInvites} invite{org.pendingInvites === 1 ? "" : "s"} pending
+                          {t("organizations:invites_pending", { count: org.pendingInvites })}
                         </span>
                       ) : null}
                       <Link
@@ -203,11 +209,11 @@ export default async function OrganizationsPage() {
                         className="btn btn-ghost btn-sm"
                       >
                         <IconGitPullRequest className="h-3.5 w-3.5" />
-                        <span>Board</span>
+                        <span>{t("workspace:tab_board")}</span>
                         <IconChevronRight className="h-3 w-3" />
                       </Link>
                       <Link href={`/dashboard/organization/${org.id}`} className="btn btn-ghost btn-sm">
-                        <span>Manage</span>
+                        <span>{t("organizations:manage")}</span>
                         <IconArrowRight className="h-3 w-3" />
                       </Link>
                     </div>
@@ -219,22 +225,26 @@ export default async function OrganizationsPage() {
 
           <section className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
             <StatCard
-              label="Your Organizations"
+              label={t("organizations:stat_your_orgs")}
               value={orgs.length}
-              detail="Across your memberships"
+              detail={t("organizations:stat_your_orgs_detail")}
               icon={IconBuilding}
             />
             <StatCard
-              label="Organization Members"
+              label={t("organizations:stat_members")}
               value={totalMembers}
-              detail="Total across your orgs"
+              detail={t("organizations:stat_members_detail")}
               tone="brand"
               icon={IconBuilding}
             />
             <StatCard
-              label="Pending Invites"
+              label={t("workspace:stat_pending_invites")}
               value={invites.length}
-              detail={invites.length > 0 ? "Awaiting your decision" : "Nothing to review"}
+              detail={t(
+                invites.length > 0
+                  ? "organizations:stat_invites_detail_warn"
+                  : "organizations:stat_invites_detail_clear",
+              )}
               tone={invites.length > 0 ? "warn" : "default"}
               icon={IconGitPullRequest}
             />

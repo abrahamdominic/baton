@@ -13,6 +13,7 @@ import { listPlans } from "@/lib/billing/plans";
 import { cronMisconfigurationIssue } from "@/lib/cron-auth";
 import { Badge, PageHeader } from "@/components/ui";
 import { IconArrowLeft } from "@/components/icons";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminSettingsPage() {
+  const { t } = await getTranslatorForRequest();
   const planCount = await listPlans({ includeInactive: true })
     .then((p) => p.length)
     .catch(() => 0);
@@ -33,6 +35,7 @@ export default async function AdminSettingsPage() {
   const checks = [
     {
       category: "Background Processing",
+      categoryId: "background",
       items: [
         {
           // The single most important readiness signal in the app: without it
@@ -48,6 +51,7 @@ export default async function AdminSettingsPage() {
     },
     {
       category: "Database & Backend",
+      categoryId: "database",
       items: [
         {
           label: "PostgreSQL Database Connection",
@@ -72,6 +76,7 @@ export default async function AdminSettingsPage() {
     },
     {
       category: "Payment Gateways",
+      categoryId: "payments",
       items: [
         {
           label: "Stripe Payment Gateway",
@@ -93,6 +98,7 @@ export default async function AdminSettingsPage() {
     },
     {
       category: "Access & Security",
+      categoryId: "access",
       items: [
         {
           label: "Bootstrap Administrator Accounts",
@@ -115,13 +121,13 @@ export default async function AdminSettingsPage() {
     <div className="space-y-8">
       {/* Header */}
       <PageHeader
-        title="Environment &amp; Settings"
-        description="Read-only deployment readiness checklist. Features degrade gracefully if optional external providers are unconfigured."
+        title={t("admin:settings_title")}
+        description={t("admin:settings_description")}
         actions={
           <div className="flex items-center gap-2">
             <Link href="/admin" className="btn btn-ghost btn-sm">
               <IconArrowLeft className="h-3 w-3" />
-              <span>Control Panel</span>
+              <span>{t("admin:control_panel")}</span>
             </Link>
           </div>
         }
@@ -136,7 +142,7 @@ export default async function AdminSettingsPage() {
           >
             <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
               <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-                {section.category}
+                {t(`admin:settings_category_${section.categoryId}`)}
               </span>
             </div>
 
@@ -160,7 +166,7 @@ export default async function AdminSettingsPage() {
                       </div>
 
                       <Badge tone={item.ok ? "success" : "warn"}>
-                        {item.ok ? "ready" : "unconfigured"}
+                        {t(item.ok ? "admin:ready" : "admin:unconfigured")}
                       </Badge>
                     </div>
 
@@ -177,7 +183,7 @@ export default async function AdminSettingsPage() {
                     {fixes && fixes.length > 0 ? (
                       <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-500/[0.06] p-3">
                         <p className="font-mono text-[10px] uppercase tracking-wider text-brand-300">
-                          Required deployment variables
+                          {t("admin:required_env_vars")}
                         </p>
                         <ol className="mt-1.5 list-decimal space-y-1.5 pl-4">
                           {fixes.map((step) => (
@@ -187,8 +193,7 @@ export default async function AdminSettingsPage() {
                           ))}
                         </ol>
                         <p className="mt-2 text-[10px] leading-relaxed text-ink-400">
-                          Set these in the deployment platform&rsquo;s environment settings (they are
-                          read server-side at boot). Never commit them to the repository.
+                          {t("admin:env_vars_hint")}
                         </p>
                       </div>
                     ) : null}
@@ -203,27 +208,27 @@ export default async function AdminSettingsPage() {
         <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-              Runtime Parameters
+              {t("admin:runtime_parameters")}
             </span>
           </div>
 
           <ul className="divide-y divide-white/[0.05]">
             <li className="flex flex-wrap items-center justify-between gap-4 p-4 text-xs">
-              <span className="font-medium text-ink-300">Canonical Site URL</span>
+              <span className="font-medium text-ink-300">{t("admin:param_site_url")}</span>
               <code className="font-mono text-[11px] text-ink-200">{config.SITE_URL}</code>
             </li>
             <li className="flex flex-wrap items-center justify-between gap-4 p-4 text-xs">
-              <span className="font-medium text-ink-300">USDC Token Address</span>
+              <span className="font-medium text-ink-300">{t("admin:param_usdc_token")}</span>
               <code className="font-mono text-[11px] text-ink-200">{config.USDC_TOKEN_ADDRESS}</code>
             </li>
             <li className="flex flex-wrap items-center justify-between gap-4 p-4 text-xs">
-              <span className="font-medium text-ink-300">USDC Base RPC Endpoint</span>
+              <span className="font-medium text-ink-300">{t("admin:param_usdc_rpc")}</span>
               <code className="max-w-[80%] truncate font-mono text-[11px] text-ink-200">
                 {config.USDC_RPC_URL}
               </code>
             </li>
             <li className="flex flex-wrap items-center justify-between gap-4 p-4 text-xs">
-              <span className="font-medium text-ink-300">GitHub App Slug</span>
+              <span className="font-medium text-ink-300">{t("admin:param_github_slug")}</span>
               <code className="font-mono text-[11px] text-ink-200">{config.GITHUB_APP_SLUG}</code>
             </li>
           </ul>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { config } from "@/lib/env-boot";
 import { isStripeConfigured, isUsdcConfigured, usdcSettings } from "@/lib/config";
 import { getPlanById } from "@/lib/billing/plans";
@@ -13,16 +14,17 @@ import { PageHeader } from "@/components/ui";
 import { IconArrowLeft, IconAlertCircle } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-  title: "Checkout: Baton",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getTranslatorForRequest();
+  return { robots: { index: false, follow: false }, title: t("billing:checkout_page_title") };
+}
 
 export default async function CheckoutPage({
   searchParams,
 }: {
   searchParams?: Promise<{ plan?: string; billing?: string }>;
 }) {
+  const { t, formatCurrency } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) redirect(`/auth/login?next=/dashboard/billing/checkout`);
 
@@ -55,23 +57,23 @@ export default async function CheckoutPage({
           className="flex items-center gap-1 text-ink-400 transition-colors hover:text-white"
         >
           <IconArrowLeft className="h-3 w-3" />
-          <span>Billing</span>
+          <span>{t("billing:title")}</span>
         </Link>
         <span className="text-ink-600">/</span>
-        <span className="text-white">Checkout</span>
+        <span className="text-white">{t("billing:checkout")}</span>
       </div>
 
       {blocksPlanChange && pendingCheckout ? (
         <div className="flex items-start gap-2.5 rounded-xl border border-warn-500/25 bg-warn-500/[0.06] px-4 py-3 text-xs text-warn-200">
           <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-300" />
           <span>
-            You have a pending checkout for{" "}
-            <span className="font-semibold text-white">{pendingCheckout.plan?.name ?? "another plan"}</span>.
-            Finish or cancel that checkout first, or continue it from your{" "}
+            {t("billing:pending_checkout_prefix", {
+              plan: pendingCheckout.plan?.name ?? t("billing:another_plan"),
+            })}{" "}
             <Link href="/dashboard/billing" className="font-medium text-brand-300 hover:text-brand-200">
-              billing page
+              {t("billing:billing_page")}
             </Link>{" "}
-            before switching plans.
+            {t("billing:pending_checkout_suffix")}
           </span>
         </div>
       ) : null}
@@ -93,10 +95,10 @@ export default async function CheckoutPage({
                       : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
                   }`}
                 >
-                  <span className="text-sm font-semibold capitalize">{opt}</span>
+                  <span className="text-sm font-semibold">{t(`billing:interval_${opt}`)}</span>
                   <span className="mt-0.5 font-mono text-[11px] text-ink-400">
-                    ${((opt === "monthly" ? monthlyPrice : annualPrice) / 100).toFixed(2)}
-                    {opt === "annual" ? "/year" : "/month"}
+                    {formatCurrency(opt === "monthly" ? monthlyPrice : annualPrice, "USD")}
+                    {opt === "annual" ? `/${t("billing:per_year")}` : `/${t("billing:per_month")}`}
                   </span>
                 </Link>
               );
@@ -104,7 +106,9 @@ export default async function CheckoutPage({
           </div>
           {monthlyPrice > 0 && annualPrice > 0 && annualPrice < monthlyPrice * 12 ? (
             <p className="px-2 pb-1.5 pt-1 text-center text-[11px] text-signal-300">
-              Choose annual and save ${((monthlyPrice * 12 - annualPrice) / 100).toFixed(2)} a year.
+              {t("billing:choose_annual_save", {
+                amount: formatCurrency(monthlyPrice * 12 - annualPrice, "USD"),
+              })}
             </p>
           ) : null}
         </div>
@@ -113,10 +117,10 @@ export default async function CheckoutPage({
       <PageHeader
         title={
           <span>
-            {plan.name} &middot; <span className="capitalize">{interval}</span>
+            {plan.name} &middot; <span>{t(`billing:interval_${interval}`)}</span>
           </span>
         }
-        description="Protected by server-verified billing. No card details ever touch Baton servers."
+        description={t("billing:checkout_description")}
       />
 
       <CheckoutForm

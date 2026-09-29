@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { AppShell } from "@/components/dashboard/app-shell";
 import { pendingTeamInvites, pendingOrgInvites } from "@/lib/workspaces";
+import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
 export const dynamic = "force-dynamic";
 
@@ -15,18 +16,24 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard");
 
   if (user.suspendedAt) {
     return (
       <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-4 px-4 text-center">
-        <h1 className="text-2xl font-bold text-white">Account suspended</h1>
+        <h1 className="text-2xl font-bold text-white">{t("errors:account_suspended_title")}</h1>
         <p className="text-sm leading-relaxed text-ink-400">
-          Your Baton account has been suspended. If you believe this is a mistake, contact support
-          at <a href="mailto:support@baton.dev" className="text-brand-300">support@baton.dev</a>.
+          {t("errors:account_suspended_body_prefix")}{" "}
+          <a href="mailto:support@baton.dev" className="text-brand-300">
+            support@baton.dev
+          </a>
+          .
         </p>
-        <a href="/auth/logout" className="btn btn-ghost btn-sm">Sign out</a>
+        <a href="/auth/logout" className="btn btn-ghost btn-sm">
+          {t("auth:sign_out_title")}
+        </a>
       </main>
     );
   }
