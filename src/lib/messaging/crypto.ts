@@ -143,10 +143,7 @@ export async function unwrapThreadKeyForMember(
   ourPrivateKeyB64: string,
   theirPublicKeyB64: string,
 ): Promise<string> {
-  const key = await deriveDeviceSharedKey(
-    ourPrivateKeyB64,
-    theirPublicKeyB64,
-  );
+  const key = await deriveDeviceSharedKey(ourPrivateKeyB64, theirPublicKeyB64);
   const raw = b64ToBuf(wrappedKeyB64);
   const iv = raw.slice(0, AES_GCM_BYTES);
   const body = raw.slice(AES_GCM_BYTES);
@@ -220,13 +217,19 @@ export async function encryptMessage(
   plaintext: string,
   threadKeyB64: string,
   context?: MessageContext,
-): Promise<WrappedMessage> {  const key = await importThreadKey(threadKeyB64);
+): Promise<WrappedMessage> {
+  const key = await importThreadKey(threadKeyB64);
   const iv = subtleIv();
   // Omitting `context` reproduces the legacy v1 blob exactly, so an older
   // client can still read what it wrote.
   const additionalData = context ? aadBytes(context) : undefined;
   const ct = await subtle.encrypt(
-    { name: "AES-GCM", iv, tagLength: 128, ...(additionalData ? { additionalData } : {}) },
+    {
+      name: "AES-GCM",
+      iv,
+      tagLength: 128,
+      ...(additionalData ? { additionalData } : {}),
+    },
     key,
     textEnc.encode(plaintext),
   );
@@ -255,7 +258,12 @@ export async function decryptMessage(
   const body = raw.slice(AES_GCM_BYTES);
   const additionalData = context ? aadBytes(context) : undefined;
   const plain = await subtle.decrypt(
-    { name: "AES-GCM", iv, tagLength: 128, ...(additionalData ? { additionalData } : {}) },
+    {
+      name: "AES-GCM",
+      iv,
+      tagLength: 128,
+      ...(additionalData ? { additionalData } : {}),
+    },
     key,
     body,
   );
@@ -271,6 +279,62 @@ export async function fingerprintPublicKey(
 }
 
 /**
+ * Do these two blobs actually form a usable ECDH key pair?
+ *
+ * `loadDevice` used to accept any stored object that merely had both fields
+ * present, so a `publicKeyB64` and `privateKeyB64` that do not correspond were
+ * handed straight to `unwrapMyThreadKey`. The unwrap then either failed to
+ * derive or produced the wrong secret, `subtle.decrypt` threw, and the thread
+ * component hung on "Setting up..." -- instead of simply registering a fresh
+ * device.
+ *
+ * Derived by having the private key agree with a public key the private key
+ * itself produced, which is checkable without any server round trip.
+ */
+export async function isCoherentDeviceKeyPair(
+  publicKeyB64: string,
+  privateKeyB64: string,
+): Promise<boolean> {
+  if (!(await isValidDevicePublicKey(publicKeyB64))) return false;
+  try {
+    const priv = await subtle.importKey(
+      "pkcs8",
+      b64ToBuf(privateKeyB64),
+      { name: "ECDH", namedCurve: "P-256" },
+      true,
+      ["deriveBits"],
+    );
+
+    // The public half of the stored private key. It must be byte-identical to
+    // the stored public key for the pair to be the pair that was registered.
+    const derived = await subtle.exportKey(
+      "spki",
+      await derivePublicFromPrivate(priv),
+    );
+    return bufToB64(new Uint8Array(derived)) === publicKeyB64;
+  } catch {
+    return false;
+  }
+}
+
+/** Promote a P-256 private CryptoKey to its public CryptoKey. */
+async function derivePublicFromPrivate(priv: CryptoKey): Promise<CryptoKey> {
+  const jwk = await subtle.exportKey("jwk", priv);
+  // A JWK carries the private scalar; strip it and the public half is what
+  // remains. `importKey` rejects the result if anything is malformed.
+  delete jwk.d;
+  delete jwk.key_ops;
+  jwk.ext = true;
+  return subtle.importKey(
+    "jwk",
+    jwk,
+    { name: "ECDH", namedCurve: "P-256" },
+    true,
+    [],
+  );
+}
+
+/**
  * Validate that a base64 blob is a real, importable ECDH P-256 SPKI public key.
  * The server uses this before persisting a registered device key so garbage or
  * non-ECDH material never reaches the wraps table.
@@ -278,7 +342,10 @@ export async function fingerprintPublicKey(
 export async function isValidDevicePublicKey(
   publicKeyB64: string,
 ): Promise<boolean> {
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(publicKeyB64) || publicKeyB64.length < 32) {
+  if (
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(publicKeyB64) ||
+    publicKeyB64.length < 32
+  ) {
     return false;
   }
   try {

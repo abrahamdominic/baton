@@ -3,10 +3,24 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { requireActiveUser, requireTeamMember, requireOrganizationMember, isStillWorkspaceMember } from "@/lib/workspaces";
-import { fingerprintPublicKey, isValidDevicePublicKey } from "@/lib/messaging/crypto";
-import { conversationMemberRows, normalizeRoster } from "@/lib/messaging/participants";
+import {
+  requireActiveUser,
+  requireTeamMember,
+  requireOrganizationMember,
+  isStillWorkspaceMember,
+} from "@/lib/workspaces";
+import type { WorkspaceDb } from "@/lib/workspaces";
+import {
+  fingerprintPublicKey,
+  isValidDevicePublicKey,
+} from "@/lib/messaging/crypto";
+import {
+  conversationMemberRows,
+  normalizeRoster,
+} from "@/lib/messaging/participants";
 import { notifyConversationMessage } from "@/lib/notifications";
+import { logger } from "@/lib/logger";
+import { fetchMessagePage } from "@/lib/messaging/thread-window";
 
 // Baton messaging server actions.
 //
@@ -20,8 +34,7 @@ import { notifyConversationMessage } from "@/lib/notifications";
 // the same posture the house migrations carve out at the data layer.
 
 export type MessagingActionResult =
-  | { ok: true; data: unknown }
-  | { ok: false; error: string };
+  { ok: true; data: unknown } | { ok: false; error: string };
 
 /**
  * Size ceilings for client-supplied encrypted blobs.
@@ -100,6 +113,26 @@ export async function registerDeviceKeyAction(
   const fingerprint = await fingerprintPublicKey(publicKeyB64);
 
   try {
+    // A real browser only ever has one or two of these. A member looping this
+    // action could otherwise register unbounded keys, and every other member's
+    // "new conversation" flow then performs one ECDH derive per key per member in
+    // their browser -- a single low-privilege account degrading a whole
+    // workspace. Cap the roster, and drop the oldest rather than refusing, so a
+    // user who legitimately reinstalls a few times is not locked out.
+    const MAX_DEVICES_PER_USER = 8;
+    const existing = await prisma.devicePublicKey.findMany({
+      where: { userId: me.id },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, fingerprint: true },
+    });
+    const alreadyKnown = existing.some((d) => d.fingerprint === fingerprint);
+    if (!alreadyKnown && existing.length >= MAX_DEVICES_PER_USER) {
+      const surplus = existing.slice(MAX_DEVICES_PER_USER - 1);
+      await prisma.devicePublicKey.deleteMany({
+        where: { id: { in: surplus.map((d) => d.id) } },
+      });
+    }
+
     const device = await prisma.devicePublicKey.upsert({
       where: { userId_fingerprint: { userId: me.id, fingerprint } },
       update: { publicKeyB64, revokedAt: null },
@@ -146,7 +179,12 @@ export async function listWorkspaceDeviceKeysAction(
   let userIds: string[] = [];
   let memberDetails: Array<{
     userId: string;
-    user: { id: string; login: string; name: string | null; avatarUrl: string | null };
+    user: {
+      id: string;
+      login: string;
+      name: string | null;
+      avatarUrl: string | null;
+    };
   }> = [];
 
   if (teamId) {
@@ -154,7 +192,9 @@ export async function listWorkspaceDeviceKeysAction(
     const members = await prisma.teamMember.findMany({
       where: { teamId },
       include: {
-        user: { select: { id: true, login: true, name: true, avatarUrl: true } },
+        user: {
+          select: { id: true, login: true, name: true, avatarUrl: true },
+        },
       },
     });
     memberDetails = members;
@@ -164,7 +204,9 @@ export async function listWorkspaceDeviceKeysAction(
     const members = await prisma.organizationMember.findMany({
       where: { organizationId: orgId },
       include: {
-        user: { select: { id: true, login: true, name: true, avatarUrl: true } },
+        user: {
+          select: { id: true, login: true, name: true, avatarUrl: true },
+        },
       },
     });
     memberDetails = members;
@@ -239,15 +281,16 @@ const createConversationInputSchema = z
   });
 
 export type CreateConversationResult =
-  | { ok: true; conversationId: string }
-  | { ok: false; error: string };
+  { ok: true; conversationId: string } | { ok: false; error: string };
 
 /**
  * Collapse repeated wrap entries for the same recipient device. The first
  * occurrence wins; later ones are dropped so the nested create cannot violate
  * `ConversationKeyWrap @@unique([threadKeyId, memberId, publicKeyId])`.
  */
-function dedupeWrapEntries<T extends { userId: string; publicKeyId: string }>(entries: readonly T[]): T[] {
+function dedupeWrapEntries<T extends { userId: string; publicKeyId: string }>(
+  entries: readonly T[],
+): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const entry of entries) {
@@ -272,7 +315,10 @@ export async function createConversationAction(
     // Surface the first issue so a rejected request is actionable ("A
     // conversation belongs to exactly one workspace.") instead of an opaque
     // "Invalid conversation input." the client cannot do anything with.
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid conversation input." };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid conversation input.",
+    };
   }
   const { teamId, orgId, memberIds, wrap } = parsed.data;
 
@@ -284,7 +330,10 @@ export async function createConversationAction(
   }
 
   if (!(await isValidDevicePublicKey(wrap.issuerPublicKeyB64))) {
-    return { ok: false, error: "Issuer device key is not a valid ECDH public key." };
+    return {
+      ok: false,
+      error: "Issuer device key is not a valid ECDH public key.",
+    };
   }
   // Normalize before anything else touches the roster. A client may legitimately
   // include the creator among the participants (the new-conversation UI offers
@@ -298,7 +347,10 @@ export async function createConversationAction(
   // so collapse repeated wrap entries for the same device before inserting.
   const wrapEntries = dedupeWrapEntries(wrap.entries);
   const wrapMemberIds = new Set(wrapEntries.map((e) => e.userId));
-  if (wrapMemberIds.size === 0 || [...allIds].some((id) => !wrapMemberIds.has(id))) {
+  if (
+    wrapMemberIds.size === 0 ||
+    [...allIds].some((id) => !wrapMemberIds.has(id))
+  ) {
     return { ok: false, error: "Every member needs at least one wrap entry." };
   }
   if ([...wrapMemberIds].some((id) => !allIds.has(id))) {
@@ -312,7 +364,10 @@ export async function createConversationAction(
       select: { userId: true },
     });
     if (teamMembers.length !== allIds.size) {
-      return { ok: false, error: "Every conversation member must be on this team." };
+      return {
+        ok: false,
+        error: "Every conversation member must be on this team.",
+      };
     }
   } else if (orgId) {
     const orgMembers = await prisma.organizationMember.findMany({
@@ -320,7 +375,10 @@ export async function createConversationAction(
       select: { userId: true },
     });
     if (orgMembers.length !== allIds.size) {
-      return { ok: false, error: "Every conversation member must be in this organization." };
+      return {
+        ok: false,
+        error: "Every conversation member must be in this organization.",
+      };
     }
   }
 
@@ -335,17 +393,24 @@ export async function createConversationAction(
   });
   const keyById = new Map(deviceKeys.map((k) => [k.id, k]));
   const creatorWrap = wrapEntries.find((e) => e.userId === me.id);
-  if (!creatorWrap) return { ok: false, error: "Creator must have a wrapped copy." };
+  if (!creatorWrap)
+    return { ok: false, error: "Creator must have a wrapped copy." };
   const creatorDevice = keyById.get(creatorWrap.publicKeyId);
   if (!creatorDevice || creatorDevice.userId !== me.id) {
-    return { ok: false, error: "The creator's wrap must be under their own device." };
+    return {
+      ok: false,
+      error: "The creator's wrap must be under their own device.",
+    };
   }
   // The issuer key must be that same registered device. Validating it only as
   // "some importable P-256 key" let a creator name an arbitrary key (e.g. a
   // victim's) as the issuer, which permanently broke unwrapping for every
   // participant with no error raised at creation time.
   if (wrap.issuerPublicKeyB64 !== creatorDevice.publicKeyB64) {
-    return { ok: false, error: "Issuer device key must be the creator's own registered device." };
+    return {
+      ok: false,
+      error: "Issuer device key must be the creator's own registered device.",
+    };
   }
 
   for (const entry of wrapEntries) {
@@ -386,7 +451,8 @@ export async function createConversationAction(
           wraps: {
             create: wrapEntries.map((entry) => {
               const memberId = memberByUser.get(entry.userId);
-              if (!memberId) throw new Error("Missing conversation member for wrap.");
+              if (!memberId)
+                throw new Error("Missing conversation member for wrap.");
               return {
                 memberId,
                 publicKeyId: entry.publicKeyId,
@@ -406,8 +472,44 @@ export async function createConversationAction(
     revalidatePath("/dashboard/messages");
     return { ok: true, conversationId: conversation.id };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Something went wrong." };
+    // Log the real cause, return a generic one. The raw message is Prisma or
+    // Postgres internals ("Unique constraint failed on the fields: (...)",
+    // table and column names) and is not something to hand to a browser.
+    logger.error("conversation-action-failed", { error: String(err) });
+    return {
+      ok: false,
+      error: "Something went wrong on our side. Please try again.",
+    };
   }
+}
+
+/**
+ * Conversation members who are still in the workspace that owns the thread.
+ *
+ * Direct conversations have no workspace, so membership cannot apply and the
+ * roster is taken as-is. `isStillWorkspaceMember` fails closed on a database
+ * fault, which means a transient error drops a recipient rather than leaking a
+ * notification to someone who left.
+ */
+async function liveWorkspaceRecipients(
+  tx: WorkspaceDb,
+  conv: { teamId: string | null; orgId: string | null; kind: string },
+  siblings: { userId: string }[],
+): Promise<string[]> {
+  const scope = conv.teamId
+    ? ("team" as const)
+    : conv.orgId
+      ? ("organization" as const)
+      : null;
+  if (!scope) return siblings.map((s) => s.userId);
+
+  const workspaceId = conv.teamId ?? conv.orgId!;
+  const rows = await Promise.all(
+    siblings.map((s) =>
+      isStillWorkspaceMember(scope, workspaceId, s.userId, tx),
+    ),
+  );
+  return siblings.filter((_, i) => rows[i]).map((s) => s.userId);
 }
 
 const sendMessageInputSchema = z.object({
@@ -415,7 +517,10 @@ const sendMessageInputSchema = z.object({
   // A 12-byte IV plus the AES-256-GCM tag is ~28 bytes of framing, so this
   // leaves room for a very long message while stopping a single call from
   // writing an unbounded blob into the table.
-  ciphertext: z.string().min(1).max(64 * 1024),
+  ciphertext: z
+    .string()
+    .min(1)
+    .max(64 * 1024),
   clientMessageId: z.string().min(1).max(64),
   // The encryption scheme the client used. Recorded so a reader knows which
   // AAD rules apply, and constrained to ratified versions so an unknown tag
@@ -424,8 +529,7 @@ const sendMessageInputSchema = z.object({
 });
 
 export type MessageActionResult =
-  | { ok: true; messageId: string }
-  | { ok: false; error: string };
+  { ok: true; messageId: string } | { ok: false; error: string };
 
 /** Persist one encrypted message blob. The server never sees plaintext. */
 export async function sendMessageAction(
@@ -435,7 +539,8 @@ export async function sendMessageAction(
 ): Promise<MessageActionResult> {
   const parsed = sendMessageInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid message input." };
-  const { conversationId, ciphertext, clientMessageId, protocolVersion } = parsed.data;
+  const { conversationId, ciphertext, clientMessageId, protocolVersion } =
+    parsed.data;
 
   const me = await requireActiveUser();
   const access = await authorizeConversation(conversationId, me.id);
@@ -445,12 +550,15 @@ export async function sendMessageAction(
     where: { conversationId, active: true },
     select: { id: true },
   });
-  if (!activeKey) return { ok: false, error: "No active thread key for this conversation." };
+  if (!activeKey)
+    return { ok: false, error: "No active thread key for this conversation." };
 
   try {
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.message.findUnique({
-        where: { senderId_clientMessageId: { senderId: me.id, clientMessageId } },
+        where: {
+          senderId_clientMessageId: { senderId: me.id, clientMessageId },
+        },
         select: { id: true },
       });
       if (existing) return { messageId: existing.id, recipients: [] };
@@ -470,7 +578,12 @@ export async function sendMessageAction(
       const [conv, siblings] = await Promise.all([
         tx.conversation.findUnique({
           where: { id: conversationId },
-          select: { teamId: true, orgId: true, kind: true, members: { select: { userId: true } } },
+          select: {
+            teamId: true,
+            orgId: true,
+            kind: true,
+            members: { select: { userId: true } },
+          },
         }),
         tx.conversationMember.findMany({
           where: { conversationId },
@@ -483,28 +596,47 @@ export async function sendMessageAction(
           where: { id: conversationId },
           data: { lastMessageAt: new Date() },
         });
+        // Notify only people who are still in the workspace.
+        //
+        // `siblings` is every ConversationMember row, which is the roster the
+        // thread was created with. The sender's own access is re-checked on
+        // every send precisely because a removed member's row can outlive their
+        // workspace membership -- so notifying from the raw roster keeps
+        // pinging someone who can no longer open the thread, growing an unread
+        // bell that leads to a dead end.
+        const recipients = await liveWorkspaceRecipients(tx, conv, siblings);
         await notifyConversationMessage(tx, {
           conversationId,
           teamId: conv.teamId,
           orgId: conv.orgId,
           conversationKind: conv.kind,
           senderId: me.id,
-          recipientIds: siblings.map((s) => s.userId),
+          recipientIds: recipients,
         });
+        return { messageId: message.id, recipients };
       }
-      return { messageId: message.id, recipients: siblings.map((s) => s.userId) };
+      return { messageId: message.id, recipients: [] as string[] };
     });
 
     const convMeta = await prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { teamId: true, orgId: true },
     });
-    if (convMeta?.teamId) revalidatePath(`/dashboard/team/${convMeta.teamId}/messaging`);
-    if (convMeta?.orgId) revalidatePath(`/dashboard/organization/${convMeta.orgId}/messaging`);
+    if (convMeta?.teamId)
+      revalidatePath(`/dashboard/team/${convMeta.teamId}/messaging`);
+    if (convMeta?.orgId)
+      revalidatePath(`/dashboard/organization/${convMeta.orgId}/messaging`);
     revalidatePath("/dashboard/messages");
     return { ok: true, messageId: result.messageId };
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Something went wrong." };
+    // Log the real cause, return a generic one. The raw message is Prisma or
+    // Postgres internals ("Unique constraint failed on the fields: (...)",
+    // table and column names) and is not something to hand to a browser.
+    logger.error("conversation-action-failed", { error: String(err) });
+    return {
+      ok: false,
+      error: "Something went wrong on our side. Please try again.",
+    };
   }
 }
 
@@ -522,7 +654,13 @@ export type ConversationSummary = {
   createdById: string;
   lastMessageAt: Date | null;
   createdAt: Date;
-  members: Array<{ userId: string; login: string; name: string | null; avatarUrl: string | null; role: string }>;
+  members: Array<{
+    userId: string;
+    login: string;
+    name: string | null;
+    avatarUrl: string | null;
+    role: string;
+  }>;
   messageCount: number;
   lastReadAt: Date | null;
 };
@@ -530,7 +668,10 @@ export type ConversationSummary = {
 /** Conversations in a team or organization the current user belongs to (list view). */
 export async function listConversationsAction(
   input: z.infer<typeof listConversationsInputSchema>,
-): Promise<{ ok: true; conversations: ConversationSummary[] } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; conversations: ConversationSummary[] }
+  | { ok: false; error: string }
+> {
   const parsed = listConversationsInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const { teamId, orgId } = parsed.data;
@@ -550,12 +691,23 @@ export async function listConversationsAction(
     },
     include: {
       members: {
-        include: { user: { select: { id: true, login: true, name: true, avatarUrl: true } } },
+        include: {
+          user: {
+            select: { id: true, login: true, name: true, avatarUrl: true },
+          },
+        },
       },
       messages: { select: { id: true }, take: 1 },
       _count: { select: { messages: true } },
     },
-    orderBy: { lastMessageAt: "desc" },
+    orderBy: [
+      // Explicit NULL placement. Postgres sorts NULL *first* on DESC and
+      // SQLite sorts NULL *last*, so without this a brand-new conversation with no
+      // messages yet floats to the top of the inbox in production only -- and
+      // the SQLite-only test suite sees the opposite behaviour and misses it.
+      { lastMessageAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" },
+    ],
   });
 
   return {
@@ -579,6 +731,206 @@ export async function listConversationsAction(
       };
     }),
   };
+}
+
+const conversationDevicesInputSchema = z.object({
+  conversationId: z.string().min(1),
+});
+
+/**
+ * Every registered device of every current conversation member, and which of
+ * them already hold a wrap of the thread key.
+ *
+ * This is the read half of device provisioning. A device cannot wrap the thread
+ * key by itself: the plaintext key never reaches the server, only wrapped
+ * copies do. So a device that has lost its private key (a sign-out, a cleared
+ * site-data, a new browser) cannot be recovered by the server, and the old
+ * error message used to tell the reader to ask an admin to do something the
+ * product had no way to do. The actual repair is that *any member who still
+ * holds the key* re-wraps it for the devices that are missing one -- which
+ * requires knowing which those are.
+ *
+ * Only public keys are returned, which are not secret.
+ */
+export async function listConversationDevicesAction(
+  input: z.infer<typeof conversationDevicesInputSchema>,
+): Promise<
+  | {
+      ok: true;
+      /** Whether the caller currently holds a wrap, i.e. can repair others. */
+      callerCanProvision: boolean;
+      members: Array<{
+        userId: string;
+        login: string;
+        devices: Array<{ id: string; publicKeyB64: string; hasWrap: boolean }>;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
+  const parsed = conversationDevicesInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+
+  const me = await requireActiveUser();
+  const access = await authorizeConversation(parsed.data.conversationId, me.id);
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const [memberRows, threadKey] = await Promise.all([
+    prisma.conversationMember.findMany({
+      where: { conversationId: parsed.data.conversationId },
+      select: { id: true, userId: true, user: { select: { login: true } } },
+    }),
+    prisma.conversationThreadKey.findFirst({
+      where: { conversationId: parsed.data.conversationId, active: true },
+      select: {
+        id: true,
+        wraps: { select: { memberId: true, publicKeyId: true } },
+      },
+    }),
+  ]);
+
+  const deviceRows = await prisma.devicePublicKey.findMany({
+    where: { userId: { in: memberRows.map((m) => m.userId) }, revokedAt: null },
+    select: { id: true, userId: true, publicKeyB64: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const wrapped = new Set((threadKey?.wraps ?? []).map((w) => w.publicKeyId));
+  const byUser = new Map<
+    string,
+    Array<{ id: string; publicKeyB64: string; hasWrap: boolean }>
+  >();
+  for (const d of deviceRows) {
+    const list = byUser.get(d.userId) ?? [];
+    list.push({
+      id: d.id,
+      publicKeyB64: d.publicKeyB64,
+      hasWrap: wrapped.has(d.id),
+    });
+    byUser.set(d.userId, list);
+  }
+
+  return {
+    ok: true,
+    // Holding a wrap is proof of possession of the thread key, so it is exactly
+    // the capability required to wrap it for somebody else.
+    callerCanProvision: wrapped.size > 0,
+    members: memberRows.map((m) => ({
+      userId: m.userId,
+      login: m.user.login,
+      devices: byUser.get(m.userId) ?? [],
+    })),
+  };
+}
+
+const submitDeviceWrapsInputSchema = z.object({
+  conversationId: z.string().min(1),
+  wraps: z
+    .array(
+      z.object({
+        userId: z.string().min(1),
+        publicKeyId: z.string().min(1),
+        wrappedKeyB64: z.string().min(1).max(4096),
+        issuerPublicKeyB64: z.string().min(1).max(1024),
+      }),
+    )
+    .min(1)
+    .max(64),
+});
+
+/**
+ * Persist re-wraps of the *existing* thread key for devices that lack one.
+ *
+ * This never mints a new key: the submitted ciphertext must be a wrap of the
+ * active thread key, and the caller must already hold a wrap of it. A caller who
+ * does not hold one cannot compute a valid wrap, so the possession check is both
+ * the authorization and the integrity guarantee -- there is no way to substitute
+ * a key of the attacker's choosing and have it accepted.
+ *
+ * Every `publicKeyId` is re-resolved against the conversation's current members
+ * rather than trusted from the payload, so a stale or forged device id cannot
+ * attach a wrap to someone who is not in the thread.
+ */
+export async function submitConversationDeviceWrapsAction(
+  input: z.infer<typeof submitDeviceWrapsInputSchema>,
+): Promise<{ ok: true; saved: number } | { ok: false; error: string }> {
+  const parsed = submitDeviceWrapsInputSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const { conversationId, wraps } = parsed.data;
+
+  const me = await requireActiveUser();
+  const access = await authorizeConversation(conversationId, me.id);
+  if (!access.ok) return { ok: false, error: access.error };
+
+  const threadKey = await prisma.conversationThreadKey.findFirst({
+    where: { conversationId, active: true },
+    select: {
+      id: true,
+      wraps: { select: { memberId: true, publicKeyId: true } },
+    },
+  });
+  if (!threadKey)
+    return { ok: false, error: "This conversation has no active thread key." };
+
+  const existingPublicKeys = new Set(threadKey.wraps.map((w) => w.publicKeyId));
+  if (!threadKey.wraps.some((w) => w.memberId === access.memberId)) {
+    // No wrap for the caller, so no proof they hold the key.
+    return {
+      ok: false,
+      error: "You need a key to this conversation to add a device to it.",
+    };
+  }
+
+  const memberRows = await prisma.conversationMember.findMany({
+    where: { conversationId },
+    select: { id: true, userId: true },
+  });
+  const memberByUser = new Map(memberRows.map((m) => [m.userId, m.id]));
+
+  // Re-resolve every device against a current member; drop anything stale.
+  const devices = await prisma.devicePublicKey.findMany({
+    where: { id: { in: wraps.map((w) => w.publicKeyId) }, revokedAt: null },
+    select: { id: true, userId: true },
+  });
+  const deviceById = new Map(devices.map((d) => [d.id, d.userId]));
+
+  const rows = wraps.flatMap((w) => {
+    const deviceOwner = deviceById.get(w.publicKeyId);
+    if (!deviceOwner || deviceOwner !== w.userId) return [];
+    const memberId = memberByUser.get(w.userId);
+    if (!memberId) return [];
+    if (existingPublicKeys.has(w.publicKeyId)) return [];
+    return [
+      {
+        threadKeyId: threadKey.id,
+        memberId,
+        publicKeyId: w.publicKeyId,
+        issuerPublicKeyB64: w.issuerPublicKeyB64,
+        wrappedKeyB64: w.wrappedKeyB64,
+      },
+    ];
+  });
+  if (rows.length === 0) return { ok: true, saved: 0 };
+
+  // Inserted one at a time rather than with `createMany({ skipDuplicates })`,
+  // which the SQLite connector does not support -- and the suite has to be able
+  // to exercise this against SQLite to mean anything. Duplicates are already
+  // filtered above; a concurrent duplicate between the read and the write is
+  // absorbed by the unique index, and is not an error worth surfacing because
+  // the end state is the one the caller asked for.
+  let saved = 0;
+  for (const row of rows) {
+    try {
+      await prisma.conversationKeyWrap.create({ data: row });
+      saved += 1;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (!/unique|duplicate/i.test(message)) {
+        logger.error("device-wrap-insert-failed", { error: message });
+        return { ok: false, error: "Could not save the device key." };
+      }
+    }
+  }
+  return { ok: true, saved };
 }
 
 const listMessagesInputSchema = z.object({
@@ -606,7 +958,15 @@ export type MessageSummary = {
  * client — rows carry only ciphertext and metadata). */
 export async function listMessagesAction(
   input: z.infer<typeof listMessagesInputSchema>,
-): Promise<{ ok: true; messages: MessageSummary[]; hasMore: boolean } | { ok: false; error: string }> {
+): Promise<
+  | {
+      ok: true;
+      messages: MessageSummary[];
+      hasMore: boolean;
+      nextBeforeId: string | null;
+    }
+  | { ok: false; error: string }
+> {
   const parsed = listMessagesInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const { conversationId, beforeId, limit } = parsed.data;
@@ -615,32 +975,15 @@ export async function listMessagesAction(
   const access = await authorizeConversation(conversationId, me.id);
   if (!access.ok) return { ok: false, error: access.error };
 
-  const messages = await prisma.message.findMany({
-    where: { conversationId, deletedAt: null, ...(beforeId ? { id: { lt: beforeId } } : {}) },
-    include: {
-      sender: { select: { id: true, login: true, name: true, avatarUrl: true } },
-      threadKey: { select: { epoch: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-  });
+  // Shared with the thread page so the first paint and every "load older" click
+  // page identically. See src/lib/messaging/thread-window.ts.
+  const page = await fetchMessagePage(conversationId, beforeId ?? null, limit);
 
   return {
     ok: true,
-    messages: messages.reverse().map((m) => ({
-      id: m.id,
-      senderId: m.senderId,
-      senderLogin: m.sender.login,
-      senderName: m.sender.name,
-      senderAvatarUrl: m.sender.avatarUrl,
-      ciphertext: m.ciphertext,
-      protocolVersion: m.protocolVersion,
-      clientMessageId: m.clientMessageId,
-      epoch: m.threadKey.epoch,
-      conversationId: m.conversationId,
-      createdAt: m.createdAt,
-    })),
-    hasMore: messages.length === limit,
+    hasMore: page.hasMore,
+    nextBeforeId: page.nextBeforeId,
+    messages: page.messages,
   };
 }
 
@@ -650,7 +993,18 @@ const threadKeyInputSchema = z.object({ conversationId: z.string().min(1) });
  * wraps for the caller's own registered devices are returned. */
 export async function getThreadKeyAction(
   input: z.infer<typeof threadKeyInputSchema>,
-): Promise<{ ok: true; epoch: number; wraps: Array<{ publicKeyId: string; issuerPublicKeyB64: string; wrappedKeyB64: string }> } | { ok: false; error: string }> {
+): Promise<
+  | {
+      ok: true;
+      epoch: number;
+      wraps: Array<{
+        publicKeyId: string;
+        issuerPublicKeyB64: string;
+        wrappedKeyB64: string;
+      }>;
+    }
+  | { ok: false; error: string }
+> {
   const parsed = threadKeyInputSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const { conversationId } = parsed.data;
@@ -663,7 +1017,8 @@ export async function getThreadKeyAction(
     where: { conversationId, active: true },
     include: { wraps: { where: { memberId: access.memberId } } },
   });
-  if (!threadKey) return { ok: false, error: "This conversation has no active thread key." };
+  if (!threadKey)
+    return { ok: false, error: "This conversation has no active thread key." };
 
   return {
     ok: true,
@@ -676,32 +1031,66 @@ export async function getThreadKeyAction(
   };
 }
 
-const markReadInputSchema = z.object({
-  conversationId: z.string().min(1),
-  /**
-   * Accepted only as a hint and clamped to the past. Read state is the
-   * caller's own, so this is not an authorization hole, but a client-supplied
-   * future timestamp would let a member mark unread messages as read (or
-   * corrupt the unread badge) by writing a date the server never issued.
-   */
-  lastReadAt: z.coerce.date().max(new Date(), "Read receipts cannot be dated in the future.").optional(),
-});
+const markReadInputSchema = z
+  .object({
+    conversationId: z.string().min(1),
+    /**
+     * Accepted only as a hint and clamped to the past. Read state is the
+     * caller's own, so this is not an authorization hole, but a client-supplied
+     * future timestamp would let a member mark unread messages as read (or
+     * corrupt the unread badge) by writing a date the server never issued.
+     */
+    // The bound is a per-parse check, not a module-load constant.
+    //
+    // `z.coerce.date().max(new Date())` evaluates `new Date()` once when this
+    // schema is first imported, so in a long-lived server process the accepted
+    // window was `(-inf, processStart]` and kept tightening as the process aged.
+    // A receipt dated after the process booted was rejected even though it was
+    // genuinely in the past. `superRefine` runs per validation instead.
+    lastReadAt: z.coerce.date().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.lastReadAt && value.lastReadAt.getTime() > Date.now()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["lastReadAt"],
+        message: "Read receipts cannot be dated in the future.",
+      });
+    }
+  });
 
 /** Stamp a read receipt on the caller's membership row. */
 export async function markConversationReadAction(
   input: z.infer<typeof markReadInputSchema>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const parsed = markReadInputSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  if (!parsed.success) {
+    // Surface the specific reason rather than flattening every failure into a
+    // generic string -- the future-dated case has an obvious client-side fix.
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input.",
+    };
+  }
   const { conversationId, lastReadAt } = parsed.data;
 
   const me = await requireActiveUser();
   const access = await authorizeConversation(conversationId, me.id);
   if (!access.ok) return { ok: false, error: access.error };
 
-  await prisma.conversationMember.update({
-    where: { id: access.memberId },
-    data: { lastReadAt: lastReadAt ?? new Date() },
+  const stamp = lastReadAt ?? new Date();
+
+  // Only write when the receipt actually moves forward. The thread component
+  // calls this after every five-second poll tick, so an unconditional update
+  // turned one open tab into a permanent write on a row that is read constantly.
+  // `updateMany` with a comparison also avoids the not-found throw that an
+  // unconditional `update` would raise if the membership row vanished.
+  await prisma.conversationMember.updateMany({
+    where: {
+      id: access.memberId,
+      OR: [{ lastReadAt: null }, { lastReadAt: { lt: stamp } }],
+    },
+    data: { lastReadAt: stamp },
   });
   return { ok: true };
 }

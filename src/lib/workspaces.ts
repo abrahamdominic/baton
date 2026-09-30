@@ -1,8 +1,14 @@
 import "server-only";
 import { prisma } from "./db";
 import { STATE_META, ORDERED_STATES } from "./engine/types";
-import { getWorkspacePaidSubscription, parsePlanLimits } from "./billing/entitlement";
+import {
+  getWorkspacePaidSubscription,
+  parsePlanLimits,
+} from "./billing/entitlement";
+import { FREE_MAX_MEMBERS } from "./billing/entitlement-core";
+import { listSubscriptionsForUser } from "./billing/subscriptions";
 import { currentUser, type SessionUser } from "./auth/session";
+import { logger } from "./logger";
 import {
   normalizeLogin,
   workspaceWhoseTurn,
@@ -15,6 +21,7 @@ export {
   generateInviteToken,
   isGitHubLogin,
   isValidSlug,
+  seatVerdict,
   slugFromName,
 } from "./workspace-utils";
 export type { WorkspaceRole } from "./workspace-utils";
@@ -58,7 +65,10 @@ export async function requireActiveUser(): Promise<SessionUser> {
  * un-ring the bell on history the departing member was authorized to read.
  */
 /** Minimal Prisma surface both helpers need, so either can join a transaction. */
-type WorkspaceDb = Pick<typeof prisma, "conversationMember" | "teamMember" | "organizationMember">;
+export type WorkspaceDb = Pick<
+  typeof prisma,
+  "conversationMember" | "teamMember" | "organizationMember"
+>;
 
 export async function revokeWorkspaceConversations(
   kind: "team" | "organization",
@@ -95,11 +105,16 @@ export async function isStillWorkspaceMember(
   const row =
     kind === "team"
       ? await db.teamMember
-          .findUnique({ where: { teamId_userId: { teamId: workspaceId, userId } }, select: { id: true } })
+          .findUnique({
+            where: { teamId_userId: { teamId: workspaceId, userId } },
+            select: { id: true },
+          })
           .catch(() => null)
       : await db.organizationMember
           .findUnique({
-            where: { organizationId_userId: { organizationId: workspaceId, userId } },
+            where: {
+              organizationId_userId: { organizationId: workspaceId, userId },
+            },
             select: { id: true },
           })
           .catch(() => null);
@@ -122,21 +137,114 @@ export async function workspaceOwnerId(
   return org?.ownerId ?? null;
 }
 
+export interface WorkspaceCap {
+  /**
+   * Seats the workspace may fill *beyond its owner*.
+   *
+   * The owner is not a seat. The owner is the workspace: they are necessarily a
+   * member by construction, and counting them against the cap made a cap of 0
+   * (the free tier, which sells no seats) compare as `1 >= 0` and reject every
+   * invite unconditionally.
+   */
+  cap: number;
+  planName: string;
+  /**
+   * True when the plan could not be read at all.
+   *
+   * This is deliberately not the same as "no seats". A Supabase outage makes
+   * `getWorkspacePaidSubscription` fail closed to `null`, which previously
+   * surfaced to the user as a confident "you are on the Free plan" message while
+   * they were in fact paying for seats. Callers must treat this as unknown and
+   * must not invent a limit from it.
+   */
+  lookupFailed: boolean;
+}
+
 /**
  * Member ceiling for a workspace, derived from the workspace owner's live
  * paid subscription (the workspace plan), never from a member's personal plan.
- * Free workspaces and lapsed subscriptions cap at 0.
+ *
+ * A workspace with no paid plan gets the free allowance (`FREE_MAX_MEMBERS`),
+ * not zero. At zero the "this plan has no seats" answer and the broken cap check
+ * were indistinguishable, and both reached the user as the same opaque server
+ * error, so a free workspace could never invite anybody at all.
  */
 export async function workspaceMemberCap(
   kind: "team" | "organization",
   workspaceId: string,
-): Promise<{ cap: number; planName: string }> {
+): Promise<WorkspaceCap> {
   const ownerId = await workspaceOwnerId(kind, workspaceId);
-  if (!ownerId) return { cap: 0, planName: "Free" };
+  if (!ownerId)
+    return { cap: FREE_MAX_MEMBERS, planName: "Free", lookupFailed: false };
   const sub = await getWorkspacePaidSubscription(ownerId);
-  if (!sub || !sub.plan) return { cap: 0, planName: "Free" };
-  const limits = parsePlanLimits(sub.plan.limits);
-  return { cap: limits.maxMembers ?? 0, planName: sub.plan.name };
+  if (!sub) {
+    // `getWorkspacePaidSubscription` returns null for "genuinely free" and for
+    // "could not tell" alike. Distinguish them by asking for the evidence.
+    return {
+      cap: FREE_MAX_MEMBERS,
+      planName: "Free",
+      lookupFailed: await workspacePlanLookupFailed(ownerId),
+    };
+  }
+  const plan = sub.plan;
+  if (!plan)
+    return { cap: FREE_MAX_MEMBERS, planName: "Free", lookupFailed: false };
+  const limits = parsePlanLimits(plan.limits);
+  return {
+    cap: limits.maxMembers ?? 0,
+    planName: plan.name,
+    lookupFailed: false,
+  };
+}
+
+/**
+ * Did the plan lookup fail, or is the owner genuinely on the free tier?
+ *
+ * Used only to keep a billing outage from masquerading as a free plan. If this
+ * check itself cannot run we assume the plan is real, because blocking a paying
+ * customer's invite on a second failure is the worse failure.
+ */
+async function workspacePlanLookupFailed(ownerId: string): Promise<boolean> {
+  try {
+    // `listSubscriptionsForUser` throws on a Supabase error and resolves to an
+    // array otherwise, so reaching the return means the ledger is readable.
+    await listSubscriptionsForUser(ownerId);
+    return false;
+  } catch {
+    logger.warn("workspace-cap-plan-lookup-failed", { ownerId });
+    return true;
+  }
+}
+
+export type MembershipCheck =
+  | { ok: true; role: WorkspaceRole }
+  | { ok: false; code: "not_a_member" | "not_an_admin" | "not_an_owner" };
+
+/**
+ * Non-throwing membership check.
+ *
+ * `requireTeamMember` throws, which is right for internal invariants but wrong
+ * for a user-facing form: a rejected promise loses its message crossing the
+ * server/client boundary in production, so "you are not an admin" and "your plan
+ * has no seats" reach the browser as the same opaque server error.
+ */
+export async function requireTeamMemberSafe(
+  teamId: string,
+  userId: string,
+  minRole?: WorkspaceRole,
+): Promise<MembershipCheck> {
+  const member = await prisma.teamMember.findUnique({
+    where: { teamId_userId: { teamId, userId } },
+    select: { id: true, role: true },
+  });
+  if (!member) return { ok: false, code: "not_a_member" };
+  const role = member.role as WorkspaceRole;
+  if (minRole === "owner" && role !== "owner")
+    return { ok: false, code: "not_an_owner" };
+  if (minRole === "admin" && role !== "owner" && role !== "admin") {
+    return { ok: false, code: "not_an_admin" };
+  }
+  return { ok: true, role };
 }
 
 export async function requireTeamMember(
@@ -157,6 +265,26 @@ export async function requireTeamMember(
     throw new Error("Team owner or admin access required.");
   }
   return { id: member.id, role };
+}
+
+/** Non-throwing org membership check; see `requireTeamMemberSafe`. */
+export async function requireOrganizationMemberSafe(
+  organizationId: string,
+  userId: string,
+  minRole?: WorkspaceRole,
+): Promise<MembershipCheck> {
+  const member = await prisma.organizationMember.findUnique({
+    where: { organizationId_userId: { organizationId, userId } },
+    select: { id: true, role: true },
+  });
+  if (!member) return { ok: false, code: "not_a_member" };
+  const role = member.role as WorkspaceRole;
+  if (minRole === "owner" && role !== "owner")
+    return { ok: false, code: "not_an_owner" };
+  if (minRole === "admin" && role !== "owner" && role !== "admin") {
+    return { ok: false, code: "not_an_admin" };
+  }
+  return { ok: true, role };
 }
 
 export async function requireOrganizationMember(
@@ -190,7 +318,9 @@ export interface WorkspaceSummary {
   pendingInvites: number;
 }
 
-export async function listUserTeams(userId: string): Promise<WorkspaceSummary[]> {
+export async function listUserTeams(
+  userId: string,
+): Promise<WorkspaceSummary[]> {
   const teams = await prisma.team.findMany({
     where: { members: { some: { userId } } },
     include: {
@@ -202,7 +332,9 @@ export async function listUserTeams(userId: string): Promise<WorkspaceSummary[]>
   });
   const out: WorkspaceSummary[] = [];
   for (const t of teams) {
-    const role = (t.members.find((m) => m.userId === userId)?.role as WorkspaceRole) ?? "member";
+    const role =
+      (t.members.find((m) => m.userId === userId)?.role as WorkspaceRole) ??
+      "member";
     out.push({
       id: t.id,
       slug: t.slug,
@@ -217,7 +349,9 @@ export async function listUserTeams(userId: string): Promise<WorkspaceSummary[]>
   return out;
 }
 
-export async function listUserOrganizations(userId: string): Promise<WorkspaceSummary[]> {
+export async function listUserOrganizations(
+  userId: string,
+): Promise<WorkspaceSummary[]> {
   const orgs = await prisma.organization.findMany({
     where: { members: { some: { userId } } },
     include: {
@@ -229,7 +363,9 @@ export async function listUserOrganizations(userId: string): Promise<WorkspaceSu
   });
   const out: WorkspaceSummary[] = [];
   for (const o of orgs) {
-    const role = (o.members.find((m) => m.userId === userId)?.role as WorkspaceRole) ?? "member";
+    const role =
+      (o.members.find((m) => m.userId === userId)?.role as WorkspaceRole) ??
+      "member";
     out.push({
       id: o.id,
       slug: o.slug,
@@ -247,8 +383,22 @@ export async function listUserOrganizations(userId: string): Promise<WorkspaceSu
 /** Pending invitations addressed to a user (by their GitHub login). */
 export async function pendingTeamInvites(login: string) {
   return prisma.teamInvite.findMany({
-    where: { githubLogin: normalizeLogin(login), status: "pending", expiresAt: { gt: new Date() } },
-    include: { team: { select: { id: true, name: true, slug: true, owner: { select: { login: true } } } }, invitedBy: { select: { login: true } } },
+    where: {
+      githubLogin: normalizeLogin(login),
+      status: "pending",
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      team: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          owner: { select: { login: true } },
+        },
+      },
+      invitedBy: { select: { login: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 25,
   });
@@ -256,8 +406,22 @@ export async function pendingTeamInvites(login: string) {
 
 export async function pendingOrgInvites(login: string) {
   return prisma.organizationInvite.findMany({
-    where: { githubLogin: normalizeLogin(login), status: "pending", expiresAt: { gt: new Date() } },
-    include: { organization: { select: { id: true, name: true, slug: true, owner: { select: { login: true } } } }, invitedBy: { select: { login: true } } },
+    where: {
+      githubLogin: normalizeLogin(login),
+      status: "pending",
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          owner: { select: { login: true } },
+        },
+      },
+      invitedBy: { select: { login: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 25,
   });
@@ -286,7 +450,11 @@ export interface WorkspaceBoardItem {
 export async function workspaceBoard(
   kind: "team" | "organization",
   workspaceId: string,
-): Promise<{ installAccounts: string[]; repos: { id: string; owner: string; name: string; enabled: boolean }[]; items: WorkspaceBoardItem[] }> {
+): Promise<{
+  installAccounts: string[];
+  repos: { id: string; owner: string; name: string; enabled: boolean }[];
+  items: WorkspaceBoardItem[];
+}> {
   const links =
     kind === "team"
       ? await prisma.teamInstallation.findMany({
@@ -302,8 +470,17 @@ export async function workspaceBoard(
           },
         });
 
-  const installAccounts = [...new Set(links.map((l) => l.installation.accountLogin))];
-  const repos = links.flatMap((l) => l.installation.repos.map((r) => ({ id: r.id, owner: r.owner, name: r.name, enabled: r.enabled })));
+  const installAccounts = [
+    ...new Set(links.map((l) => l.installation.accountLogin)),
+  ];
+  const repos = links.flatMap((l) =>
+    l.installation.repos.map((r) => ({
+      id: r.id,
+      owner: r.owner,
+      name: r.name,
+      enabled: r.enabled,
+    })),
+  );
   const repoIds = repos.map((r) => r.id);
 
   if (repoIds.length === 0) return { installAccounts, repos, items: [] };
@@ -315,7 +492,9 @@ export async function workspaceBoard(
   });
 
   const actionableOrder = (state: string) => {
-    const idx = ORDERED_STATES.indexOf(state as (typeof ORDERED_STATES)[number]);
+    const idx = ORDERED_STATES.indexOf(
+      state as (typeof ORDERED_STATES)[number],
+    );
     return idx === -1 ? 99 : idx;
   };
 
@@ -329,8 +508,10 @@ export async function workspaceBoard(
       owner: pr.repo.owner,
       repo: pr.repo.name,
       state: pr.state,
-      stateLabel: STATE_META[pr.state as keyof typeof STATE_META]?.label ?? "Unknown",
-      stateTone: STATE_META[pr.state as keyof typeof STATE_META]?.tone ?? "neutral",
+      stateLabel:
+        STATE_META[pr.state as keyof typeof STATE_META]?.label ?? "Unknown",
+      stateTone:
+        STATE_META[pr.state as keyof typeof STATE_META]?.tone ?? "neutral",
       whoseTurn: workspaceWhoseTurn(pr.state),
       hoursInState: (now - pr.stateEnteredAt.getTime()) / 3_600_000,
       authorLogin: pr.authorLogin,
@@ -380,7 +561,15 @@ export async function organizationAuditLog(organizationId: string, take = 500) {
     // the audit ledger and its CSV/JSON export can show `@handle` next to the id
     // without an extra query per event.
     include: {
-      user: { select: { id: true, login: true, name: true, email: true, avatarUrl: true } },
+      user: {
+        select: {
+          id: true,
+          login: true,
+          name: true,
+          email: true,
+          avatarUrl: true,
+        },
+      },
     },
   });
 }

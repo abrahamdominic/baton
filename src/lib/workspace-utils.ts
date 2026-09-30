@@ -39,6 +39,32 @@ export function generateInviteToken(): string {
   return randomBytes(24).toString("base64url");
 }
 
+export type SeatVerdict = "ok" | "no_seats";
+
+/**
+ * Can this workspace seat one more member?
+ *
+ * The owner is excluded from `memberCount` by the caller. That exclusion is the
+ * whole point: the owner is a member of the workspace by construction, so
+ * counting them meant a workspace with a 0-seat (free) plan compared
+ * `1 + 0 >= 0` and rejected *every* invitation with no way to satisfy the
+ * check. A paid workspace was also silently one seat short of what was sold.
+ *
+ * Pending invitations are counted because a pending seat is a seat somebody is
+ * relying on; otherwise the same person could be invited repeatedly.
+ */
+export function seatVerdict(params: {
+  /** Members excluding the owner. */
+  memberCount: number;
+  pendingCount: number;
+  /** Seats the plan includes, beyond the owner. */
+  cap: number;
+}): SeatVerdict {
+  return params.memberCount + params.pendingCount >= params.cap
+    ? "no_seats"
+    : "ok";
+}
+
 /** Whose ball is it for a Baton state (shared board + queue rows). */
 export function workspaceWhoseTurn(state: string): string {
   switch (state) {

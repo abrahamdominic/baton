@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/ui";
 import { IconSend } from "@/components/icons";
 import { MessageThread } from "@/components/dashboard/message-thread";
+import { fetchNewestMessageWindow } from "@/lib/messaging/thread-window";
 
 export const dynamic = "force-dynamic";
 
@@ -19,31 +20,35 @@ export default async function ConversationThreadPage({
   const user = await currentUser();
   if (!user) return null;
 
-  const { role } = await requireTeamMember(teamId, user.id).catch(() => ({ role: "" as string }));
+  const { role } = await requireTeamMember(teamId, user.id).catch(() => ({
+    role: "" as string,
+  }));
   if (!role) notFound();
 
   const [conversation, initialMessages] = await Promise.all([
     prisma.conversation.findFirst({
-      where: { id: conversationId, teamId, members: { some: { userId: user.id } } },
+      where: {
+        id: conversationId,
+        teamId,
+        members: { some: { userId: user.id } },
+      },
       include: {
         members: {
-          include: { user: { select: { id: true, login: true, name: true, avatarUrl: true } } },
+          include: {
+            user: {
+              select: { id: true, login: true, name: true, avatarUrl: true },
+            },
+          },
           orderBy: { joinedAt: "asc" },
         },
-        _count: { select: { messages: true } },
+        // Exclude soft-deleted rows so the header cannot over-report.
+        _count: { select: { messages: { where: { deletedAt: null } } } },
       },
     }),
-    prisma.message.findMany({
-      where: { conversationId, deletedAt: null },
-      include: {
-        sender: { select: { id: true, login: true, name: true, avatarUrl: true } },
-        // The epoch is half of the v2 AAD; the client cannot authenticate the
-        // ciphertext without it.
-        threadKey: { select: { epoch: true } },
-      },
-      orderBy: { createdAt: "asc" },
-      take: 60,
-    }),
+    // The newest window, returned oldest-first so it renders in order. See
+    // src/lib/messaging/thread-window.ts for why this is not a plain
+    // `orderBy: asc, take: 60`.
+    fetchNewestMessageWindow(conversationId),
   ]);
 
   if (!conversation) notFound();
@@ -72,16 +77,16 @@ export default async function ConversationThreadPage({
           name: m.user.name,
           avatarUrl: m.user.avatarUrl,
         }))}
-        initialMessages={initialMessages.map((m) => ({
+        initialMessages={initialMessages.messages.map((m) => ({
           id: m.id,
           senderId: m.senderId,
-          senderLogin: m.sender.login,
-          senderName: m.sender.name,
-          senderAvatarUrl: m.sender.avatarUrl,
+          senderLogin: m.senderLogin,
+          senderName: m.senderName,
+          senderAvatarUrl: m.senderAvatarUrl,
           ciphertext: m.ciphertext,
           protocolVersion: m.protocolVersion,
           clientMessageId: m.clientMessageId,
-          epoch: m.threadKey.epoch,
+          epoch: m.epoch,
           conversationId: m.conversationId,
           createdAt: m.createdAt,
         }))}

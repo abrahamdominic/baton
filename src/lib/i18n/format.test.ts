@@ -63,7 +63,9 @@ describe("locale-aware formatters (lan.md §13)", () => {
 
     it("defaults to a medium date and respects an explicit style", () => {
       expect(formatDate(when, "en-US")).toBe("Mar 9, 2026");
-      expect(formatDate(when, "en-US", { dateStyle: "full" })).toContain("2026");
+      expect(formatDate(when, "en-US", { dateStyle: "full" })).toContain(
+        "2026",
+      );
     });
 
     it("orders date parts per locale", () => {
@@ -74,8 +76,12 @@ describe("locale-aware formatters (lan.md §13)", () => {
     });
 
     it("accepts ISO strings and epoch numbers", () => {
-      expect(formatDate("2026-03-09T14:05:00Z", "en-CA", { dateStyle: "short" })).toBe("2026-03-09");
-      expect(formatDate(when.getTime(), "en-CA", { dateStyle: "short" })).toBe("2026-03-09");
+      expect(
+        formatDate("2026-03-09T14:05:00Z", "en-CA", { dateStyle: "short" }),
+      ).toBe("2026-03-09");
+      expect(formatDate(when.getTime(), "en-CA", { dateStyle: "short" })).toBe(
+        "2026-03-09",
+      );
     });
 
     it("formats times and combined date-times", () => {
@@ -89,8 +95,12 @@ describe("locale-aware formatters (lan.md §13)", () => {
     const now = new Date("2026-03-09T12:00:00Z");
 
     it("describes past and future in the target language", () => {
-      expect(formatRelative("2026-03-06T12:00:00Z", "en-US", now)).toBe("3 days ago");
-      expect(formatRelative("2026-03-12T12:00:00Z", "en-US", now)).toBe("in 3 days");
+      expect(formatRelative("2026-03-06T12:00:00Z", "en-US", now)).toBe(
+        "3 days ago",
+      );
+      expect(formatRelative("2026-03-12T12:00:00Z", "en-US", now)).toBe(
+        "in 3 days",
+      );
     });
 
     it("does not concatenate the unit into an English-shaped phrase", () => {
@@ -101,8 +111,51 @@ describe("locale-aware formatters (lan.md §13)", () => {
     });
 
     it("picks the largest sensible unit", () => {
-      expect(formatRelative("2025-03-09T12:00:00Z", "en-US", now)).toBe("last year");
-      expect(formatRelative("2026-03-09T11:59:00Z", "en-US", now)).toBe("1 minute ago");
+      expect(formatRelative("2025-03-09T12:00:00Z", "en-US", now)).toBe(
+        "last year",
+      );
+      expect(formatRelative("2026-03-09T11:59:00Z", "en-US", now)).toBe(
+        "1 minute ago",
+      );
+    });
+  });
+
+  describe("currency codes the ledger actually stores", () => {
+    // Regression: the payments table stores "usdc" for the Base/USDC rail, which
+    // is a ticker and not an ISO-4217 code. Passing it to Intl as a currency
+    // throws `RangeError: Invalid currency code : USDC`, and because that throw
+    // happened while the billing Server Component rendered, it replaced the
+    // whole /dashboard/billing page with an error boundary for every user who
+    // had ever paid in USDC.
+    it("does not throw on a stablecoin ticker", () => {
+      expect(() => formatCurrency(9600, "USDC", "en-US")).not.toThrow();
+    });
+
+    it("does not throw on the lowercase form stored in the database", () => {
+      expect(() => formatCurrency(9600, "usdc", "en-US")).not.toThrow();
+    });
+
+    it("renders the amount with the ticker, at the correct magnitude", () => {
+      // 9600 is 96.00. Dividing by 100 is what keeps this from reading 9600.
+      expect(formatCurrency(9600, "USDC", "en-US")).toBe("USDC 96.00");
+    });
+
+    it("keeps two decimal places for a sub-unit amount", () => {
+      expect(formatCurrency(1000, "usdc", "en-US")).toBe("USDC 10.00");
+    });
+
+    it("still formats real ISO currencies through Intl", () => {
+      expect(formatCurrency(9600, "USD", "en-US")).toBe("$96.00");
+    });
+
+    it("is not fooled by whitespace or casing in the stored value", () => {
+      expect(formatCurrency(9600, "  usdc  ", "en-US")).toBe("USDC 96.00");
+    });
+
+    it("does not throw on any other non-ISO value a rail might introduce", () => {
+      for (const code of ["ETH", "MATIC", "", "not-a-code"]) {
+        expect(() => formatCurrency(100, code, "en-US")).not.toThrow();
+      }
     });
   });
 
@@ -112,5 +165,21 @@ describe("locale-aware formatters (lan.md §13)", () => {
       expect(formatBytes(1500, "en-US")).toBe("1.5 kB");
       expect(formatBytes(4_200_000, "en-US")).toBe("4.2 MB");
     });
+  });
+
+  it("does not invent a currency code when the ledger row has none", () => {
+    // A blank code is a data defect, not a ticker. " 96.00" with a leading space
+    // would read like a truncated currency symbol.
+    expect(formatCurrency(9600, "", "en-US")).toBe("96.00");
+    expect(formatCurrency(9600, "   ", "en-US")).toBe("96.00");
+  });
+
+  it("accepts a lowercase ticker from the ledger", () => {
+    expect(formatCurrency(9600, "usdc", "en-US")).toBe("USDC 96.00");
+  });
+
+  it("formats an ISO code through Intl as usual", () => {
+    expect(formatCurrency(9600, "USD", "en-US")).toBe("$96.00");
+    expect(formatCurrency(9600, "EUR", "de-DE")).toContain("96,00");
   });
 });

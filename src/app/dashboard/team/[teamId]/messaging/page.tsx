@@ -22,16 +22,31 @@ export default async function TeamMessagingPage({
   const user = await currentUser();
   if (!user) return null;
 
-  const { role } = await requireTeamMember(teamId, user.id).catch(() => ({ role: "" as string }));
+  const { role } = await requireTeamMember(teamId, user.id).catch(() => ({
+    role: "" as string,
+  }));
   if (!role) notFound();
 
   const conversations = await prisma.conversation.findMany({
     where: { teamId, members: { some: { userId: user.id } } },
     include: {
-      members: { include: { user: { select: { id: true, login: true, name: true, avatarUrl: true } } } },
+      members: {
+        include: {
+          user: {
+            select: { id: true, login: true, name: true, avatarUrl: true },
+          },
+        },
+      },
       _count: { select: { messages: true } },
     },
-    orderBy: { lastMessageAt: "desc" },
+    orderBy: [
+      // Explicit NULL placement. Postgres sorts NULL *first* on DESC and
+      // SQLite sorts NULL *last*, so without this a brand-new conversation with no
+      // messages yet floats to the top of the inbox in production only -- and
+      // the SQLite-only test suite sees the opposite behaviour and misses it.
+      { lastMessageAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" },
+    ],
   });
 
   return (
@@ -61,7 +76,8 @@ export default async function TeamMessagingPage({
             role: m.role,
           })),
           messageCount: c._count.messages,
-          lastReadAt: c.members.find((m) => m.userId === user.id)?.lastReadAt ?? null,
+          lastReadAt:
+            c.members.find((m) => m.userId === user.id)?.lastReadAt ?? null,
         }))}
         teamId={teamId}
         currentUserId={user.id}

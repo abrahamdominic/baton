@@ -32,9 +32,10 @@ export function formatDate(
   locale: string,
   options?: Intl.DateTimeFormatOptions,
 ): string {
-  return new Intl.DateTimeFormat(locale, options ?? { dateStyle: "medium" }).format(
-    toDate(value),
-  );
+  return new Intl.DateTimeFormat(
+    locale,
+    options ?? { dateStyle: "medium" },
+  ).format(toDate(value));
 }
 
 export function formatTime(
@@ -42,9 +43,10 @@ export function formatTime(
   locale: string,
   options?: Intl.DateTimeFormatOptions,
 ): string {
-  return new Intl.DateTimeFormat(locale, options ?? { timeStyle: "short" }).format(
-    toDate(value),
-  );
+  return new Intl.DateTimeFormat(
+    locale,
+    options ?? { timeStyle: "short" },
+  ).format(toDate(value));
 }
 
 export function formatDateTime(
@@ -112,11 +114,58 @@ export function formatPercent(
 }
 
 /**
+ * Is this a currency code `Intl` can actually format?
+ *
+ * The payments ledger stores whatever the rail used: `"usd"` for Stripe,
+ * `"usdc"` for the Base/USDC path. `USDC` is a ticker, not an ISO-4217 code, so
+ * `new Intl.NumberFormat(..., { style: "currency", currency: "USDC" })` throws a
+ * `RangeError`. Because that throw happens while a Server Component renders,
+ * it takes the whole billing page down rather than one cell in it.
+ */
+let isoCurrencyCache: Set<string> | null = null;
+function isIsoCurrency(currency: string): boolean {
+  // `Intl.supportedValuesOf` is not present on every runtime this app builds
+  // for, so fall back to a format probe rather than assuming it exists.
+  if (isoCurrencyCache === null) {
+    isoCurrencyCache = new Set<string>();
+    try {
+      const supported = (
+        Intl as { supportedValuesOf?: (k: string) => string[] }
+      ).supportedValuesOf;
+      if (typeof supported === "function") {
+        for (const code of supported("currency"))
+          isoCurrencyCache.add(code.toUpperCase());
+      }
+    } catch {
+      // Leave the cache empty: every currency then takes the probe path below.
+    }
+  }
+  const code = currency.trim().toUpperCase();
+  if (isoCurrencyCache.has(code)) return true;
+  // Probe once per code. A well-formed ISO code always formats; a ticker does
+  // not. Cached so a long list of payments does not re-probe per row.
+  try {
+    new Intl.NumberFormat("en", { style: "currency", currency: code }).format(
+      0,
+    );
+    isoCurrencyCache.add(code);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Formats an integer amount of minor units (cents) as currency.
  *
  * Money is stored in cents everywhere in this codebase, so dividing by 100 here
  * is the single place that conversion happens. Formatting the raw integer
  * would be off by two orders of magnitude.
+ *
+ * A non-ISO code is rendered as `CODE 12.00` instead of throwing. Losing a
+ * payment-history page to a `RangeError` because one row is denominated in a
+ * stablecoin is a strictly worse outcome than showing the ticker verbatim, and
+ * the amount stays just as readable.
  */
 export function formatCurrency(
   cents: number,
@@ -124,11 +173,34 @@ export function formatCurrency(
   locale: string,
   options?: Intl.NumberFormatOptions,
 ): string {
+  if (!isIsoCurrency(currency)) {
+    return formatNonIsoAmount(cents, currency, locale, options);
+  }
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     ...options,
   }).format(cents / 100);
+}
+
+/** `USDC 96.00`, for tickers `Intl` cannot format as a currency. */
+function formatNonIsoAmount(
+  cents: number,
+  currency: string,
+  locale: string,
+  options?: Intl.NumberFormatOptions,
+): string {
+  const amount = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    ...options,
+    style: "decimal",
+  }).format(cents / 100);
+  // A blank code is a data defect, not a ticker. Emitting " 96.00" with a
+  // leading space would read like a truncated currency, so fall back to the
+  // amount alone rather than pretending a code exists.
+  const code = currency.trim().toUpperCase();
+  return code ? `${code} ${amount}` : amount;
 }
 
 /** Compact counts such as `1.2K`, using the locale's own compact notation. */

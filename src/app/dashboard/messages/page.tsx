@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isConversationUnread } from "@/lib/messaging/unread";
 import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
@@ -35,7 +36,14 @@ export default async function MessagesPage() {
       },
       _count: { select: { messages: true } },
     },
-    orderBy: { lastMessageAt: "desc" },
+    orderBy: [
+      // Explicit NULL placement. Postgres sorts NULL *first* on DESC and
+      // SQLite sorts NULL *last*, so without this a brand-new conversation with no
+      // messages yet floats to the top of the inbox in production only -- and
+      // the SQLite-only test suite sees the opposite behaviour and misses it.
+      { lastMessageAt: { sort: "desc", nulls: "last" } },
+      { id: "desc" },
+    ],
   });
 
   const rows = conversations
@@ -43,9 +51,11 @@ export default async function MessagesPage() {
     .map((c) => {
       const myMembership = c.members.find((m) => m.userId === user.id);
       const lastReadAt = myMembership?.lastReadAt ?? null;
-      const unread =
-        c._count.messages > 0 &&
-        (!lastReadAt || !c.lastMessageAt || lastReadAt < c.lastMessageAt);
+      const unread = isConversationUnread({
+        messageCount: c._count.messages,
+        lastReadAt,
+        lastMessageAt: c.lastMessageAt,
+      });
       const others = c.members.filter((m) => m.userId !== user.id);
       const isTeam = Boolean(c.teamId);
       const workspaceName = isTeam
@@ -114,13 +124,16 @@ export default async function MessagesPage() {
                   <div className="min-w-0">
                     <p
                       className={`truncate text-xs ${
-                        r.unread ? "font-bold text-white" : "font-semibold text-ink-200"
+                        r.unread
+                          ? "font-bold text-white"
+                          : "font-semibold text-ink-200"
                       }`}
                     >
                       {r.title}
                     </p>
                     <p className="mt-0.5 truncate font-mono text-[10px] text-ink-500">
-                      {r.workspaceName} · {r.messageCount} message{r.messageCount === 1 ? "" : "s"}
+                      {r.workspaceName} · {r.messageCount} message
+                      {r.messageCount === 1 ? "" : "s"}
                     </p>
                   </div>
                 </div>
@@ -131,7 +144,10 @@ export default async function MessagesPage() {
                     </span>
                   ) : null}
                   {r.unread ? (
-                    <span className="h-2 w-2 rounded-full bg-brand-400" aria-label="unread" />
+                    <span
+                      className="h-2 w-2 rounded-full bg-brand-400"
+                      aria-label="unread"
+                    />
                   ) : null}
                 </div>
               </Link>

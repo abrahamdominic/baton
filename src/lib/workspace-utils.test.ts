@@ -6,9 +6,11 @@ import {
   isGitHubLogin,
   isValidSlug,
   normalizeLogin,
+  seatVerdict,
   slugFromName,
   workspaceWhoseTurn,
 } from "./workspace-utils";
+import { FREE_MAX_MEMBERS } from "./billing/entitlement-core";
 
 describe("normalizeLogin", () => {
   it("lowercases and trims", () => {
@@ -54,7 +56,9 @@ describe("isValidSlug", () => {
 
 describe("slugFromName", () => {
   it("derives a slug from a display name", () => {
-    expect(slugFromName("Platform Engineering", "abc1234")).toBe("platform-engineering-abc123");
+    expect(slugFromName("Platform Engineering", "abc1234")).toBe(
+      "platform-engineering-abc123",
+    );
   });
 
   it("falls back to workspace when the name has no slug-able content", () => {
@@ -62,7 +66,9 @@ describe("slugFromName", () => {
   });
 
   it("caps the base length at 24 chars", () => {
-    expect(slugFromName("a".repeat(60), "suffix")).toBe(`${"a".repeat(24)}-suffix`);
+    expect(slugFromName("a".repeat(60), "suffix")).toBe(
+      `${"a".repeat(24)}-suffix`,
+    );
   });
 });
 
@@ -105,5 +111,83 @@ describe("constants", () => {
 
   it("declares the three workspace roles", () => {
     expect(WORKSPACE_ROLES).toEqual(["owner", "admin", "member"]);
+  });
+
+  // The reported bug: inviting a GitHub username failed with
+  // "An error occurred in the Server Components render" for every user, on
+  // every workspace. The cap check counted the owner as a member, so a free
+  // workspace (0 seats) evaluated `1 >= 0` and rejected the invite before any
+  // row was written. Nothing a user typed could ever change that outcome.
+  describe("seatVerdict", () => {
+    it("admits an invite on a free workspace, which now has seats", () => {
+      // Free moved from 0 to 3 seats so a free workspace can actually invite.
+      // At 0 the "no seats" answer and the broken cap check were
+      // indistinguishable, and both surfaced as the same opaque server error.
+      expect(
+        seatVerdict({ memberCount: 0, pendingCount: 0, cap: FREE_MAX_MEMBERS }),
+      ).toBe("ok");
+    });
+
+    it("still stops a free workspace at its seat limit", () => {
+      expect(
+        seatVerdict({ memberCount: 3, pendingCount: 0, cap: FREE_MAX_MEMBERS }),
+      ).toBe("no_seats");
+      expect(
+        seatVerdict({ memberCount: 2, pendingCount: 1, cap: FREE_MAX_MEMBERS }),
+      ).toBe("no_seats");
+    });
+
+    it("reports no room only when a plan truly includes zero seats", () => {
+      // Kept as a property: a 0-cap plan is a data value the resolver can still
+      // produce (an org with no member feature), and it must refuse rather than
+      // fall open.
+      expect(seatVerdict({ memberCount: 0, pendingCount: 0, cap: 0 })).toBe(
+        "no_seats",
+      );
+    });
+
+    it("admits an invite while a paid workspace has room", () => {
+      expect(seatVerdict({ memberCount: 3, pendingCount: 1, cap: 25 })).toBe(
+        "ok",
+      );
+    });
+
+    it("rejects the invite that would exceed the plan", () => {
+      // 25 occupied plus 1 pending already fills a 25-seat plan.
+      expect(seatVerdict({ memberCount: 25, pendingCount: 1, cap: 25 })).toBe(
+        "no_seats",
+      );
+    });
+
+    it("admits the invite that exactly fills the plan", () => {
+      expect(seatVerdict({ memberCount: 24, pendingCount: 0, cap: 25 })).toBe(
+        "ok",
+      );
+    });
+
+    it("counts a pending invitation as an occupied seat", () => {
+      // Otherwise the same person could be invited repeatedly and blow past the
+      // limit one pending row at a time.
+      expect(seatVerdict({ memberCount: 24, pendingCount: 1, cap: 25 })).toBe(
+        "no_seats",
+      );
+    });
+
+    it("gives a paid workspace the full number of seats that were sold", () => {
+      // A 25-seat plan must seat 25 people, not 24. The owner is not one of
+      // them.
+      let verdict: string = "ok";
+      for (let seated = 0; seated < 25; seated++) {
+        verdict = seatVerdict({
+          memberCount: seated,
+          pendingCount: 0,
+          cap: 25,
+        });
+      }
+      expect(verdict).toBe("ok");
+      expect(seatVerdict({ memberCount: 25, pendingCount: 0, cap: 25 })).toBe(
+        "no_seats",
+      );
+    });
   });
 });

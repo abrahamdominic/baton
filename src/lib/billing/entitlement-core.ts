@@ -1,4 +1,7 @@
-import { isPeriodExpired, subscriptionCountsAsPaid } from "./subscription-machine";
+import {
+  isPeriodExpired,
+  subscriptionCountsAsPaid,
+} from "./subscription-machine";
 import { FEATURE_KEYS, SUBSCRIPTION_STATUS_LABELS } from "./types";
 import type {
   Entitlement,
@@ -17,9 +20,23 @@ import type {
 /** Active repository cap for the free tier (no paid plan entitlement). */
 export const FREE_TIER_MAX_REPOS = 3;
 
+/**
+ * Free plan caps.
+ *
+ * `maxMembers` is 3 rather than 0 so a Free workspace can actually invite
+ * anyone. At 0 the invitation path could not distinguish "this plan has no
+ * seats" from "the check is broken" -- and it was broken, because the owner was
+ * counted against the cap, so every invite was refused with an opaque server
+ * error. Three seats is enough to demonstrate the feature and to make a second
+ * browser usable, and it still leaves Team (25) and Organization (1000) as the
+ * upgrades that matter.
+ */
+/** Seats a Free workspace has beyond its owner. */
+export const FREE_MAX_MEMBERS = 3;
+
 export const FREE_PLAN_LIMITS: PlanLimits = {
   maxRepos: FREE_TIER_MAX_REPOS,
-  maxMembers: 0,
+  maxMembers: FREE_MAX_MEMBERS,
   features: [],
 };
 
@@ -36,7 +53,9 @@ const PLAN_PRIORITY: Record<string, number> = {
  * able to invent keys (or prototype-pollute the feature map) and unlock a
  * capability no plan actually sells.
  */
-const KNOWN_FEATURE_KEYS: ReadonlySet<string> = new Set<string>(Object.values(FEATURE_KEYS));
+const KNOWN_FEATURE_KEYS: ReadonlySet<string> = new Set<string>(
+  Object.values(FEATURE_KEYS),
+);
 
 function isFeatureKey(value: unknown): value is FeatureKey {
   return typeof value === "string" && KNOWN_FEATURE_KEYS.has(value);
@@ -52,10 +71,14 @@ function isFeatureKey(value: unknown): value is FeatureKey {
  * allowance, and failing closed costs a customer nothing they could prove they
  * were entitled to.
  */
-function readCap(raw: Record<string, unknown>, key: "maxRepos" | "maxMembers"): number | null {
+function readCap(
+  raw: Record<string, unknown>,
+  key: "maxRepos" | "maxMembers",
+): number | null {
   const value = raw[key];
   if (value === null || value === undefined) return null;
-  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0)
+    return value;
   return 0;
 }
 
@@ -113,8 +136,11 @@ interface PlanLabel {
 }
 
 /** Best plan slug between two selections ("free" when neither is paid). */
-export function betterPlan(a: PlanLabel | null, b: PlanLabel | null): PlanLabel | null {
-  const order = (p: PlanLabel | null) => (p ? PLAN_PRIORITY[p.slug] ?? 0 : 0);
+export function betterPlan(
+  a: PlanLabel | null,
+  b: PlanLabel | null,
+): PlanLabel | null {
+  const order = (p: PlanLabel | null) => (p ? (PLAN_PRIORITY[p.slug] ?? 0) : 0);
   return order(a) >= order(b) ? a : b;
 }
 
@@ -124,7 +150,9 @@ export function entitlementFromSubscription(
   source: Entitlement["source"],
 ): Entitlement | null {
   if (!sub || !sub.plan) return null;
-  const paid = subscriptionCountsAsPaid(sub.status) && !isPeriodExpired(sub.status, sub.current_period_end);
+  const paid =
+    subscriptionCountsAsPaid(sub.status) &&
+    !isPeriodExpired(sub.status, sub.current_period_end);
   if (!paid) return null;
   const limits = parsePlanLimits(sub.plan.limits);
   return {
@@ -162,7 +190,10 @@ export function freeEntitlement(sub: SubscriptionRecord | null): Entitlement {
   return free;
 }
 
-export function mergeEntitlements(a: Entitlement | null, b: Entitlement | null): Entitlement | null {
+export function mergeEntitlements(
+  a: Entitlement | null,
+  b: Entitlement | null,
+): Entitlement | null {
   if (!a) return b;
   if (!b) return a;
   // Paid access must be carried over from whichever side actually has it.
@@ -170,7 +201,12 @@ export function mergeEntitlements(a: Entitlement | null, b: Entitlement | null):
   // entitlements are the free tier.
   const hasPaidAccess = a.hasPaidAccess || b.hasPaidAccess;
   if (!hasPaidAccess) {
-    return { ...a, ...b, ...freeEntitlement(null), subscription: a.subscription ?? null };
+    return {
+      ...a,
+      ...b,
+      ...freeEntitlement(null),
+      subscription: a.subscription ?? null,
+    };
   }
   const winner = betterPlan(
     { slug: a.planSlug, name: a.planName },

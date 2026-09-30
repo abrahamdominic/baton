@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   inviteTeamMember,
+  type InviteOutcome,
   acceptTeamInvite,
   declineTeamInvite,
   revokeTeamInvite,
@@ -28,8 +30,16 @@ import {
   leaveOrganization,
   deleteOrganization,
   upsertOrgPolicy,
+  type OrgInviteOutcome,
 } from "@/app/dashboard/organization/actions";
-import { IconUsers, IconBuilding, IconSend, IconTrash, IconShield, IconAlertCircle } from "@/components/icons";
+import {
+  IconUsers,
+  IconBuilding,
+  IconSend,
+  IconTrash,
+  IconShield,
+  IconAlertCircle,
+} from "@/components/icons";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { useTranslation } from "@/lib/i18n/provider";
 
@@ -50,7 +60,11 @@ function useAction(
     setPending(true);
     run(formData)
       .then(() => {
-        setSuccess(getSuccessMessage ? getSuccessMessage(formData) : t("workspace:action_done"));
+        setSuccess(
+          getSuccessMessage
+            ? getSuccessMessage(formData)
+            : t("workspace:action_done"),
+        );
         router.refresh();
       })
       .catch((e) =>
@@ -64,7 +78,10 @@ function useAction(
 function ErrorLine({ error }: { error: string | null }) {
   if (!error) return null;
   return (
-    <p role="alert" className="mt-2 text-[11px] font-medium leading-relaxed text-danger-300">
+    <p
+      role="alert"
+      className="mt-2 text-[11px] font-medium leading-relaxed text-danger-300"
+    >
       {error}
     </p>
   );
@@ -73,7 +90,10 @@ function ErrorLine({ error }: { error: string | null }) {
 function SuccessLine({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="status" className="mt-2 text-[11px] font-medium leading-relaxed text-brand-300">
+    <p
+      role="status"
+      className="mt-2 text-[11px] font-medium leading-relaxed text-brand-300"
+    >
       {message}
     </p>
   );
@@ -131,7 +151,7 @@ export function AsyncActionButton({
         setError(
           e instanceof Error
             ? e.message
-            : confirmation?.errorMessage ?? t("workspace:action_error"),
+            : (confirmation?.errorMessage ?? t("workspace:action_error")),
         ),
       )
       .finally(() => setPending(false));
@@ -141,13 +161,19 @@ export function AsyncActionButton({
     <div className="flex flex-col items-end gap-1">
       <button
         type="button"
-        aria-label={ariaLabel ?? (typeof label === "string" ? label : undefined)}
+        aria-label={
+          ariaLabel ?? (typeof label === "string" ? label : undefined)
+        }
         disabled={pending || disabled}
         onClick={() => (confirmation ? setOpen(true) : !pending && invoke())}
         className={`${className} ${destructive ? "border-danger-500/25 text-danger-300 hover:bg-danger-500/10" : ""} ${pending ? "pointer-events-none opacity-60" : ""}`}
       >
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
-        <span>{pending ? confirmation?.loadingLabel ?? t("workspace:action_working") : label}</span>
+        <span>
+          {pending
+            ? (confirmation?.loadingLabel ?? t("workspace:action_working"))
+            : label}
+        </span>
       </button>
       <ErrorLine error={error} />
       {confirmation ? (
@@ -170,12 +196,19 @@ export function AsyncActionButton({
               >
                 {confirmation.title}
               </h2>
-              <div className="mt-2 text-xs leading-relaxed text-ink-300">{confirmation.description}</div>
+              <div className="mt-2 text-xs leading-relaxed text-ink-300">
+                {confirmation.description}
+              </div>
             </div>
             {error ? <ErrorLine error={error} /> : null}
             {success ? <SuccessLine message={success} /> : null}
             <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-              <button type="button" disabled={pending} onClick={() => setOpen(false)} className="btn btn-ghost btn-sm">
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setOpen(false)}
+                className="btn btn-ghost btn-sm"
+              >
                 {t("workspace:action_cancel")}
               </button>
               <button
@@ -186,7 +219,12 @@ export function AsyncActionButton({
                 className="btn btn-sm border border-danger-500/35 bg-danger-500/15 text-danger-100 hover:bg-danger-500/25"
               >
                 <IconTrash className="h-3.5 w-3.5" />
-                <span>{pending ? confirmation.loadingLabel ?? t("workspace:action_working") : confirmation.confirmLabel}</span>
+                <span>
+                  {pending
+                    ? (confirmation.loadingLabel ??
+                      t("workspace:action_working"))
+                    : confirmation.confirmLabel}
+                </span>
               </button>
             </div>
           </div>
@@ -200,26 +238,93 @@ export function AsyncActionButton({
 // Invite form (works for teams and organizations)
 // ---------------------------------------------------------------------------
 
-export function InviteForm({ kind, workspaceId }: { kind: Kind; workspaceId: string }) {
+/**
+ * Map an invite outcome to copy the user can act on.
+ *
+ * The action returns codes rather than throwing, because Next.js replaces a
+ * thrown server-action message with generic production text -- which is how
+ * "your plan has no seats" reached the browser as "An error occurred in the
+ * Server Components render". Each code gets its own line, and the two that a
+ * user can resolve (upgrade, or a typo in the handle) say what to do next.
+ */
+function inviteErrorKey(code: string): string {
+  switch (code) {
+    case "invalid_login":
+      return "workspace:invite_err_invalid_login";
+    case "self_invite":
+      return "workspace:invite_err_self_invite";
+    case "not_a_member":
+      return "workspace:invite_err_not_a_member";
+    case "not_an_admin":
+      return "workspace:invite_err_not_an_admin";
+    case "no_seats":
+      return "workspace:invite_err_no_seats";
+    case "plan_unavailable":
+      return "workspace:invite_err_plan_unavailable";
+    case "already_member":
+      return "workspace:invite_err_already_member";
+    case "already_invited":
+      return "workspace:invite_err_already_invited";
+    case "github_user_not_found":
+      return "workspace:invite_err_not_found";
+    default:
+      return "workspace:action_error";
+  }
+}
+
+export function InviteForm({
+  kind,
+  workspaceId,
+}: {
+  kind: Kind;
+  workspaceId: string;
+}) {
   const { t } = useTranslation();
   const [login, setLogin] = useState("");
+  const [outcome, setOutcome] = useState<
+    InviteOutcome | OrgInviteOutcome | null
+  >(null);
   const run = useAction(
     async (formData: FormData) => {
       const githubLogin = String(formData.get("githubLogin") ?? "");
-      const role = (String(formData.get("role") ?? "member") === "admin" ? "admin" : "member") as
-        | "admin"
-        | "member";
-      if (kind === "team") {
-        await inviteTeamMember({ teamId: workspaceId, githubLogin, role });
-      } else {
-        await inviteOrgMember({ organizationId: workspaceId, githubLogin, role });
-      }
-      setLogin("");
+      const role = (
+        String(formData.get("role") ?? "member") === "admin"
+          ? "admin"
+          : "member"
+      ) as "admin" | "member";
+      const res =
+        kind === "team"
+          ? await inviteTeamMember({ teamId: workspaceId, githubLogin, role })
+          : await inviteOrgMember({
+              organizationId: workspaceId,
+              githubLogin,
+              role,
+            });
+      setOutcome(res);
+      // Clear the field only on success, so a typo can be corrected in place
+      // instead of retyped.
+      if (res.ok) setLogin("");
     },
-    (formData) => t("workspace:invite_sent", { login: String(formData.get("githubLogin") ?? "") }),
+    // No success message here on purpose. `useAction` sets `success` for *any*
+    // resolved action, so a typed failure would render "Invite sent to dconco"
+    // directly above the real reason. The message is derived from `outcome`
+    // below, which is the only value that knows whether the invite happened.
   );
   const Icon = kind === "team" ? IconUsers : IconBuilding;
 
+  const code = outcome && !outcome.ok ? outcome.code : null;
+  // Business rules now come back as typed results, so the only thing left that
+  // can reach `run.error` is an unexpected throw (a lost session, a dead
+  // connection). Show a generic message for those: the raw string can be an
+  // internal detail, and an untranslated one is no use to the reader.
+  const message = code
+    ? t(inviteErrorKey(code))
+    : run.error
+      ? t("workspace:invite_err_generic")
+      : null;
+  // A seat limit is a billing problem, so point at the page that resolves it
+  // instead of leaving the user to guess.
+  const showUpgrade = code === "no_seats";
   return (
     <form action={run.submit} className="space-y-3">
       <div className="flex flex-wrap items-end gap-2">
@@ -248,7 +353,11 @@ export function InviteForm({ kind, workspaceId }: { kind: Kind; workspaceId: str
           >
             {t("workspace:invite_role_label")}
           </label>
-          <select id={`${kind}-invite-role`} name="role" className="input h-9 text-xs">
+          <select
+            id={`${kind}-invite-role`}
+            name="role"
+            className="input h-9 text-xs"
+          >
             <option value="member">{t("workspace:role_member")}</option>
             <option value="admin">{t("workspace:role_admin")}</option>
           </select>
@@ -259,11 +368,33 @@ export function InviteForm({ kind, workspaceId }: { kind: Kind; workspaceId: str
           className="btn btn-primary btn-sm h-9"
         >
           <Icon className="h-3.5 w-3.5" />
-          <span>{run.pending ? t("workspace:invite_sending") : t("workspace:invite_submit")}</span>
+          <span>
+            {run.pending
+              ? t("workspace:invite_sending")
+              : t("workspace:invite_submit")}
+          </span>
         </button>
       </div>
-      <ErrorLine error={run.error} />
-      <SuccessLine message={run.success} />
+      <ErrorLine error={message} />
+      {showUpgrade ? (
+        <p className="mt-2 text-[11px] text-ink-400">
+          <Link
+            href="/dashboard/billing"
+            className="text-brand-300 underline hover:text-brand-200"
+          >
+            {t("workspace:invite_upgrade")}
+          </Link>
+        </p>
+      ) : null}
+      {/* Uses the login the server stored, not the raw field value, so "@DConco "
+          is confirmed back as "dconco". */}
+      <SuccessLine
+        message={
+          outcome?.ok
+            ? t("workspace:invite_sent", { login: outcome.login })
+            : null
+        }
+      />
     </form>
   );
 }
@@ -290,8 +421,14 @@ export function RoleSelectForm({
   const run = useAction(async (formData: FormData) => {
     const role = String(formData.get("role") ?? "member");
     if (value !== role) {
-      if (kind === "team") await setTeamMemberRole(workspaceId, userId, role as "admin" | "member");
-      else await setOrgMemberRole(workspaceId, userId, role as "admin" | "member");
+      if (kind === "team")
+        await setTeamMemberRole(
+          workspaceId,
+          userId,
+          role as "admin" | "member",
+        );
+      else
+        await setOrgMemberRole(workspaceId, userId, role as "admin" | "member");
     }
   });
 
@@ -344,7 +481,10 @@ export function ShareInstallForm({
   return (
     <form action={run.submit} className="flex flex-wrap items-end gap-2">
       <div className="flex-1 min-w-48">
-        <label htmlFor={`${kind}-share-install`} className="mb-1 block text-[11px] font-semibold text-ink-400">
+        <label
+          htmlFor={`${kind}-share-install`}
+          className="mb-1 block text-[11px] font-semibold text-ink-400"
+        >
           {t("workspace:share_label")}
         </label>
         <select
@@ -366,7 +506,11 @@ export function ShareInstallForm({
         className="btn btn-ghost btn-sm h-9"
       >
         <IconSend className="h-3.5 w-3.5" />
-        <span>{run.pending ? t("workspace:share_sharing") : t("workspace:share_submit")}</span>
+        <span>
+          {run.pending
+            ? t("workspace:share_sharing")
+            : t("workspace:share_submit")}
+        </span>
       </button>
       <div className="w-full">
         <ErrorLine error={run.error} />
@@ -435,7 +579,9 @@ export function PolicyForm({
               >
                 {t(`workspace:policy_${f.id}`)}
               </label>
-              <span className="block truncate text-[10px] text-ink-500">{t(`workspace:policy_${f.id}_hint`)}</span>
+              <span className="block truncate text-[10px] text-ink-500">
+                {t(`workspace:policy_${f.id}_hint`)}
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               <input
@@ -447,7 +593,9 @@ export function PolicyForm({
                 defaultValue={initial[f.key]}
                 className="input h-8 w-16 text-right font-mono text-xs"
               />
-              <span className="font-mono text-xs text-ink-500">{t("workspace:policy_unit_hours")}</span>
+              <span className="font-mono text-xs text-ink-500">
+                {t("workspace:policy_unit_hours")}
+              </span>
             </div>
           </div>
         ))}
@@ -481,8 +629,14 @@ export function PolicyForm({
         <p className="font-mono text-[11px] text-ink-500">
           {t("workspace:policy_scope")}
         </p>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={run.pending}>
-          {run.pending ? t("workspace:policy_saving") : t("workspace:policy_save")}
+        <button
+          type="submit"
+          className="btn btn-primary btn-sm"
+          disabled={run.pending}
+        >
+          {run.pending
+            ? t("workspace:policy_saving")
+            : t("workspace:policy_save")}
         </button>
       </div>
       <ErrorLine error={run.error} />
@@ -504,7 +658,11 @@ export const AcceptInviteButton = ({
   label: string;
 }) => (
   <AsyncActionButton
-    run={kind === "team" ? () => acceptTeamInvite(workspaceId) : () => acceptOrgInvite(workspaceId)}
+    run={
+      kind === "team"
+        ? () => acceptTeamInvite(workspaceId)
+        : () => acceptOrgInvite(workspaceId)
+    }
     label={label}
     className="btn btn-primary btn-sm"
   />
@@ -546,39 +704,39 @@ export const RevokeInviteButton = ({
 }) => {
   const { t } = useTranslation();
   return (
-  <AsyncActionButton
-    run={
-      kind === "team"
-        ? () => revokeTeamInvite(workspaceId, githubLogin)
-        : () => revokeOrgInvite(workspaceId, githubLogin)
-    }
-    label={t("workspace:revoke_label")}
-    // Without a per-recipient name, every pending invite renders a trigger
-    // that reads simply "Revoke" and every dialog shares one DOM id, so a
-    // screen-reader user hears N identical controls and cannot tell which
-    // invitation a dialog belongs to.
-    ariaLabel={t("workspace:revoke_aria", { login: githubLogin })}
-    confirmation={{
-      title: t("workspace:revoke_title"),
-      description: (
-        <div className="space-y-2">
-          <p>
-            {t("workspace:revoke_desc", {
-              login: githubLogin,
-              kind: t(`workspace:kind_${kind}`),
-            })}
-            {email ? <span className="text-ink-400"> ({email})</span> : null}
-          </p>
-        </div>
-      ),
-      confirmLabel: t("workspace:revoke_confirm"),
-      loadingLabel: t("workspace:revoke_loading"),
-      successMessage: t("workspace:revoke_success"),
-      errorMessage: t("workspace:revoke_error"),
-    }}
-    destructive
-    icon={IconTrash}
-  />
+    <AsyncActionButton
+      run={
+        kind === "team"
+          ? () => revokeTeamInvite(workspaceId, githubLogin)
+          : () => revokeOrgInvite(workspaceId, githubLogin)
+      }
+      label={t("workspace:revoke_label")}
+      // Without a per-recipient name, every pending invite renders a trigger
+      // that reads simply "Revoke" and every dialog shares one DOM id, so a
+      // screen-reader user hears N identical controls and cannot tell which
+      // invitation a dialog belongs to.
+      ariaLabel={t("workspace:revoke_aria", { login: githubLogin })}
+      confirmation={{
+        title: t("workspace:revoke_title"),
+        description: (
+          <div className="space-y-2">
+            <p>
+              {t("workspace:revoke_desc", {
+                login: githubLogin,
+                kind: t(`workspace:kind_${kind}`),
+              })}
+              {email ? <span className="text-ink-400"> ({email})</span> : null}
+            </p>
+          </div>
+        ),
+        confirmLabel: t("workspace:revoke_confirm"),
+        loadingLabel: t("workspace:revoke_loading"),
+        successMessage: t("workspace:revoke_success"),
+        errorMessage: t("workspace:revoke_error"),
+      }}
+      destructive
+      icon={IconTrash}
+    />
   );
 };
 
@@ -595,23 +753,25 @@ export const RemoveMemberButton = ({
 }) => {
   const { t } = useTranslation();
   return (
-  <AsyncActionButton
-    run={
-      kind === "team"
-        ? () => removeTeamMember(workspaceId, userId)
-        : () => removeOrgMember(workspaceId, userId)
-    }
-    label={t("workspace:remove_label")}
-    confirmation={{
-      title: t("workspace:remove_title", { login }),
-      description: t("workspace:remove_desc", { kind: t(`workspace:kind_${kind}`) }),
-      confirmLabel: t("workspace:remove_confirm"),
-      successMessage: t("workspace:remove_success", { login }),
-    }}
-    destructive
-    icon={IconTrash}
-    ariaLabel={t("workspace:remove_aria", { login })}
-  />
+    <AsyncActionButton
+      run={
+        kind === "team"
+          ? () => removeTeamMember(workspaceId, userId)
+          : () => removeOrgMember(workspaceId, userId)
+      }
+      label={t("workspace:remove_label")}
+      confirmation={{
+        title: t("workspace:remove_title", { login }),
+        description: t("workspace:remove_desc", {
+          kind: t(`workspace:kind_${kind}`),
+        }),
+        confirmLabel: t("workspace:remove_confirm"),
+        successMessage: t("workspace:remove_success", { login }),
+      }}
+      destructive
+      icon={IconTrash}
+      ariaLabel={t("workspace:remove_aria", { login })}
+    />
   );
 };
 
@@ -628,26 +788,26 @@ export const UnshareInstallButton = ({
 }) => {
   const { t } = useTranslation();
   return (
-  <AsyncActionButton
-    run={
-      kind === "team"
-        ? () => removeInstallationFromTeam(workspaceId, installationId)
-        : () => removeInstallationFromOrg(workspaceId, installationId)
-    }
-    label={t("workspace:unshare_label")}
-    confirmation={{
-      title: t("workspace:unshare_title"),
-      description: t("workspace:unshare_desc", {
-        account,
-        kind: t(`workspace:kind_${kind}`),
-      }),
-      confirmLabel: t("workspace:unshare_confirm"),
-      successMessage: t("workspace:unshare_success"),
-    }}
-    destructive
-    icon={IconTrash}
-    ariaLabel={t("workspace:unshare_aria", { account })}
-  />
+    <AsyncActionButton
+      run={
+        kind === "team"
+          ? () => removeInstallationFromTeam(workspaceId, installationId)
+          : () => removeInstallationFromOrg(workspaceId, installationId)
+      }
+      label={t("workspace:unshare_label")}
+      confirmation={{
+        title: t("workspace:unshare_title"),
+        description: t("workspace:unshare_desc", {
+          account,
+          kind: t(`workspace:kind_${kind}`),
+        }),
+        confirmLabel: t("workspace:unshare_confirm"),
+        successMessage: t("workspace:unshare_success"),
+      }}
+      destructive
+      icon={IconTrash}
+      ariaLabel={t("workspace:unshare_aria", { account })}
+    />
   );
 };
 
@@ -727,7 +887,9 @@ export const TransferOwnerButton = ({
           >
             <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
               <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
-                {t("workspace:transfer_heading", { kind: t(`workspace:kind_${kind}`) })}
+                {t("workspace:transfer_heading", {
+                  kind: t(`workspace:kind_${kind}`),
+                })}
               </span>
             </div>
 
@@ -748,8 +910,12 @@ export const TransferOwnerButton = ({
                   </span>
                 )}
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-white">{displayName}</p>
-                  <p className="truncate font-mono text-[11px] text-ink-400">@{login}</p>
+                  <p className="truncate text-sm font-bold text-white">
+                    {displayName}
+                  </p>
+                  <p className="truncate font-mono text-[11px] text-ink-400">
+                    @{login}
+                  </p>
                 </div>
                 <span className="ml-auto rounded-full border border-brand-500/30 bg-brand-500/10 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-brand-300">
                   {t("workspace:transfer_new_owner")}
@@ -768,7 +934,12 @@ export const TransferOwnerButton = ({
                   onChange={(e) => setArmed(e.target.checked)}
                   className="mt-0.5 h-4 w-4 shrink-0 accent-brand-500"
                 />
-                <span>{t("workspace:transfer_ack", { login, kind: t(`workspace:kind_${kind}`) })}</span>
+                <span>
+                  {t("workspace:transfer_ack", {
+                    login,
+                    kind: t(`workspace:kind_${kind}`),
+                  })}
+                </span>
               </label>
 
               <ErrorLine error={error} />
@@ -790,7 +961,9 @@ export const TransferOwnerButton = ({
                 >
                   <IconShield className="h-3.5 w-3.5" />
                   <span>
-                    {pending ? t("workspace:transfer_loading") : t("workspace:transfer_confirm", { login })}
+                    {pending
+                      ? t("workspace:transfer_loading")
+                      : t("workspace:transfer_confirm", { login })}
                   </span>
                 </button>
               </div>
@@ -802,7 +975,13 @@ export const TransferOwnerButton = ({
   );
 };
 
-export const LeaveWorkspaceButton = ({ kind, workspaceId }: { kind: Kind; workspaceId: string }) => {
+export const LeaveWorkspaceButton = ({
+  kind,
+  workspaceId,
+}: {
+  kind: Kind;
+  workspaceId: string;
+}) => {
   const { t } = useTranslation();
   return (
     <AsyncActionButton
@@ -813,10 +992,14 @@ export const LeaveWorkspaceButton = ({ kind, workspaceId }: { kind: Kind; worksp
       }
       label={t("workspace:leave_label")}
       confirmation={{
-        title: t("workspace:leave_title", { kind: t(`workspace:kind_${kind}`) }),
+        title: t("workspace:leave_title", {
+          kind: t(`workspace:kind_${kind}`),
+        }),
         description: t("workspace:leave_desc"),
         confirmLabel: t("workspace:leave_confirm"),
-        successMessage: t("workspace:leave_success", { kind: t(`workspace:kind_${kind}`) }),
+        successMessage: t("workspace:leave_success", {
+          kind: t(`workspace:kind_${kind}`),
+        }),
       }}
       destructive
       className="btn btn-ghost btn-sm border-danger-500/25 text-danger-300 hover:bg-danger-500/10"
@@ -843,9 +1026,13 @@ export const DeleteWorkspaceButton = ({
       }
       label={t("workspace:delete_label")}
       confirmation={{
-        title: t("workspace:delete_title", { kind: t(`workspace:kind_${kind}`) }),
+        title: t("workspace:delete_title", {
+          kind: t(`workspace:kind_${kind}`),
+        }),
         description: t("workspace:delete_desc", { name }),
-        confirmLabel: t("workspace:delete_confirm", { kind: t(`workspace:kind_${kind}`) }),
+        confirmLabel: t("workspace:delete_confirm", {
+          kind: t(`workspace:kind_${kind}`),
+        }),
         successMessage: t(`workspace:delete_success_${kind}`),
       }}
       destructive

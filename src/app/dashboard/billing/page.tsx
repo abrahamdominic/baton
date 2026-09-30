@@ -3,11 +3,20 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { currentUser } from "@/lib/auth/session";
 import { getEntitlement } from "@/lib/billing/entitlement";
-import { getCurrentSubscription, listSubscriptionsForUser } from "@/lib/billing/subscriptions";
-import { listPaymentsForUser, findOpenPaymentForSubscription } from "@/lib/billing/payments";
+import {
+  getCurrentSubscription,
+  listSubscriptionsForUser,
+} from "@/lib/billing/subscriptions";
+import {
+  listPaymentsForUser,
+  findOpenPaymentForSubscription,
+} from "@/lib/billing/payments";
 import { publicPlans } from "@/lib/billing/plans";
 import { listSubscriptionEvents } from "@/lib/billing/events";
-import { paymentStatusLabel, subscriptionStatusLabel } from "@/lib/i18n/billing-label";
+import {
+  paymentStatusLabel,
+  subscriptionStatusLabel,
+} from "@/lib/i18n/billing-label";
 import {
   IconCheck,
   IconClock,
@@ -28,7 +37,10 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslatorForRequest();
-  return { robots: { index: false, follow: false }, title: t("billing:meta_title") };
+  return {
+    robots: { index: false, follow: false },
+    title: t("billing:meta_title"),
+  };
 }
 
 function statusTone(status: string): string {
@@ -56,7 +68,12 @@ function statusTone(status: string): string {
 }
 
 export default async function BillingPage() {
-  const { t, formatDateTime: formatDate, formatCurrency } = await getTranslatorForRequest();
+  const {
+    t,
+    tc,
+    formatDateTime: formatDate,
+    formatCurrency,
+  } = await getTranslatorForRequest();
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard/billing");
 
@@ -66,7 +83,8 @@ export default async function BillingPage() {
     listSubscriptionEvents(user.id, 20),
   ]);
 
-  const subscription = entitlement.subscription ?? (await getCurrentSubscription(user.id));
+  const subscription =
+    entitlement.subscription ?? (await getCurrentSubscription(user.id));
   const plan = subscription?.plan ?? null;
 
   // A pending checkout is any still-open pre-payment subscription: `pending`
@@ -75,10 +93,17 @@ export default async function BillingPage() {
   // a cancelled checkout never permanently blocks a new purchase.
   const allSubs = await listSubscriptionsForUser(user.id);
   const pendingCheckout =
-    allSubs.find((s) => s.status === "pending" || s.status === "payment_failed") ?? null;
-  const pendingPayment = pendingCheckout ? await findOpenPaymentForSubscription(pendingCheckout.id) : null;
+    allSubs.find(
+      (s) => s.status === "pending" || s.status === "payment_failed",
+    ) ?? null;
+  const pendingPayment = pendingCheckout
+    ? await findOpenPaymentForSubscription(pendingCheckout.id)
+    : null;
   const pendingInterval =
-    (pendingPayment?.metadata as { interval?: string } | null)?.interval === "annual" ? "annual" : "monthly";
+    (pendingPayment?.metadata as { interval?: string } | null)?.interval ===
+    "annual"
+      ? "annual"
+      : "monthly";
 
   const periodEnd = subscription?.current_period_end ?? null;
   const cancelRequested = subscription?.cancel_at_period_end ?? false;
@@ -87,7 +112,11 @@ export default async function BillingPage() {
 
   const availablePlans = await publicPlans();
 
-  const formatMoney = (cents: number) => formatCurrency(cents, "USD");
+  // Plan prices in the catalog are always USD. Payments are not: the ledger
+  // stores whichever rail was used, so a payment amount must carry its own
+  // currency rather than inheriting this default.
+  const formatMoney = (cents: number, currency = "USD") =>
+    formatCurrency(cents, currency);
 
   const pendingStatusLabel = pendingCheckout
     ? pendingCheckout.status === "payment_failed"
@@ -103,7 +132,13 @@ export default async function BillingPage() {
         description={t("billing:page_description")}
         actions={
           <Link href="/pricing" className="btn btn-primary btn-sm">
-            <span>{t(status === "none" ? "billing:upgrade_to_team" : "billing:view_plans")}</span>
+            <span>
+              {t(
+                status === "none"
+                  ? "billing:upgrade_to_team"
+                  : "billing:view_plans",
+              )}
+            </span>
             <IconArrowRight className="h-3 w-3" />
           </Link>
         }
@@ -116,7 +151,11 @@ export default async function BillingPage() {
             {t("billing:active_plan_status")}
           </span>
           <span className="font-mono text-[11px] text-ink-500">
-            {t(entitlement.hasPaidAccess ? "billing:paid_enabled" : "billing:free_tier")}
+            {t(
+              entitlement.hasPaidAccess
+                ? "billing:paid_enabled"
+                : "billing:free_tier",
+            )}
           </span>
         </div>
 
@@ -151,8 +190,10 @@ export default async function BillingPage() {
                 {status === "none"
                   ? t("billing:desc_free_tier")
                   : isGifted
-                    ? t("billing:desc_gifted", { plan: plan?.name ?? t("billing:desc_this") })
-                    : plan?.description ?? t("billing:desc_team")}
+                    ? t("billing:desc_gifted", {
+                        plan: plan?.name ?? t("billing:desc_this"),
+                      })
+                    : (plan?.description ?? t("billing:desc_team"))}
               </p>
 
               {periodEnd ? (
@@ -161,12 +202,16 @@ export default async function BillingPage() {
                   {isGifted ? (
                     <>
                       <span>{t("billing:gifted_access_ends")}</span>
-                      <span className="font-bold text-white">{formatDate(periodEnd)}</span>
+                      <span className="font-bold text-white">
+                        {formatDate(periodEnd)}
+                      </span>
                     </>
                   ) : (
                     <>
                       <span>{t("billing:period_ends")}</span>
-                      <span className="font-bold text-white">{formatDate(periodEnd)}</span>
+                      <span className="font-bold text-white">
+                        {formatDate(periodEnd)}
+                      </span>
                       {cancelRequested ? (
                         <span className="text-warn-300 font-semibold">
                           ({t("billing:access_ends_on_this_date")})
@@ -230,7 +275,13 @@ export default async function BillingPage() {
               ) : null}
 
               <Link href="/pricing" className="btn btn-ghost btn-sm">
-                <span>{t(status === "none" ? "billing:upgrade_to_team" : "billing:change_plan")}</span>
+                <span>
+                  {t(
+                    status === "none"
+                      ? "billing:upgrade_to_team"
+                      : "billing:change_plan",
+                  )}
+                </span>
                 <IconArrowRight className="h-3 w-3" />
               </Link>
 
@@ -269,7 +320,9 @@ export default async function BillingPage() {
             </span>
             <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-500">
               <IconClock className="h-3 w-3" />
-              {t("billing:started", { date: formatDate(pendingCheckout.created_at) })}
+              {t("billing:started", {
+                date: formatDate(pendingCheckout.created_at),
+              })}
             </span>
           </div>
 
@@ -305,12 +358,15 @@ export default async function BillingPage() {
                     <>{t("billing:pending_activating")}</>
                   ) : (
                     <>
-                      {t("billing:pending_unfinished_before", { interval: t(`billing:interval_${pendingInterval}`) })}{" "}
+                      {t("billing:pending_unfinished_before", {
+                        interval: t(`billing:interval_${pendingInterval}`),
+                      })}{" "}
                       <span className="font-mono text-ink-200">
                         {formatDate(pendingCheckout.created_at)}
                       </span>{" "}
                       {t("billing:pending_unfinished_after", {
-                        plan: pendingCheckout.plan?.name ?? t("billing:your_plan"),
+                        plan:
+                          pendingCheckout.plan?.name ?? t("billing:your_plan"),
                       })}
                     </>
                   )}
@@ -319,7 +375,10 @@ export default async function BillingPage() {
                 {pendingPayment ? (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 font-mono text-sm tabular-nums text-white">
                     <span className="font-bold">
-                      {formatMoney(pendingPayment.amount)} {pendingPayment.currency}
+                      {formatMoney(
+                        pendingPayment.amount,
+                        pendingPayment.currency,
+                      )}
                     </span>
                     <span className="text-[11px] font-normal text-ink-400">
                       {pendingPayment.payment_provider === "usdc" ? (
@@ -357,15 +416,20 @@ export default async function BillingPage() {
                 />
                 <PendingCheckoutControls
                   subscriptionId={pendingCheckout.id}
-                  planName={pendingCheckout.plan?.name ?? t("billing:this_plan")}
+                  planName={
+                    pendingCheckout.plan?.name ?? t("billing:this_plan")
+                  }
                   interval={pendingInterval}
-                  hasSubmittedCryptoTx={Boolean(pendingPayment?.crypto_transaction_hash)}
+                  hasSubmittedCryptoTx={Boolean(
+                    pendingPayment?.crypto_transaction_hash,
+                  )}
                   paymentSummary={
                     pendingPayment
-                      ? `${formatMoney(pendingPayment.amount)} ${pendingPayment.currency} · ${
+                      ? `${formatMoney(pendingPayment.amount, pendingPayment.currency)} · ${
                           pendingPayment.payment_provider === "usdc"
                             ? t("billing:via_usdc_short", {
-                                network: pendingPayment.crypto_network ?? "Base",
+                                network:
+                                  pendingPayment.crypto_network ?? "Base",
                               })
                             : t("billing:stripe")
                         } · ${t(`billing:interval_${pendingInterval}`)}`
@@ -388,7 +452,9 @@ export default async function BillingPage() {
             <div
               key={p.id}
               className={`flex flex-col rounded-xl border p-5 ${
-                isCurrent ? "border-brand-500/30 bg-brand-500/[0.04]" : "border-white/[0.08] bg-ink-900/60"
+                isCurrent
+                  ? "border-brand-500/30 bg-brand-500/[0.04]"
+                  : "border-white/[0.08] bg-ink-900/60"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -400,8 +466,12 @@ export default async function BillingPage() {
                 ) : null}
               </div>
               <div className="mt-3 flex items-baseline gap-2">
-                <span className="font-mono text-2xl font-bold tabular-nums text-white">{monthly}</span>
-                <span className="text-xs text-ink-400">{t("billing:per_month")}</span>
+                <span className="font-mono text-2xl font-bold tabular-nums text-white">
+                  {monthly}
+                </span>
+                <span className="text-xs text-ink-400">
+                  {t("billing:per_month")}
+                </span>
                 <span className="ml-2 font-mono text-xs text-ink-400">
                   {annual}/{t("billing:per_year")}
                 </span>
@@ -414,7 +484,13 @@ export default async function BillingPage() {
                   href={`/dashboard/billing/checkout?plan=${p.id}&billing=monthly`}
                   className={`btn btn-sm ${isCurrent ? "btn-ghost" : "btn-primary"}`}
                 >
-                  <span>{t(isCurrent ? "billing:your_plan" : "billing:choose_this_plan")}</span>
+                  <span>
+                    {t(
+                      isCurrent
+                        ? "billing:your_plan"
+                        : "billing:choose_this_plan",
+                    )}
+                  </span>
                   <IconArrowRight className="h-3 w-3" />
                 </Link>
               </div>
@@ -430,7 +506,9 @@ export default async function BillingPage() {
             <IconShield className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-xs font-bold text-white">{t("billing:security_title")}</h3>
+            <h3 className="text-xs font-bold text-white">
+              {t("billing:security_title")}
+            </h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
               {t("billing:security_body")}
             </p>
@@ -442,7 +520,9 @@ export default async function BillingPage() {
             <IconCreditCard className="h-4 w-4" />
           </span>
           <div>
-            <h3 className="text-xs font-bold text-white">{t("billing:support_title")}</h3>
+            <h3 className="text-xs font-bold text-white">
+              {t("billing:support_title")}
+            </h3>
             <p className="mt-1 text-xs leading-relaxed text-ink-400">
               {t("billing:support_body_before")}{" "}
               <a
@@ -464,15 +544,13 @@ export default async function BillingPage() {
             {t("billing:history_title")}
           </span>
           <span className="font-mono text-[11px] text-ink-500">
-            {t("billing:history_records", { count: payments.length })}
+            {tc("billing:history_records", payments.length)}
           </span>
         </div>
 
         {payments.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <p className="text-xs text-ink-500">
-              {t("billing:history_empty")}
-            </p>
+            <p className="text-xs text-ink-500">{t("billing:history_empty")}</p>
           </div>
         ) : (
           <ul className="divide-y divide-white/[0.05]">
@@ -494,7 +572,9 @@ export default async function BillingPage() {
                       p.payment_provider === "usdc"
                         ? "billing:usdc_network"
                         : "billing:credit_card_stripe",
-                      p.payment_provider === "usdc" ? { network: p.crypto_network ?? "Base" } : undefined,
+                      p.payment_provider === "usdc"
+                        ? { network: p.crypto_network ?? "Base" }
+                        : undefined,
                     )}
                     {p.crypto_transaction_hash ? (
                       <span className="ml-1 inline-flex items-center gap-1">
@@ -546,7 +626,12 @@ export default async function BillingPage() {
                 className="flex items-center justify-between px-5 py-3 text-xs"
               >
                 <span className="font-mono text-[11px] uppercase tracking-wider text-ink-300">
-                  {t(`billing:event_${e.eventType}`, e.newStatus ? { status: subscriptionStatusLabel(e.newStatus, t) } : undefined)}
+                  {t(
+                    `billing:event_${e.eventType}`,
+                    e.newStatus
+                      ? { status: subscriptionStatusLabel(e.newStatus, t) }
+                      : undefined,
+                  )}
                 </span>
                 {e.newStatus ? (
                   <span className="font-mono text-[11px] text-ink-400">

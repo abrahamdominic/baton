@@ -9,6 +9,7 @@ import {
   decryptMessage,
   fingerprintPublicKey,
   isValidDevicePublicKey,
+  isCoherentDeviceKeyPair,
 } from "@/lib/messaging/crypto";
 
 describe("messaging crypto (E2E round-trips)", () => {
@@ -134,7 +135,11 @@ describe("messaging crypto (security boundary)", () => {
 
     // …but Mallory, who lacks Bob's private key, cannot.
     await expect(
-      unwrapThreadKeyForMember(wrapped.wrappedKeyB64, mallory.privateKeyB64, alice.publicKeyB64),
+      unwrapThreadKeyForMember(
+        wrapped.wrappedKeyB64,
+        mallory.privateKeyB64,
+        alice.publicKeyB64,
+      ),
     ).rejects.toThrow();
   });
 
@@ -206,15 +211,26 @@ describe("messaging crypto (security boundary)", () => {
       alice.publicKeyB64,
     );
     expect(charlieThreadKey).toBe(threadKey);
-    const charliePlaintext = await decryptMessage(encrypted.ct, charlieThreadKey);
+    const charliePlaintext = await decryptMessage(
+      encrypted.ct,
+      charlieThreadKey,
+    );
     expect(charliePlaintext).toBe(plaintext);
 
     // Mallory tries to unwrap Bob's wrap or Charlie's wrap using Mallory's private key -> fails
     await expect(
-      unwrapThreadKeyForMember(wrapForBob.wrappedKeyB64, mallory.privateKeyB64, alice.publicKeyB64),
+      unwrapThreadKeyForMember(
+        wrapForBob.wrappedKeyB64,
+        mallory.privateKeyB64,
+        alice.publicKeyB64,
+      ),
     ).rejects.toThrow();
     await expect(
-      unwrapThreadKeyForMember(wrapForCharlie.wrappedKeyB64, mallory.privateKeyB64, alice.publicKeyB64),
+      unwrapThreadKeyForMember(
+        wrapForCharlie.wrappedKeyB64,
+        mallory.privateKeyB64,
+        alice.publicKeyB64,
+      ),
     ).rejects.toThrow();
   });
 });
@@ -263,7 +279,9 @@ describe("message AAD binds ciphertext to its own identity", () => {
   it("rejects the same ciphertext after a thread key rotation", async () => {
     const tk = await generateThreadKey();
     const { ct } = await encryptMessage("hello", tk, ctx);
-    await expect(decryptMessage(ct, tk, { ...ctx, epoch: 4 })).rejects.toBeTruthy();
+    await expect(
+      decryptMessage(ct, tk, { ...ctx, epoch: 4 }),
+    ).rejects.toBeTruthy();
   });
 
   it("does not let field boundaries collide", async () => {
@@ -298,5 +316,47 @@ describe("message AAD binds ciphertext to its own identity", () => {
     const tk = await generateThreadKey();
     const { ct } = await encryptMessage("bound", tk, ctx);
     await expect(decryptMessage(ct, tk)).rejects.toBeTruthy();
+  });
+});
+
+describe("isCoherentDeviceKeyPair", () => {
+  it("accepts a freshly generated pair", async () => {
+    const pair = await generateDeviceKeys();
+    expect(
+      await isCoherentDeviceKeyPair(pair.publicKeyB64, pair.privateKeyB64),
+    ).toBe(true);
+  });
+
+  it("rejects a public key paired with a different private key", async () => {
+    // Exactly the state that used to reach `unwrapMyThreadKey`: both fields
+    // present, but they are not the two halves of one key. The unwrap then
+    // produced the wrong secret and the thread hung on "Setting up...".
+    const a = await generateDeviceKeys();
+    const b = await generateDeviceKeys();
+    expect(await isCoherentDeviceKeyPair(a.publicKeyB64, b.privateKeyB64)).toBe(
+      false,
+    );
+  });
+
+  it("rejects garbage in either half rather than throwing", async () => {
+    const pair = await generateDeviceKeys();
+    expect(
+      await isCoherentDeviceKeyPair("not-base64", pair.privateKeyB64),
+    ).toBe(false);
+    expect(await isCoherentDeviceKeyPair(pair.publicKeyB64, "not-base64")).toBe(
+      false,
+    );
+    expect(await isCoherentDeviceKeyPair("", "")).toBe(false);
+  });
+
+  it("rejects a swapped public key that is valid but not the pair's", async () => {
+    // A structurally valid P-256 key is not sufficient; it has to be the public
+    // half of *this* private key.
+    const a = await generateDeviceKeys();
+    const b = await generateDeviceKeys();
+    expect(await isValidDevicePublicKey(b.publicKeyB64)).toBe(true);
+    expect(await isCoherentDeviceKeyPair(b.publicKeyB64, a.privateKeyB64)).toBe(
+      false,
+    );
   });
 });

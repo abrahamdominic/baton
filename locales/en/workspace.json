@@ -183,5 +183,16 @@
   "revoke_desc": "You are about to revoke the pending invitation sent to @{{login}}. They will no longer be able to use this invitation to join the {{kind}}.",
   "transfer_warning": "After this transfer you become an admin, @{{login}} becomes the permanent owner, and paid workspace benefits follow the owner subscription, so member access may change if @{{login}} plan differs from yours.",
   "transfer_ack": "I understand that @{{login}} becomes the owner and I lose the ability to transfer or delete this {{kind}}.",
-  "delete_desc": "This permanently deletes {{name}}, removes every member, and cannot be undone."
+  "delete_desc": "This permanently deletes {{name}}, removes every member, and cannot be undone.",
+  "invite_err_invalid_login": "That is not a valid GitHub username. Use letters, numbers and single hyphens.",
+  "invite_err_self_invite": "You are already a member of this workspace.",
+  "invite_err_not_a_member": "You are not a member of this workspace.",
+  "invite_err_not_an_admin": "Only the owner or an admin can send invitations.",
+  "invite_err_no_seats": "Your plan does not include member seats, so you cannot invite anyone yet.",
+  "invite_err_plan_unavailable": "We could not read your plan, so the invite was not sent. Please try again in a moment.",
+  "invite_err_already_member": "That person is already a member of this workspace.",
+  "invite_err_already_invited": "An invitation for that person is already pending.",
+  "invite_err_not_found": "GitHub user not found. Check the username and try again.",
+  "invite_upgrade": "View plans",
+  "invite_err_generic": "Something went wrong on our side and the invite was not sent. Please try again in a moment."
 }

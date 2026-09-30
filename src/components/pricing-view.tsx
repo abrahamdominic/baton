@@ -4,8 +4,16 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { IconCheck, IconX, IconArrowRight } from "@/components/icons";
 import type { PlanRecord } from "@/lib/billing/types";
-import { planBillingNote, planPriceCents, planPriceLabel } from "@/lib/billing/pricing";
-import { catalogPlanBySlug, type CatalogPlan } from "@/lib/billing/plan-catalog";
+import {
+  planBillingNote,
+  planPriceCents,
+  planPriceLabel,
+} from "@/lib/billing/pricing";
+import {
+  catalogPlanBySlug,
+  type CatalogPlan,
+} from "@/lib/billing/plan-catalog";
+import { FREE_MAX_MEMBERS } from "@/lib/billing/entitlement-core";
 import { useI18n } from "@/lib/i18n/provider";
 
 export interface Tier {
@@ -83,8 +91,10 @@ const TIERS: StaticTier[] = [
     ],
     ctaMonthly: "Start 14-Day Free Trial (Monthly)",
     ctaAnnual: "Start 14-Day Free Trial (Annual)",
-    checkoutUrlMonthly: "/dashboard/billing/checkout?plan=plan_team_default&billing=monthly",
-    checkoutUrlAnnual: "/dashboard/billing/checkout?plan=plan_team_default&billing=annual",
+    checkoutUrlMonthly:
+      "/dashboard/billing/checkout?plan=plan_team_default&billing=monthly",
+    checkoutUrlAnnual:
+      "/dashboard/billing/checkout?plan=plan_team_default&billing=annual",
     featured: true,
     highlightBadge: "Most Popular",
   },
@@ -93,7 +103,8 @@ const TIERS: StaticTier[] = [
     name: "Organization",
     monthlyPeriod: "per month",
     annualPeriod: "per year, billed annually",
-    blurb: "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
+    blurb:
+      "For scaling engineering organizations with compliance, unlimited repos, and organization-wide control.",
     features: [
       "Everything in Team",
       "Unlimited repositories & team members",
@@ -103,8 +114,10 @@ const TIERS: StaticTier[] = [
     ],
     ctaMonthly: "Choose Organization (Monthly)",
     ctaAnnual: "Choose Organization (Annual)",
-    checkoutUrlMonthly: "/dashboard/billing/checkout?plan=plan_org_default&billing=monthly",
-    checkoutUrlAnnual: "/dashboard/billing/checkout?plan=plan_org_default&billing=annual",
+    checkoutUrlMonthly:
+      "/dashboard/billing/checkout?plan=plan_org_default&billing=monthly",
+    checkoutUrlAnnual:
+      "/dashboard/billing/checkout?plan=plan_org_default&billing=annual",
     featured: false,
   },
 ];
@@ -161,7 +174,14 @@ interface Caps {
   features: string[];
 }
 
-const FREE_CAPS: Caps = { maxRepos: 3, maxMembers: 0, features: [] };
+// Mirrors FREE_PLAN_LIMITS in src/lib/billing/entitlement-core.ts. The pricing
+// page has to state the same number the entitlement resolver enforces, or it
+// advertises a capability the backend does not grant.
+const FREE_CAPS: Caps = {
+  maxRepos: 3,
+  maxMembers: FREE_MAX_MEMBERS,
+  features: [],
+};
 
 function capsOf(plan: PlanRecord | null, isFree: boolean): Caps {
   if (isFree || !plan) return FREE_CAPS;
@@ -171,12 +191,19 @@ function capsOf(plan: PlanRecord | null, isFree: boolean): Caps {
     features?: unknown;
   };
   const features = Array.isArray(limits.features)
-    ? (limits.features as unknown[]).filter((f): f is string => typeof f === "string")
+    ? (limits.features as unknown[]).filter(
+        (f): f is string => typeof f === "string",
+      )
     : [];
   return {
-    maxRepos: typeof limits.maxRepos === "number" && limits.maxRepos > 0 ? limits.maxRepos : null,
+    maxRepos:
+      typeof limits.maxRepos === "number" && limits.maxRepos > 0
+        ? limits.maxRepos
+        : null,
     maxMembers:
-      typeof limits.maxMembers === "number" && limits.maxMembers > 0 ? limits.maxMembers : 0,
+      typeof limits.maxMembers === "number" && limits.maxMembers > 0
+        ? limits.maxMembers
+        : 0,
     features,
   };
 }
@@ -191,15 +218,23 @@ const hasGate =
   (c) =>
     c.features.includes(key);
 
-const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[] = [
+const MATRIX_SECTIONS: {
+  category: string;
+  intro?: string;
+  rows: MatrixRow[];
+}[] = [
   {
     category: "Core State Engine",
-    intro: "Every repository Baton tracks gets the full deterministic state machine, on every plan.",
+    intro:
+      "Every repository Baton tracks gets the full deterministic state machine, on every plan.",
     rows: [
       { feature: "Deterministic PR state machine", resolve: () => true },
       { feature: "Live pinned status card in every PR", resolve: () => true },
       { feature: "Automatic baton:* state labels", resolve: () => true },
-      { feature: "Whose-turn resolution (author vs reviewer)", resolve: () => true },
+      {
+        feature: "Whose-turn resolution (author vs reviewer)",
+        resolve: () => true,
+      },
       { feature: "Never stores your source code", resolve: () => true },
     ],
   },
@@ -208,7 +243,8 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
     rows: [
       {
         feature: "Active repositories tracked",
-        resolve: (c) => (c.maxRepos === null ? "Unlimited" : `Up to ${c.maxRepos}`),
+        resolve: (c) =>
+          c.maxRepos === null ? "Unlimited" : `Up to ${c.maxRepos}`,
       },
       {
         feature: "Members included in your plan",
@@ -226,7 +262,10 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
   {
     category: "Automation & Nudges",
     rows: [
-      { feature: "Automated polite @-mention reviewer nudges", resolve: () => true },
+      {
+        feature: "Automated polite @-mention reviewer nudges",
+        resolve: () => true,
+      },
       { feature: "Bounded nudges (max 1 per state)", resolve: () => true },
       {
         feature: "Per-repo customizable thresholds & grace periods",
@@ -239,20 +278,44 @@ const MATRIX_SECTIONS: { category: string; intro?: string; rows: MatrixRow[] }[]
     intro:
       "Facts collected from the GitHub API. Every claim links to the file or API response it came from, and anything that cannot be cited is reported as not covered rather than answered.",
     rows: [
-      { feature: "Evidence-backed repository profiles", resolve: hasGate("repo_intelligence") },
-      { feature: "Search a repository's collected evidence", resolve: hasGate("repo_intelligence") },
-      { feature: "Saved work context across sessions", resolve: hasGate("work_context") },
-      { feature: "What Broke? CI failure investigation", resolve: hasGate("change_impact") },
+      {
+        feature: "Evidence-backed repository profiles",
+        resolve: hasGate("repo_intelligence"),
+      },
+      {
+        feature: "Search a repository's collected evidence",
+        resolve: hasGate("repo_intelligence"),
+      },
+      {
+        feature: "Saved work context across sessions",
+        resolve: hasGate("work_context"),
+      },
+      {
+        feature: "What Broke? CI failure investigation",
+        resolve: hasGate("change_impact"),
+      },
       { feature: "Change impact analysis", resolve: hasGate("change_impact") },
     ],
   },
   {
     category: "Workspaces, Roles & Compliance",
     rows: [
-      { feature: "Team workspaces (shared board, invites, member roles)", resolve: hasGate("team_workspace") },
-      { feature: "Organization workspaces (roles, invitations & shared boards)", resolve: hasGate("organization_workspace") },
-      { feature: "Organization-wide review stall policies", resolve: hasGate("organization_policies") },
-      { feature: "Audit log export (CSV/JSON)", resolve: hasGate("audit_export") },
+      {
+        feature: "Team workspaces (shared board, invites, member roles)",
+        resolve: hasGate("team_workspace"),
+      },
+      {
+        feature: "Organization workspaces (roles, invitations & shared boards)",
+        resolve: hasGate("organization_workspace"),
+      },
+      {
+        feature: "Organization-wide review stall policies",
+        resolve: hasGate("organization_policies"),
+      },
+      {
+        feature: "Audit log export (CSV/JSON)",
+        resolve: hasGate("audit_export"),
+      },
     ],
   },
 ];
@@ -286,7 +349,12 @@ export function PricingView({
     };
   });
 
-  const columns: { slug: string; label: string; plan: PlanRecord | null; featured: boolean }[] = [
+  const columns: {
+    slug: string;
+    label: string;
+    plan: PlanRecord | null;
+    featured: boolean;
+  }[] = [
     {
       slug: "free",
       label: overrides.individual?.name ?? TIERS[0].name,
@@ -313,7 +381,8 @@ export function PricingView({
     !plan ? "forever" : annual ? "/year" : "/month";
 
   const cellView = (value: boolean | string) => {
-    if (value === true) return <IconCheck className="h-4 w-4 text-signal-400" />;
+    if (value === true)
+      return <IconCheck className="h-4 w-4 text-signal-400" />;
     if (value === false) return <IconX className="h-4 w-4 text-ink-600" />;
     return <span className="text-ink-300">{value}</span>;
   };
@@ -369,8 +438,11 @@ export function PricingView({
           const period = annual ? t.annualPeriod : t.monthlyPeriod;
           const note = annual ? t.annualNote : t.monthlyNote;
           const cta = annual ? t.ctaAnnual : t.ctaMonthly;
-          const checkoutUrl = annual ? t.checkoutUrlAnnual : t.checkoutUrlMonthly;
-          const isExternal = checkoutUrl.startsWith("mailto:") || checkoutUrl.startsWith("http");
+          const checkoutUrl = annual
+            ? t.checkoutUrlAnnual
+            : t.checkoutUrlMonthly;
+          const isExternal =
+            checkoutUrl.startsWith("mailto:") || checkoutUrl.startsWith("http");
 
           return (
             <div
@@ -414,7 +486,10 @@ export function PricingView({
                 </span>
                 <ul className="mt-3.5 space-y-3">
                   {t.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2.5 text-xs text-ink-200">
+                    <li
+                      key={f}
+                      className="flex items-start gap-2.5 text-xs text-ink-200"
+                    >
                       <IconCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-400" />
                       <span>{f}</span>
                     </li>
@@ -453,7 +528,9 @@ export function PricingView({
       {/* Feature Comparison Matrix */}
       <div className="pt-8">
         <div className="text-center max-w-xl mx-auto mb-10">
-          <h2 className="text-2xl font-bold text-white">{t("billing:compare_title")}</h2>
+          <h2 className="text-2xl font-bold text-white">
+            {t("billing:compare_title")}
+          </h2>
           <p className="mt-2 text-xs text-ink-400">
             {t("billing:compare_subtitle")}
           </p>
@@ -463,7 +540,9 @@ export function PricingView({
           <table className="w-full min-w-[680px] text-left text-xs">
             <thead>
               <tr className="border-b border-white/[0.08] bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
-                <th scope="col" className="py-4 ps-6 pe-4 font-semibold">{t("billing:th_capability")}</th>
+                <th scope="col" className="py-4 ps-6 pe-4 font-semibold">
+                  {t("billing:th_capability")}
+                </th>
                 {columns.map((col) => (
                   <th
                     key={col.slug}
@@ -473,7 +552,10 @@ export function PricingView({
                   >
                     <span className="block">{col.label}</span>
                     <span className="block text-[10px] font-normal normal-case text-ink-400">
-                      {headPrice(col.plan)} <span className="text-ink-500">{headPeriod(col.plan)}</span>
+                      {headPrice(col.plan)}{" "}
+                      <span className="text-ink-500">
+                        {headPeriod(col.plan)}
+                      </span>
                     </span>
                   </th>
                 ))}
@@ -483,13 +565,19 @@ export function PricingView({
               {MATRIX_SECTIONS.map((sec) => (
                 <React.Fragment key={sec.category}>
                   <tr className="bg-ink-950/90">
-                    <td colSpan={columns.length + 1} className="py-2.5 pl-6 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-400">
+                    <td
+                      colSpan={columns.length + 1}
+                      className="py-2.5 pl-6 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-400"
+                    >
                       {sec.category}
                     </td>
                   </tr>
                   {sec.intro ? (
                     <tr className="bg-ink-950/40">
-                      <td colSpan={columns.length + 1} className="py-2 pl-6 pr-6 text-[11px] leading-relaxed text-ink-500">
+                      <td
+                        colSpan={columns.length + 1}
+                        className="py-2 pl-6 pr-6 text-[11px] leading-relaxed text-ink-500"
+                      >
                         {sec.intro}
                       </td>
                     </tr>
@@ -500,7 +588,9 @@ export function PricingView({
                         {r.feature}
                       </td>
                       {columns.map((col) => {
-                        const value = r.resolve(capsOf(col.plan, col.slug === "free"));
+                        const value = r.resolve(
+                          capsOf(col.plan, col.slug === "free"),
+                        );
                         return (
                           <td
                             key={col.slug}
@@ -508,7 +598,9 @@ export function PricingView({
                               col.featured ? "bg-brand-500/[0.025]" : ""
                             }`}
                           >
-                            <span className="flex items-center justify-center">{cellView(value)}</span>
+                            <span className="flex items-center justify-center">
+                              {cellView(value)}
+                            </span>
                           </td>
                         );
                       })}

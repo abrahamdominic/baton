@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isConversationUnread } from "@/lib/messaging/unread";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type {
@@ -82,8 +83,14 @@ export function ConversationList({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs leading-relaxed text-ink-400">{t("messaging:encryption_note")}</p>
-        <button type="button" onClick={() => setOpen(true)} className="btn btn-primary btn-sm">
+        <p className="text-xs leading-relaxed text-ink-400">
+          {t("messaging:encryption_note")}
+        </p>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="btn btn-primary btn-sm"
+        >
           <IconPlus className="h-3.5 w-3.5" />
           <span>{t("messaging:new_conversation")}</span>
         </button>
@@ -94,7 +101,9 @@ export function ConversationList({
           <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.1] bg-ink-850/80 text-ink-300">
             <IconUsers className="h-6 w-6" />
           </div>
-          <p className="text-sm font-semibold text-white">{t("messaging:list_empty_title")}</p>
+          <p className="text-sm font-semibold text-white">
+            {t("messaging:list_empty_title")}
+          </p>
           <p className="max-w-md text-xs leading-relaxed text-ink-400">
             {t("messaging:list_empty_hint")}
           </p>
@@ -102,7 +111,7 @@ export function ConversationList({
       ) : (
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
           {conversations.map((c) => {
-            const unread = c.messageCount > 0 && (!c.lastReadAt || c.lastReadAt < (c.lastMessageAt ?? c.createdAt));
+            const unread = isConversationUnread(c);
             const href = teamId
               ? `/dashboard/team/${teamId}/messaging/${c.id}`
               : `/dashboard/organization/${orgId}/messaging/${c.id}`;
@@ -112,7 +121,10 @@ export function ConversationList({
                   href={href}
                   className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-ink-850/60"
                 >
-                  <MembersRow members={c.members} currentUserId={currentUserId} />
+                  <MembersRow
+                    members={c.members}
+                    currentUserId={currentUserId}
+                  />
                   <div className="flex shrink-0 items-center gap-3">
                     <span className="font-mono text-[11px] text-ink-500">
                       {c.lastMessageAt
@@ -159,11 +171,20 @@ function NewConversationDialog({
 }) {
   const { t } = useTranslation();
   const router = useRouter();
-  const [members, setMembers] = useState<
-    Array<{ userId: string; login: string; name: string | null; avatarUrl: string | null; devices: Array<{ id: string; publicKeyB64: string }> }> | null
-  >(null);
+  const [members, setMembers] = useState<Array<{
+    userId: string;
+    login: string;
+    name: string | null;
+    avatarUrl: string | null;
+    devices: Array<{ id: string; publicKeyB64: string }>;
+  }> | null>(null);
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(initialMemberId && initialMemberId !== currentUserId ? [initialMemberId] : []),
+    () =>
+      new Set(
+        initialMemberId && initialMemberId !== currentUserId
+          ? [initialMemberId]
+          : [],
+      ),
   );
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,8 +194,11 @@ function NewConversationDialog({
     const fetcher = teamId
       ? listTeamDeviceKeysAction({ teamId })
       : orgId
-      ? listOrgDeviceKeysAction({ orgId })
-      : Promise.resolve({ ok: false as const, error: t("messaging:no_workspace") });
+        ? listOrgDeviceKeysAction({ orgId })
+        : Promise.resolve({
+            ok: false as const,
+            error: t("messaging:no_workspace"),
+          });
 
     fetcher
       .then((res) => {
@@ -255,7 +279,13 @@ function NewConversationDialog({
   };
 
   return (
-    <Dialog open onClose={onClose} size="lg" bare label={t("messaging:new_conversation")}>
+    <Dialog
+      open
+      onClose={onClose}
+      size="lg"
+      bare
+      label={t("messaging:new_conversation")}
+    >
       <div className="border-b border-white/[0.07] px-5 py-4">
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
           <IconSend className="h-4 w-4 text-brand-400" />
@@ -268,7 +298,9 @@ function NewConversationDialog({
 
       <div className="max-h-72 overflow-y-auto p-4">
         {!members ? (
-          <p className="text-xs text-ink-500">{t("messaging:loading_devices")}</p>
+          <p className="text-xs text-ink-500">
+            {t("messaging:loading_devices")}
+          </p>
         ) : (
           <ul className="space-y-1">
             {members.map((m) => {
@@ -289,22 +321,28 @@ function NewConversationDialog({
                       checked
                         ? "border-brand-500/40 bg-brand-500/10"
                         : noDevice || locked
-                        ? "cursor-not-allowed border-white/[0.05] bg-ink-950/40 opacity-60"
-                        : "border-white/[0.06] bg-ink-950/50 hover:border-white/[0.14]"
+                          ? "cursor-not-allowed border-white/[0.05] bg-ink-950/40 opacity-60"
+                          : "border-white/[0.06] bg-ink-950/50 hover:border-white/[0.14]"
                     }`}
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-semibold text-white">
                         {m.name ?? m.login}
                         {isMe ? (
-                          <span className="ml-1.5 text-ink-500">{t("messaging:you")}</span>
+                          <span className="ml-1.5 text-ink-500">
+                            {t("messaging:you")}
+                          </span>
                         ) : null}
                       </span>
                       <span className="block font-mono text-[10px] text-ink-500">
                         @{m.login} ·{" "}
-                        {t("messaging:device_count", { count: m.devices.length })}
+                        {t("messaging:device_count", {
+                          count: m.devices.length,
+                        })}
                         {locked ? (
-                          <span className="ml-1.5">· {t("messaging:always_included")}</span>
+                          <span className="ml-1.5">
+                            · {t("messaging:always_included")}
+                          </span>
                         ) : null}
                       </span>
                     </span>
@@ -318,7 +356,9 @@ function NewConversationDialog({
                             : "border-white/[0.2]"
                         }`}
                       >
-                        {checked ? <IconCheckCircle className="h-3 w-3" /> : null}
+                        {checked ? (
+                          <IconCheckCircle className="h-3 w-3" />
+                        ) : null}
                       </span>
                     )}
                   </button>
@@ -334,7 +374,11 @@ function NewConversationDialog({
           <IconLockHint />
         </p>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-ghost btn-sm"
+          >
             {t("messaging:cancel")}
           </button>
           <button
@@ -360,7 +404,10 @@ function IconLockHint() {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <p role="alert" className="border-t border-danger-500/20 bg-danger-500/[0.06] px-5 py-3 text-[11px] font-medium leading-relaxed text-danger-300">
+    <p
+      role="alert"
+      className="border-t border-danger-500/20 bg-danger-500/[0.06] px-5 py-3 text-[11px] font-medium leading-relaxed text-danger-300"
+    >
       {message}
     </p>
   );

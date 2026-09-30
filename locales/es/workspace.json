@@ -183,5 +183,16 @@
   "revoke_desc": "Estás a punto de revocar la invitación pendiente enviada a @{{login}}. Ya no podrá usar esta invitación para unirse a la {{kind}}.",
   "transfer_warning": "Tras esta transferencia tú pasarás a ser administrador, @{{login}} será el propietario permanente y las funciones de pago del espacio de trabajo seguirán la suscripción del propietario, así que el acceso de los miembros puede cambiar si el plan de @{{login}} es distinto del tuyo.",
   "transfer_ack": "Entiendo que @{{login}} pasa a ser el propietario y que pierdo la posibilidad de transferir o eliminar esta {{kind}}.",
-  "delete_desc": "Esto elimina permanentemente {{name}}, quita a todos los miembros y no se puede deshacer."
+  "delete_desc": "Esto elimina permanentemente {{name}}, quita a todos los miembros y no se puede deshacer.",
+  "invite_err_invalid_login": "Ese no es un nombre de usuario de GitHub válido. Usa letras, números y guiones simples.",
+  "invite_err_self_invite": "Ya eres miembro de este espacio de trabajo.",
+  "invite_err_not_a_member": "No eres miembro de este espacio de trabajo.",
+  "invite_err_not_an_admin": "Solo el propietario o un administrador puede enviar invitaciones.",
+  "invite_err_no_seats": "Tu plan no incluye puestos de miembro, así que todavía no puedes invitar a nadie.",
+  "invite_err_plan_unavailable": "No pudimos leer tu plan, así que no se envió la invitación. Inténtalo de nuevo en un momento.",
+  "invite_err_already_member": "Esa persona ya es miembro de este espacio de trabajo.",
+  "invite_err_already_invited": "Ya hay una invitación pendiente para esa persona.",
+  "invite_err_not_found": "Usuario de GitHub no encontrado. Revisa el nombre de usuario e inténtalo de nuevo.",
+  "invite_upgrade": "Ver planes",
+  "invite_err_generic": "Algo falló por nuestra parte y la invitación no se envió. Inténtalo de nuevo en un momento."
 }

@@ -9,6 +9,7 @@ import {
   decryptMessage,
   encryptMessage,
   fingerprintPublicKey,
+  isCoherentDeviceKeyPair,
   generateDeviceKeys,
   generateThreadKey,
   unwrapThreadKeyForMember,
@@ -91,7 +92,23 @@ export async function ensureDevice(
   register: boolean = true,
 ): Promise<ClientDevice | null> {
   const cached = loadDevice(userId);
-  if (cached && cached.deviceKeyId) return cached;
+  if (cached && cached.deviceKeyId) {
+    // Confirm the stored halves are a real pair before trusting them. A
+    // mismatched or partially-corrupted pair makes every later unwrap fail
+    // deep inside WebCrypto, which surfaced as the thread sitting on
+    // "Setting up..." forever. Re-registering is the cheap, correct recovery.
+    if (
+      await isCoherentDeviceKeyPair(cached.publicKeyB64, cached.privateKeyB64)
+    ) {
+      return cached;
+    }
+    try {
+      window.localStorage.removeItem(storageKey(userId));
+    } catch {
+      // Storage unavailable; a fresh key below will simply fail to persist and
+      // re-register on the next load, which is the pre-existing behaviour.
+    }
+  }
 
   const pair = await generateDeviceKeys();
   const fingerprint = await fingerprintPublicKey(pair.publicKeyB64);
@@ -116,9 +133,15 @@ export async function ensureDevice(
 /** Unwrap a thread key from one of the caller's wraps using the local key. */
 export async function unwrapMyThreadKey(input: {
   device: ClientDevice;
-  wraps: Array<{ publicKeyId: string; issuerPublicKeyB64: string; wrappedKeyB64: string }>;
+  wraps: Array<{
+    publicKeyId: string;
+    issuerPublicKeyB64: string;
+    wrappedKeyB64: string;
+  }>;
 }): Promise<string | null> {
-  const wrap = input.wraps.find((w) => w.publicKeyId === input.device.deviceKeyId);
+  const wrap = input.wraps.find(
+    (w) => w.publicKeyId === input.device.deviceKeyId,
+  );
   if (!wrap) return null;
   return unwrapThreadKeyForMember(
     wrap.wrappedKeyB64,
@@ -136,10 +159,18 @@ export async function buildConversationWraps(input: {
   }>;
 }): Promise<{
   threadKeyB64: string;
-  entries: Array<{ userId: string; publicKeyId: string; wrappedKeyB64: string }>;
+  entries: Array<{
+    userId: string;
+    publicKeyId: string;
+    wrappedKeyB64: string;
+  }>;
 } | null> {
   const threadKeyB64 = await generateThreadKey();
-  const entries: Array<{ userId: string; publicKeyId: string; wrappedKeyB64: string }> = [];
+  const entries: Array<{
+    userId: string;
+    publicKeyId: string;
+    wrappedKeyB64: string;
+  }> = [];
 
   for (const member of input.members) {
     if (member.devices.length === 0) return null;
@@ -159,6 +190,52 @@ export async function buildConversationWraps(input: {
   }
 
   return { threadKeyB64, entries };
+}
+
+/**
+ * Re-wrap the *existing* thread key for devices that do not hold a copy.
+ *
+ * The server cannot do this for anyone: it stores only wrapped copies, so the
+ * plaintext key exists solely in a browser that already decrypted it. That is
+ * why a device which lost its private key (a sign-out, cleared site data, a new
+ * browser) is unrecoverable on its own, and why the repair has to come from
+ * another device that still holds the key.
+ *
+ * `threadKeyB64` is the caller's already-unwrapped copy. The output entries are
+ * the same shape `buildConversationWraps` returns, so the submit path is
+ * identical to conversation creation.
+ */
+export async function rewrapThreadKeyForDevices(input: {
+  device: ClientDevice;
+  /** The caller's existing plaintext thread key. */
+  threadKeyB64: string;
+  targets: Array<{ userId: string; publicKeyId: string; publicKeyB64: string }>;
+}): Promise<{
+  entries: Array<{
+    userId: string;
+    publicKeyId: string;
+    wrappedKeyB64: string;
+  }>;
+  issuerPublicKeyB64: string;
+}> {
+  const entries: Array<{
+    userId: string;
+    publicKeyId: string;
+    wrappedKeyB64: string;
+  }> = [];
+  for (const t of input.targets) {
+    const wrapped = await wrapThreadKeyForMember({
+      threadKeyB64: input.threadKeyB64,
+      theirPublicKeyB64: t.publicKeyB64,
+      ourPrivateKeyB64: input.device.privateKeyB64,
+    });
+    entries.push({
+      userId: t.userId,
+      publicKeyId: t.publicKeyId,
+      wrappedKeyB64: wrapped.wrappedKeyB64,
+    });
+  }
+  return { entries, issuerPublicKeyB64: input.device.publicKeyB64 };
 }
 
 export { decryptMessage, encryptMessage };

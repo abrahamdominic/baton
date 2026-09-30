@@ -17,7 +17,10 @@ function planOf(slug: string): PlanRecord {
   return p;
 }
 
-function sub(plan: PlanRecord, status: SubscriptionRecord["status"] = "active"): SubscriptionRecord {
+function sub(
+  plan: PlanRecord,
+  status: SubscriptionRecord["status"] = "active",
+): SubscriptionRecord {
   return {
     id: "sub_1",
     user_id: "u_1",
@@ -48,7 +51,9 @@ describe("entitlement gating: Team vs Organization", () => {
     expect(e.hasPaidAccess).toBe(false);
     expect(e.planSlug).toBe("free");
     expect(e.maxRepos).toBe(FREE_PLAN_LIMITS.maxRepos);
-    expect(e.maxMembers).toBe(0);
+    expect(e.maxMembers).toBe(FREE_PLAN_LIMITS.maxMembers);
+    // Free workspaces can invite; see FREE_MAX_MEMBERS in entitlement-core.ts.
+    expect(e.maxMembers).toBeGreaterThan(0);
     for (const key of Object.values(FEATURE_KEYS)) {
       expect(hasFeature(e, key), key).toBe(false);
     }
@@ -85,26 +90,45 @@ describe("entitlement gating: Team vs Organization", () => {
   });
 
   it("a pending plan does NOT grant paid features even on the Organization plan", () => {
-    const e = entitlementFromSubscription(sub(planOf("organization"), "pending"), "own");
+    const e = entitlementFromSubscription(
+      sub(planOf("organization"), "pending"),
+      "own",
+    );
     expect(e).toBeNull();
   });
 
   it("an expired Organization subscription drops the user back to free", () => {
-    const expired = entitlementFromSubscription(sub(planOf("organization"), "expired"), "own");
+    const expired = entitlementFromSubscription(
+      sub(planOf("organization"), "expired"),
+      "own",
+    );
     expect(expired).toBeNull();
   });
 
   it("plan switch from Organization to Team drops the org-exclusive gates immediately", () => {
-    expect(hasFeature(entitlementFromSubscription(sub(planOf("organization")), "own")!, FEATURE_KEYS.auditExport)).toBe(true);
-    const afterSwitch = entitlementFromSubscription(sub(planOf("team")), "own")!;
+    expect(
+      hasFeature(
+        entitlementFromSubscription(sub(planOf("organization")), "own")!,
+        FEATURE_KEYS.auditExport,
+      ),
+    ).toBe(true);
+    const afterSwitch = entitlementFromSubscription(
+      sub(planOf("team")),
+      "own",
+    )!;
     expect(afterSwitch.planSlug).toBe("team");
     expect(hasFeature(afterSwitch, FEATURE_KEYS.auditExport)).toBe(false);
-    expect(hasFeature(afterSwitch, FEATURE_KEYS.organizationWorkspace)).toBe(false);
+    expect(hasFeature(afterSwitch, FEATURE_KEYS.organizationWorkspace)).toBe(
+      false,
+    );
   });
 
   it("Organization outranks Team when entitlements merge", () => {
     const a = entitlementFromSubscription(sub(planOf("team")), "own")!;
-    const b = entitlementFromSubscription(sub(planOf("organization")), "workspace")!;
+    const b = entitlementFromSubscription(
+      sub(planOf("organization")),
+      "workspace",
+    )!;
     const merged = mergeEntitlements(a, b)!;
     expect(merged.planSlug).toBe("organization");
     expect(hasFeature(merged, FEATURE_KEYS.auditExport)).toBe(true);
