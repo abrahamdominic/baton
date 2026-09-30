@@ -109,6 +109,7 @@ model Repo {
   actions        Action[]
   insight        RepositoryInsight?
   workContexts   WorkContext[]
+  knowledge      RepoKnowledge[]
 
   @@index([installationId])
   @@index([owner, name])
@@ -584,6 +585,7 @@ model RepositoryInsight {
   contexts  WorkContext[]
   digests   InsightDigest[]
   questions InsightQuestion[]
+  knowledge RepoKnowledge[]
 
   @@index([collectedAt])
 }
@@ -686,4 +688,77 @@ model InsightQuestion {
 
   @@index([insightId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Repository knowledge memory.
+//
+// The difference between this and `RepositoryInsight`: the insight is a snapshot
+// of what is true *now* and is rewritten wholesale on every collection run, so a
+// fact that stops being true simply disappears. Knowledge is the opposite. It
+// accumulates across runs, remembers why something is the way it is, and only
+// retires a claim after it has stopped being observable for a grace period.
+//
+// That is what lets Baton answer "why is this done this way" months later
+// instead of only describing today's tree.
+//
+// Three properties keep this honest rather than a wiki:
+//
+//   1. `stableKey` is derived from the claim itself, never from a timestamp, so
+//      the same observation updates its own row instead of appending a near
+//      duplicate every sweep.
+//   2. `source` separates what was *observed* from what a developer *recorded*.
+//      A derived claim can be retired automatically; a human decision never is.
+//   3. `evidence` holds `RepoEvidence` ids at the time of observation. An entry
+//      whose evidence has vanished is stale, and the UI marks it as such rather
+//      than presenting a citation that no longer resolves.
+// ---------------------------------------------------------------------------
+
+model RepoKnowledge {
+  id            String            @id @default(cuid())
+  repoId        String
+  repo          Repo              @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  insightId     String
+  insight       RepositoryInsight @relation(fields: [insightId], references: [id], onDelete: Cascade)
+  // "architecture" | "workflow" | "module" | "ownership" | "deployment"
+  // | "failure_pattern" | "documentation" | "hot_area" | "decision"
+  kind          String
+  // Identity of the claim, derived from its content so re-observing it updates
+  // the same row. Unique per repository.
+  stableKey     String
+  title         String
+  detail        String
+  // "observed" (read from the repository) | "recorded" (a human wrote it down)
+  // | "inferred" (derived from other observations).
+  source        String            @default("observed")
+  // RepoEvidence ids backing this claim, as JSON. May be empty only when
+  // `source = "recorded"`, i.e. when a person is the evidence.
+  evidence      String            @default("[]")
+  // Repository-relative path when the knowledge is about a location.
+  path          String?
+  // 0-100. How strongly the observation supports the claim. An area that is
+  // hot in a 200-commit sample is stronger evidence than one hot in 3 commits.
+  strength      Int               @default(50)
+  // Runs in which this claim was re-observed and found unchanged. A high count
+  // with a stable `lastChangedAt` is what "this keeps coming up" means.
+  observations  Int               @default(1)
+  // Bumped when the derived content changes, so the UI can say "updated" rather
+  // than silently swapping a claim under the reader.
+  revision      Int               @default(1)
+  // "active" | "retired". Retirement is delayed by a grace period so a single
+  // failed collection run cannot erase the memory of a repository.
+  status        String            @default("active")
+  // Last time the *content* changed, as opposed to the last time it was seen.
+  lastChangedAt DateTime          @default(now())
+  lastSeenAt    DateTime          @default(now())
+  // Set when the claim was last observed but has not been seen since. Used to
+  // compute the grace period; null while healthy.
+  missingSince  DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([repoId, stableKey])
+  @@index([repoId, status])
+  @@index([repoId, kind, status])
+  @@index([insightId])
 }

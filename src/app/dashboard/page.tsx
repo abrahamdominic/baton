@@ -14,6 +14,7 @@ import {
 } from "@/lib/queries/dashboard";
 import { config } from "@/lib/env-boot";
 import { recentContexts } from "@/lib/intelligence/context";
+import { getCatchUpBriefing, type CatchUpSectionKey } from "@/lib/intelligence/catchup";
 import { resumeContextAction } from "./actions";
 import { EmptyState, Badge, StatCard, PageHeader } from "@/components/ui";
 import { Duration, StateBadge } from "@/components/state-badge";
@@ -32,6 +33,23 @@ import {
 } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Section headings for the catch-up briefing.
+ *
+ * The keys live here rather than in the briefing builder because the builder is
+ * a pure function with no knowledge of the request locale. Keeping the split
+ * means the windowing logic stays unit-testable without a translator.
+ */
+const CATCHUP_SECTIONS: { key: CatchUpSectionKey; tone: "info" | "warn" | "success" | "neutral" }[] = [
+  { key: "waiting_on_you", tone: "info" },
+  { key: "your_work", tone: "warn" },
+  { key: "ci_failures", tone: "warn" },
+  { key: "blocked", tone: "neutral" },
+  { key: "conversations", tone: "info" },
+  { key: "knowledge", tone: "success" },
+  { key: "collaborators", tone: "neutral" },
+];
 
 async function ActivityRow({ item }: { item: ActivityItem }) {
   const { t, formatRelative } = await getTranslatorForRequest();
@@ -103,12 +121,13 @@ export default async function DashboardPage({
     }
   }
 
-  const [items, installations, recent, entitlement, savedContexts] = await Promise.all([
+  const [items, installations, recent, entitlement, savedContexts, catchUp] = await Promise.all([
     yourMove(user),
     myInstallations(user),
     recentActivity(user, 5),
     getEntitlement(user.id),
     recentContexts(user.id, 4),
+    getCatchUpBriefing(user),
   ]);
 
   // Portfolio-level view across every repository the user can see. Gated on
@@ -250,46 +269,77 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {/* Daily Developer Briefing */}
+      {/* Catch-up briefing: what changed since this developer last looked.
+          Deliberately windowed rather than a standing snapshot, so a quiet day
+          renders one line instead of the same counts every morning. */}
       {installations.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
             <div className="flex items-center gap-2">
               <IconLayers className="h-4 w-4 text-brand-300" />
-              <h2 className="text-sm font-semibold text-white">{t("dashboard:daily_briefing")}</h2>
+              <h2 className="text-sm font-semibold text-white">{t("dashboard:catchup_title")}</h2>
             </div>
             <span className="font-mono text-[10px] text-ink-500">
-              {formatDate(new Date(), { weekday: "long", month: "short", day: "numeric" })}
+              {catchUp.usedFallbackWindow
+                ? t("dashboard:catchup_window_first")
+                : t("dashboard:catchup_window", { since: formatRelative(catchUp.windowStart) })}
             </span>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-white/[0.05] bg-ink-950/40 p-3">
-              <span className="text-[10px] font-mono uppercase text-ink-500">{t("dashboard:briefing_action_needed")}</span>
-              <p className="text-base font-bold text-white mt-0.5">{tc("dashboard:pr_count", items.length)}</p>
-              <p className="text-[11px] text-ink-400 mt-1 leading-normal">
-                {waitingReviewers} pending your review, {waitingAuthor} of your own PRs needing updates.
-              </p>
+          {catchUp.briefing.quiet ? (
+            <p className="flex items-center gap-2 px-5 py-4 text-xs text-ink-400">
+              <IconCheckCircle className="h-3.5 w-3.5 shrink-0 text-signal-400" />
+              {t("dashboard:catchup_quiet")}
+            </p>
+          ) : (
+            <div className="divide-y divide-white/[0.05]">
+              {catchUp.briefing.sections.map((section) => {
+                const meta = CATCHUP_SECTIONS.find((c) => c.key === section.key);
+                return (
+                  <div key={section.key} className="px-5 py-3.5">
+                    <div className="flex items-center gap-2">
+                      <Badge tone={meta?.tone ?? "neutral"}>
+                        {t(`dashboard:catchup_${section.key}`)}
+                      </Badge>
+                      <span className="font-mono text-[10px] text-ink-600">
+                        {tc("dashboard:catchup_items", section.items.length)}
+                      </span>
+                    </div>
+                    <ul className="mt-2 space-y-1.5">
+                      {section.items.map((item) => (
+                        <li key={item.id} className="flex items-start justify-between gap-3 text-xs">
+                          <span
+                            className={
+                              item.owner === "you"
+                                ? "text-ink-100"
+                                : item.owner === "team"
+                                  ? "text-warn-300"
+                                  : "text-ink-400"
+                            }
+                          >
+                            {item.owner === "team" ? (
+                              <span className="mr-1.5 font-mono text-[10px] text-ink-600">
+                                {t("dashboard:catchup_not_yours")}
+                              </span>
+                            ) : null}
+                            {item.text}
+                          </span>
+                          {item.href ? (
+                            <Link
+                              href={item.href}
+                              className="shrink-0 whitespace-nowrap font-mono text-[10px] text-brand-300 transition-colors hover:text-brand-200"
+                            >
+                              {t("dashboard:catchup_open")}
+                            </Link>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
             </div>
-
-            <div className="rounded-lg border border-white/[0.05] bg-ink-950/40 p-3">
-              <span className="text-[10px] font-mono uppercase text-ink-500">{t("dashboard:briefing_stalled_blockers")}</span>
-              <p className={`text-base font-bold mt-0.5 ${stalled > 0 ? "text-warn-300" : "text-signal-400"}`}>
-                {tc("dashboard:pr_count", stalled)}
-              </p>
-              <p className="text-[11px] text-ink-400 mt-1 leading-normal">
-                {stalled > 0 ? "PRs sitting in your court past 24 hours. Baton nudges sent." : "Zero stalled work in your court."}
-              </p>
-            </div>
-
-            <div className="rounded-lg border border-white/[0.05] bg-ink-950/40 p-3">
-              <span className="text-[10px] font-mono uppercase text-ink-500">{t("dashboard:briefing_tracked_repositories")}</span>
-              <p className="text-base font-bold text-brand-300 mt-0.5">{tc("dashboard:repo_count", repoCount)}</p>
-              <p className="text-[11px] text-ink-400 mt-1 leading-normal">
-                Connected repositories actively synchronized via GitHub App webhooks.
-              </p>
-            </div>
-          </div>
+          )}
         </section>
       ) : null}
 

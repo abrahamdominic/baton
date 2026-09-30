@@ -20,8 +20,11 @@ import {
   IconActivity,
   IconCheckCircle,
   IconAlertCircle,
+  IconBrain,
 } from "@/components/icons";
 import { getOnboardingGuideForRepo } from "@/lib/intelligence/onboarding";
+import { loadKnowledge, summariseKnowledge } from "@/lib/intelligence/knowledge";
+import { KnowledgePanel } from "./knowledge-panel";
 import { intelligenceAccess, UPGRADE_HREF } from "@/lib/intelligence/access";
 import { FEATURE_KEYS } from "@/lib/billing/types";
 import { IntelligenceQuestionForm } from "./question-form";
@@ -66,9 +69,14 @@ export default async function IntelligencePage({
 }) {
   const { owner, repo } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const currentTab = resolvedSearchParams?.tab === "onboarding" ? "onboarding" : "profile";
+  const currentTab =
+    resolvedSearchParams?.tab === "onboarding"
+      ? "onboarding"
+      : resolvedSearchParams?.tab === "knowledge"
+        ? "knowledge"
+        : "profile";
 
-  const { t } = await getTranslatorForRequest();
+  const { t, tc } = await getTranslatorForRequest();
 
   const user = await currentUser();
   if (!user) return null;
@@ -105,6 +113,11 @@ export default async function IntelligencePage({
   }
 
   const onboardingGuide = currentTab === "onboarding" ? await getOnboardingGuideForRepo(user, owner, repo) : null;
+
+  // Repository memory. Loaded only on its own tab: the knowledge table is the
+  // largest read on this page and nobody scrolling the profile tab needs it.
+  const knowledgeFacts = currentTab === "knowledge" ? await loadKnowledge(view.repo.id, { limit: 200 }) : [];
+  const knowledgeSummary = currentTab === "knowledge" ? await summariseKnowledge(view.repo.id) : null;
 
   const githubRepoUrl = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
@@ -165,6 +178,17 @@ export default async function IntelligencePage({
   // Resolve every evidence id referenced by the briefing in one query.
   const bulletEvidence = await evidenceByIds(briefing.bullets.flatMap((b) => b.evidenceIds));
 
+  // Knowledge citations are resolved separately: the briefing cites a handful of
+  // evidence rows, the memory table can cite dozens, and one shared lookup keyed
+  // on a union would be larger than either needs.
+  const knowledgeEvidence =
+    currentTab === "knowledge"
+      ? await evidenceByIds(knowledgeFacts.flatMap((f) => f.evidenceIds))
+      : new Map<string, { label: string; url: string | null }>();
+
+  const knowledgeRepoBase = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const defaultRef = view.insight.defaultBranch ?? "HEAD";
+
   return (
     <div className="space-y-8">
       <div>
@@ -203,7 +227,7 @@ export default async function IntelligencePage({
         <Link
           href={`/dashboard/repos/${owner}/${repo}/intelligence`}
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
-            currentTab !== "onboarding"
+            currentTab === "profile"
               ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
               : "text-ink-400 hover:text-white"
           }`}
@@ -220,9 +244,41 @@ export default async function IntelligencePage({
         >
           {t("intelligence:tab_onboarding")}
         </Link>
+        <Link
+          href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=knowledge`}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            currentTab === "knowledge"
+              ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
+              : "text-ink-400 hover:text-white"
+          }`}
+        >
+          <IconBrain className="h-3 w-3" />
+          {t("intelligence:tab_knowledge")}
+          {knowledgeSummary && knowledgeSummary.total > 0 ? (
+            <span className="font-mono text-[10px] opacity-70">({knowledgeSummary.total})</span>
+          ) : null}
+        </Link>
       </div>
 
-      {currentTab === "onboarding" && onboardingGuide ? (
+      {currentTab === "knowledge" ? (
+        <div className="space-y-4">
+          {knowledgeSummary && knowledgeSummary.total > 0 ? (
+            <p className="text-[11px] leading-relaxed text-ink-400">
+              {tc("intelligence:knowledge_summary", knowledgeSummary.total, {
+                reinforced: knowledgeSummary.reinforced,
+                retired: knowledgeSummary.retired,
+              })}
+            </p>
+          ) : null}
+          <KnowledgePanel
+            owner={owner}
+            repo={repo}
+            facts={knowledgeFacts}
+            evidenceLabels={knowledgeEvidence}
+            repoUrlForPath={(path) => `${knowledgeRepoBase}/blob/${defaultRef}/${path}`}
+          />
+        </div>
+      ) : currentTab === "onboarding" && onboardingGuide ? (
         <div className="space-y-8">
           {/* Possible unfinished work (aa.md §17) */}
           <WorkSignalList owner={owner} repo={repo} signals={workSignals} />

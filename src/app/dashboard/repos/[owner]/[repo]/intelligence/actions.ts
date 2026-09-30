@@ -7,6 +7,8 @@ import { askQuestion } from "@/lib/intelligence/answer";
 import { authorizedRepo, evidenceByIds } from "@/lib/queries/intelligence";
 import { confirmWorkSignalAsContext } from "@/lib/intelligence/work-detection";
 import { intelligenceAccess, UPGRADE_HREF } from "@/lib/intelligence/access";
+import { recordDecision, forgetDecision } from "@/lib/intelligence/knowledge";
+import { prisma } from "@/lib/db";
 import { FEATURE_KEYS } from "@/lib/billing/types";
 
 /**
@@ -132,4 +134,95 @@ export async function confirmWorkSignalAction(
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/repos/${owner}/${repo}/intelligence`);
   return { ok: true, data: { contextId: result.contextId } };
+}
+
+/**
+ * Record a decision in repository memory (skill.md §15).
+ *
+ * This is the one place Baton accepts prose it did not observe, which is why the
+ * write is explicit and marked `source = "recorded"`, so the automatic
+ * derivation can never overwrite it or retire it. Decisions are shared
+ * repository knowledge rather than private notes: anyone with access to this
+ * repository's intelligence can read or withdraw one, which is why the delete
+ * path is restricted to recorded claims and re-checks the same authorization.
+ */
+const decisionInput = z.object({
+  owner: z.string().min(1).max(100),
+  repo: z.string().min(1).max(100),
+  title: z.string().trim().min(4).max(160),
+  detail: z.string().trim().min(10).max(2_000),
+});
+
+export async function recordDecisionAction(
+  input: z.input<typeof decisionInput>,
+): Promise<IntelligenceActionResult<{ knowledgeId: string }>> {
+  const user = await requireActiveUser();
+  const parsed = decisionInput.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "A decision needs a short title and at least a sentence explaining it.",
+    };
+  }
+  const { owner, repo, title, detail } = parsed.data;
+
+  const repoRow = await authorizedRepo(user, owner, repo);
+  if (!repoRow) return { ok: false, error: "Repository not found." };
+
+  if (!(await intelligenceAccess(user.id, FEATURE_KEYS.repoIntelligence)).allowed) {
+    return await denied(user.id, FEATURE_KEYS.repoIntelligence);
+  }
+
+  // A memory row hangs off the insight, so an un-indexed repository cannot
+  // accept a decision: there would be nothing to hang it from and nothing to
+  // reconcile it against.
+  const insight = await prisma.repositoryInsight.findUnique({
+    where: { repoId: repoRow.id },
+    select: { id: true },
+  });
+  if (!insight) {
+    return { ok: false, error: "This repository has not been indexed yet. Sync it first." };
+  }
+
+  const fact = await recordDecision({
+    userId: user.id,
+    repoId: repoRow.id,
+    insightId: insight.id,
+    title,
+    detail,
+  });
+
+  revalidatePath(`/dashboard/repos/${owner}/${repo}/intelligence`);
+  return { ok: true, data: { knowledgeId: fact.id } };
+}
+
+/** Remove a recorded decision. Derived knowledge is not deletable this way. */
+const forgetDecisionInput = z.object({
+  owner: z.string().min(1).max(100),
+  repo: z.string().min(1).max(100),
+  knowledgeId: z.string().min(1).max(64),
+});
+
+export async function forgetDecisionAction(
+  input: z.input<typeof forgetDecisionInput>,
+): Promise<IntelligenceActionResult<{ removed: true }>> {
+  const user = await requireActiveUser();
+  const parsed = forgetDecisionInput.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "That decision could not be removed." };
+  const { owner, repo, knowledgeId } = parsed.data;
+
+  const repoRow = await authorizedRepo(user, owner, repo);
+  if (!repoRow) return { ok: false, error: "Repository not found." };
+
+  if (!(await intelligenceAccess(user.id, FEATURE_KEYS.repoIntelligence)).allowed) {
+    return await denied(user.id, FEATURE_KEYS.repoIntelligence);
+  }
+
+  const removed = await forgetDecision(user.id, repoRow.id, knowledgeId);
+  if (!removed) {
+    return { ok: false, error: "Only decisions recorded by a person can be removed." };
+  }
+
+  revalidatePath(`/dashboard/repos/${owner}/${repo}/intelligence`);
+  return { ok: true, data: { removed: true } };
 }

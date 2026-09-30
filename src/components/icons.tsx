@@ -525,3 +525,16 @@ export function IconBookmark(props: P) {
     </svg>
   );
 }
+
+// Used by repository memory. Deliberately distinct from IconLayers (which reads
+// as "stack"): this one has a circuit in it, so a memory panel is visually
+// distinct from the architecture map it sits beside.
+export function IconBrain(props: P) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 5a3 3 0 0 0-3 3v1a3 3 0 0 0-1 5.8V16a3 3 0 0 0 4 2.8" />
+      <path d="M12 5a3 3 0 0 1 3 3v1a3 3 0 0 1 1 5.8V16a3 3 0 0 1-4 2.8" />
+      <line x1="12" y1="5" x2="12" y2="21" />
+    </svg>
+  );
+}

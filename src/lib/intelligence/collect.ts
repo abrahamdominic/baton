@@ -8,6 +8,7 @@ import {
 } from "./profile";
 import { prisma } from "../db";
 import { getInstallationOctokit } from "../github/app";
+import { deriveKnowledge, syncKnowledge } from "./knowledge";
 
 /**
  * Collection of repository intelligence.
@@ -817,7 +818,12 @@ export async function saveRepositoryIntelligence(
       });
 
   await prisma.repoEvidence.deleteMany({ where: { insightId: insight.id } });
+  let insertedEvidence: { id: string; kind: string }[] = [];
   if (collected.evidence.length > 0) {
+    // `createMany` cannot return rows, and knowledge memory has to cite the
+    // *specific* evidence rows that support each claim rather than the whole
+    // table. The ids are therefore read back, scoped to this insight and ordered
+    // by rank so citation order is deterministic.
     await prisma.repoEvidence.createMany({
       data: collected.evidence.map((e) => ({
         insightId: insight.id,
@@ -831,6 +837,57 @@ export async function saveRepositoryIntelligence(
         rank: e.rank ?? 100,
       })),
     });
+    insertedEvidence = await prisma.repoEvidence.findMany({
+      where: { insightId: insight.id },
+      select: { id: true, kind: true },
+      orderBy: { rank: "asc" },
+    });
+  }
+
+  // Knowledge memory is refreshed from the same evidence, in the same run, so it
+  // can never describe a repository that the snapshot beside it does not
+  // describe. It is deliberately outside the critical path of this function's
+  // return value: a knowledge sync failure must not fail a collection, because
+  // the facts are already safely stored and the next sweep will retry.
+  if (collected.structure.profile) {
+    try {
+      const evidenceByKind = new Map<string, string[]>();
+      for (const row of insertedEvidence) {
+        const list = evidenceByKind.get(row.kind) ?? [];
+        list.push(row.id);
+        evidenceByKind.set(row.kind, list);
+      }
+
+      const [recent, totalRecent] = await Promise.all([
+        prisma.pullRequest.findMany({
+          where: { repoId: repoRowId, githubState: "CLOSED", updatedAt: { gte: new Date(Date.now() - 90 * 86_400_000) } },
+          select: { state: true },
+          take: 200,
+        }),
+        prisma.pullRequest.count({
+          where: { repoId: repoRowId, updatedAt: { gte: new Date(Date.now() - 90 * 86_400_000) } },
+        }),
+      ]);
+      const ciFailureCount = recent.filter((p) => p.state === "ci_failing").length;
+
+      const entries = deriveKnowledge({
+        profile: collected.structure.profile,
+        evidenceByKind,
+        codeowners: collected.structure.codeowners,
+        defaultBranch: collected.defaultBranch,
+        hasReadme: collected.hasReadme,
+        hasCiWorkflows: collected.hasCiWorkflows,
+        lastReleaseTag: collected.lastReleaseTag,
+        lastReleaseAt: collected.lastReleaseAt,
+        mergedLast30Days: collected.mergedLast30Days,
+        openPullRequests: collected.openPullRequests,
+        ciFailureCount,
+        ciFailureRate: totalRecent > 0 ? ciFailureCount / totalRecent : null,
+      });
+      await syncKnowledge(insight.id, repoRowId, revision, entries);
+    } catch (e) {
+      logger.warn("repo-knowledge-sync-failed", { repoRowId, error: String(e) });
+    }
   }
 
   logger.info("repo-intel-saved", {
