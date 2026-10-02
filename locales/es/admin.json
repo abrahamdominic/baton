@@ -332,5 +332,9 @@
   "plan_saved": "Configuración del plan guardada correctamente.",
   "plan_save_changes": "Guardar cambios",
   "plan_create": "Crear plan",
-  "loading_view": "Cargando vista administrativa"
+  "loading_view": "Cargando vista administrativa",
+  "health_lease_title": "Los trabajos están perdiendo su ejecutor a mitad de ejecución",
+  "health_lease_body_one": "{{count}} trabajo tiene una reserva expirada, lo que significa que el proceso que lo ejecutaba fue terminado antes de terminar.",
+  "health_lease_body_other": "{{count}} trabajos tienen reservas expiradas, lo que significa que los procesos que los ejecutaban fueron terminados antes de terminar.",
+  "health_lease_hint": "Estos trabajos se vuelven a encolar automáticamente, por lo que la cola sigue pareciendo saludable. Expiraciones repetidas significan que el ejecutor está siendo terminado: revisa el límite de duración de la función y el pool de conexiones. Un trabajo en ejecución renueva su reserva cada 60 s, así que una expiración aquí es una terminación forzada y no un trabajo lento."
 }

@@ -8,11 +8,26 @@ import {
   markSubscriptionPaymentFailed,
 } from "./subscriptions";
 import { isValidTransactionHash, verifyUsdcTransaction } from "./usdc";
+import { hasSubscriptionEventForPayment } from "./events";
 import { usdcSettings } from "@/lib/config";
 import { paymentFromRow, type Row } from "./records";
 import { BillingInputError, BackendNotConfiguredError } from "./errors";
 import { recordSystemEvent } from "./system-events";
-import type { Cents, PaymentProvider, PaymentRecord, PaymentStatus, PaymentType } from "./types";
+import {
+  ONCHAIN_UNITS_PER_CENT,
+  USDC_NONCE_MAX,
+  formatUsdcOnchain,
+  minorToUsdcOnchain,
+} from "./amounts";
+import { randomInt } from "node:crypto";
+import { isUniqueViolation } from "@/lib/db/unique-violation";
+import type {
+  Cents,
+  PaymentProvider,
+  PaymentRecord,
+  PaymentStatus,
+  PaymentType,
+} from "./types";
 
 /**
  * Payment service: records payment attempts. Payments are separate from
@@ -36,9 +51,19 @@ export interface CreatePaymentInput {
   cryptoNetwork?: string | null;
   cryptoToken?: string | null;
   cryptoWalletAddress?: string | null;
+  /**
+   * Exact on-chain USDC amount (6 decimals, integer base units) this order must
+   * be paid with. Includes the per-order sub-cent nonce that makes the transfer
+   * attributable to this order and no other.
+   */
+  cryptoExpectedAmountOnchain?: string | null;
 }
 
-export async function createPayment(input: CreatePaymentInput): Promise<PaymentRecord> {
+type InsertResult =
+  | { ok: true; payment: PaymentRecord }
+  | { ok: false; pgCode: string; message: string };
+
+async function insertPayment(input: CreatePaymentInput): Promise<InsertResult> {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
@@ -58,11 +83,69 @@ export async function createPayment(input: CreatePaymentInput): Promise<PaymentR
       crypto_network: input.cryptoNetwork ?? null,
       crypto_token: input.cryptoToken ?? null,
       crypto_wallet_address: input.cryptoWalletAddress ?? null,
+      crypto_expected_amount_onchain: input.cryptoExpectedAmountOnchain ?? null,
     })
     .select("*")
     .single();
-  if (error) throw new Error(`payments.create failed: ${error.message}`);
-  return paymentFromRow(data as Row);
+  if (error) {
+    return {
+      ok: false,
+      pgCode: String((error as { code?: string }).code ?? ""),
+      message: error.message,
+    };
+  }
+  return { ok: true, payment: paymentFromRow(data as Row) };
+}
+
+export async function createPayment(
+  input: CreatePaymentInput,
+): Promise<PaymentRecord> {
+  const result = await insertPayment(input);
+  if (!result.ok) throw new Error(`payments.create failed: ${result.message}`);
+  return result.payment;
+}
+
+/**
+ * How many nonces to try before giving up. With 10^4 values per price and a
+ * single open order per subscription, eight attempts means giving up only on a
+ * pathological distribution rather than on an unlucky draw.
+ */
+const USDC_UNIQUE_ATTEMPTS = 8;
+
+/**
+ * A fresh sub-cent nonce for a USDC order, in `1..USDC_NONCE_MAX` base units
+ * (at most 0.009999 USDC of dust that is never billed).
+ *
+ * Drawn per attempt rather than derived from the order id, because a reuse
+ * update that collides has to move to a *different* figure; re-deriving would
+ * produce the same collision forever. The figure that ends up stored is the one
+ * verification matches against.
+ */
+function newUsdcOrderNonce(): bigint {
+  return 1n + BigInt(randomInt(0, Number(USDC_NONCE_MAX)));
+}
+
+/**
+ * The exact on-chain amount this order must be paid with.
+ *
+ * Falls back to the plain cent amount for rows created before per-order
+ * amounts existed; those still verify, but only against a cent-exact transfer.
+ */
+export function expectedUsdcOnchainAmount(
+  payment: Pick<PaymentRecord, "amount" | "crypto_expected_amount_onchain">,
+): bigint {
+  const stored = payment.crypto_expected_amount_onchain;
+  if (stored !== null && stored !== undefined && /^\d+$/.test(String(stored))) {
+    return BigInt(stored);
+  }
+  return BigInt(minorToUsdcOnchain(payment.amount));
+}
+
+/** Human-facing exact deposit figure, e.g. `15.0037`. */
+export function usdcDepositAmount(
+  payment: Pick<PaymentRecord, "amount" | "crypto_expected_amount_onchain">,
+): string {
+  return formatUsdcOnchain(expectedUsdcOnchainAmount(payment));
 }
 
 /** Start a USDC order: exact amount from the plan, wallet from server env. */
@@ -154,38 +237,85 @@ async function createOrReuseOpenPayment(
   const existing = await findOpenPaymentForSubscription(input.subscriptionId);
   if (existing) {
     const sb = getAdminClient();
-    const { data, error } = await sb
-      .from("payments")
-      .update({
-        plan_id: input.planId,
-        payment_provider: input.provider,
-        payment_type: input.paymentType,
-        amount: input.amount,
-        currency: input.currency,
-        metadata: input.metadata ?? existing.metadata,
-        crypto_network: input.cryptoNetwork ?? null,
-        crypto_token: input.cryptoToken ?? null,
-        crypto_wallet_address: input.cryptoWalletAddress ?? null,
-        crypto_transaction_hash: null,
-        stripe_checkout_session_id: input.stripeCheckoutSessionId ?? null,
-        stripe_payment_intent_id: input.stripePaymentIntentId ?? null,
-        stripe_invoice_id: input.stripeInvoiceId ?? null,
-        failure_reason: null,
-        paid_at: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", existing.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(`payments.reuse-failed: ${error.message}`);
-    return paymentFromRow(data as Row);
+    // Reassigning the figure can land on a nonce another open order already
+    // claims, and the partial unique index rejects that. Treat it the same way as
+    // the insert path: draw another nonce rather than handing the customer an
+    // unhandled database error for a retryable collision.
+    for (let attempt = 0; attempt < USDC_UNIQUE_ATTEMPTS; attempt++) {
+      const { data, error } = await sb
+        .from("payments")
+        .update({
+          plan_id: input.planId,
+          payment_provider: input.provider,
+          payment_type: input.paymentType,
+          amount: input.amount,
+          currency: input.currency,
+          metadata: input.metadata ?? existing.metadata,
+          crypto_network: input.cryptoNetwork ?? null,
+          crypto_token: input.cryptoToken ?? null,
+          crypto_wallet_address: input.cryptoWalletAddress ?? null,
+          crypto_expected_amount_onchain: expectedUsdcOrderAmount(input),
+          crypto_transaction_hash: null,
+          stripe_checkout_session_id: input.stripeCheckoutSessionId ?? null,
+          stripe_payment_intent_id: input.stripePaymentIntentId ?? null,
+          stripe_invoice_id: input.stripeInvoiceId ?? null,
+          failure_reason: null,
+          paid_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .select("*")
+        .single();
+      if (!error) return paymentFromRow(data as Row);
+      if (isUniqueViolation(error)) continue;
+      throw new Error(`payments.reuse-failed: ${error.message}`);
+    }
+    throw new BillingInputError(
+      "Could not reserve a unique USDC deposit amount. Please try checkout again.",
+    );
   }
-  return createPayment(input);
+
+  if (input.provider !== "usdc") return createPayment(input);
+
+  // Each open USDC order gets its own on-chain amount, so "this transfer paid
+  // this order's exact figure" is a check nobody else can satisfy. The 10^4
+  // sub-cent space collides occasionally, so retry on a unique-index conflict
+  // rather than reusing a figure an existing order already claims.
+  for (let attempt = 0; attempt < USDC_UNIQUE_ATTEMPTS; attempt++) {
+    const nonce = newUsdcOrderNonce();
+    const onchain = BigInt(input.amount) * ONCHAIN_UNITS_PER_CENT + nonce;
+    const result = await insertPayment({
+      ...input,
+      cryptoExpectedAmountOnchain: onchain.toString(),
+    });
+    if (result.ok) return result.payment;
+    if (result.pgCode !== "23505") {
+      throw new Error(`payments.create failed: ${result.message}`);
+    }
+  }
+  throw new BillingInputError(
+    "Could not reserve a unique USDC deposit amount. Please try checkout again.",
+  );
 }
 
-export async function getPaymentById(id: string): Promise<PaymentRecord | null> {
+/** Sub-cent nonce on top of the plan price, or null for non-USDC orders. */
+function expectedUsdcOrderAmount(input: CreatePaymentInput): string | null {
+  if (input.provider !== "usdc") return null;
+  return (
+    BigInt(input.amount) * ONCHAIN_UNITS_PER_CENT +
+    newUsdcOrderNonce()
+  ).toString();
+}
+
+export async function getPaymentById(
+  id: string,
+): Promise<PaymentRecord | null> {
   const sb = getAdminClient();
-  const { data, error } = await sb.from("payments").select("*").eq("id", id).maybeSingle();
+  const { data, error } = await sb
+    .from("payments")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
   if (error) throw new Error(`payments.get failed: ${error.message}`);
   if (!data) return null;
   const payment = paymentFromRow(data as Row);
@@ -193,21 +323,60 @@ export async function getPaymentById(id: string): Promise<PaymentRecord | null> 
   return payment;
 }
 
-export async function getPaymentByCheckoutSessionId(sessionId: string): Promise<PaymentRecord | null> {
+export async function getPaymentByCheckoutSessionId(
+  sessionId: string,
+): Promise<PaymentRecord | null> {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
     .select("*")
     .eq("stripe_checkout_session_id", sessionId)
     .maybeSingle();
-  if (error) throw new Error(`payments.get-by-session failed: ${error.message}`);
+  if (error)
+    throw new Error(`payments.get-by-session failed: ${error.message}`);
   if (!data) return null;
   const payment = paymentFromRow(data as Row);
   payment.plan = await getPlanById(payment.plan_id);
   return payment;
 }
 
-export async function getPaymentByTxHash(txHash: string): Promise<PaymentRecord | null> {
+/**
+ * Find the payment a Stripe charge belongs to.
+ *
+ * Refunds arrive against a Charge, not a PaymentIntent or an Invoice, so this is
+ * the only way back to our own ledger from a `charge.refunded` event. The payment
+ * intent is authoritative; the invoice is the fallback for charges Stripe
+ * settled directly against an invoice.
+ */
+export async function getPaymentByStripeCharge(
+  paymentIntentId: string | null,
+  invoiceId: string | null,
+): Promise<PaymentRecord | null> {
+  const sb = getAdminClient();
+  for (const [column, value] of [
+    ["stripe_payment_intent_id", paymentIntentId],
+    ["stripe_invoice_id", invoiceId],
+  ] as const) {
+    if (!value) continue;
+    const { data, error } = await sb
+      .from("payments")
+      .select("*")
+      .eq(column, value)
+      .maybeSingle();
+    if (error)
+      throw new Error(`payments.get-by-${column} failed: ${error.message}`);
+    if (data) {
+      const payment = paymentFromRow(data as Row);
+      payment.plan = await getPlanById(payment.plan_id);
+      return payment;
+    }
+  }
+  return null;
+}
+
+export async function getPaymentByTxHash(
+  txHash: string,
+): Promise<PaymentRecord | null> {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
@@ -242,7 +411,10 @@ export async function listPaymentsForUser(userId: string, limit = 50) {
 /** Recent payments for one subscription. Admin views use this rather than all
  * of a customer's payments, so each lifecycle record reports only its own
  * amount, provider, and billing interval. */
-export async function listPaymentsForSubscription(subscriptionId: string, limit = 50) {
+export async function listPaymentsForSubscription(
+  subscriptionId: string,
+  limit = 50,
+) {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
@@ -250,7 +422,8 @@ export async function listPaymentsForSubscription(subscriptionId: string, limit 
     .eq("subscription_id", subscriptionId)
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(`payments.list-by-subscription failed: ${error.message}`);
+  if (error)
+    throw new Error(`payments.list-by-subscription failed: ${error.message}`);
   return Promise.all(
     (data ?? []).map(async (r) => {
       const payment = paymentFromRow(r as Row);
@@ -264,7 +437,10 @@ export async function listPaymentsForSubscription(subscriptionId: string, limit 
 // Status mutations (server-only, never exposed to the client)
 // ---------------------------------------------------------------------------
 
-export async function patchPayment(paymentId: string, patch: Row = {}): Promise<PaymentRecord> {
+export async function patchPayment(
+  paymentId: string,
+  patch: Row = {},
+): Promise<PaymentRecord> {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
@@ -297,28 +473,38 @@ async function setPaymentStatus(
  * `pending` / `pending_verification`, so a concurrent cancellation can never
  * double-confirm and a double-delivered webhook can never double-confirm.
  *
+ * `claimed` is true only for the caller whose update actually moved the row out
+ * of the open states. Callers MUST gate subscription side effects on it —
+ * otherwise two concurrent verifications both apply the same renewal.
+ *
  * When zero rows match, the payment was already moved out of the open states
  * by somebody else (e.g. the user cancelled the checkout while the webhook was
  * in flight). We re-read and return the CURRENT row: callers MUST only act on
  * the payment when `status === "confirmed"`.
  */
-export async function confirmPayment(paymentId: string): Promise<PaymentRecord> {
+export async function confirmPayment(
+  paymentId: string,
+): Promise<{ payment: PaymentRecord; claimed: boolean }> {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
-    .update({ status: "confirmed", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      status: "confirmed",
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", paymentId)
     .in("status", ["pending", "pending_verification"])
     .select("*")
     .maybeSingle();
   if (error) throw new Error(`payments.confirm failed: ${error.message}`);
-  if (data) return paymentFromRow(data as Row);
+  if (data) return { payment: paymentFromRow(data as Row), claimed: true };
   // Someone moved the payment first. Return its current state so callers can
   // decide (idempotent re-delivery → re-read confirmed; user cancellation →
   // re-read cancelled; a failed/rejected attempt never confirms).
   const current = await getPaymentById(paymentId);
   if (!current) throw new Error("payments.confirm missing row");
-  return current;
+  return { payment: current, claimed: false };
 }
 
 /**
@@ -328,7 +514,9 @@ export async function confirmPayment(paymentId: string): Promise<PaymentRecord> 
  *  - already cancelled → no-op (returns the cancelled row after no matching).
  *  - failed/rejected/refunded → already closed, cancel is a no-op (returns row).
  */
-export async function cancelCheckoutPayment(paymentId: string): Promise<PaymentRecord | null> {
+export async function cancelCheckoutPayment(
+  paymentId: string,
+): Promise<PaymentRecord | null> {
   const sb = getAdminClient();
   const { data, error } = await sb
     .from("payments")
@@ -347,8 +535,13 @@ export async function cancelCheckoutPayment(paymentId: string): Promise<PaymentR
   return current;
 }
 
-export async function rejectPayment(paymentId: string, reason: string): Promise<PaymentRecord> {
-  return setPaymentStatus(paymentId, "rejected", { failure_reason: reason.slice(0, 300) });
+export async function rejectPayment(
+  paymentId: string,
+  reason: string,
+): Promise<PaymentRecord> {
+  return setPaymentStatus(paymentId, "rejected", {
+    failure_reason: reason.slice(0, 300),
+  });
 }
 
 /** Insert a payment verification record (admin manual verification history). */
@@ -400,8 +593,10 @@ export async function submitUsdcTransactionHash(opts: {
 
   const payment = await getPaymentById(opts.paymentId);
   if (!payment) throw new BillingInputError("Payment not found.");
-  if (payment.user_id !== opts.userId) throw new BillingInputError("Payment not found.");
-  if (payment.payment_provider !== "usdc") throw new BillingInputError("This payment is not a USDC payment.");
+  if (payment.user_id !== opts.userId)
+    throw new BillingInputError("Payment not found.");
+  if (payment.payment_provider !== "usdc")
+    throw new BillingInputError("This payment is not a USDC payment.");
   if (payment.status === "confirmed") {
     return { payment, verified: true, code: null };
   }
@@ -441,7 +636,9 @@ export async function applyUsdcPaymentToSubscription(payment: {
   if (!payment.subscription_id) return;
   const sub = await getSubscriptionById(payment.subscription_id);
   const { start, end } = periodForInterval(intervalOf(payment));
-  const isRenewal = sub !== null && ["active", "active_until_period_end", "past_due"].includes(sub.status);
+  const isRenewal =
+    sub !== null &&
+    ["active", "active_until_period_end", "past_due"].includes(sub.status);
   if (isRenewal) {
     await renewSubscription(payment.subscription_id, {
       source: "usdc",
@@ -466,15 +663,44 @@ export async function applyUsdcPaymentToSubscription(payment: {
  * a first purchase or plan change). Rejecting a manual renewal payment must not
  * yank access from a live subscription: the user keeps access until period end.
  */
-async function failSubscriptionOnRejectedPayment(payment: { subscription_id: string | null; id: string }, reason: string) {
+async function failSubscriptionOnRejectedPayment(
+  payment: { subscription_id: string | null; id: string },
+  reason: string,
+) {
   if (!payment.subscription_id) return;
   const sub = await getSubscriptionById(payment.subscription_id);
-  if (!sub || (sub.status !== "pending" && sub.status !== "payment_failed")) return;
+  if (!sub || (sub.status !== "pending" && sub.status !== "payment_failed"))
+    return;
   await markSubscriptionPaymentFailed(payment.subscription_id, {
     source: "usdc",
     reason,
     paymentId: payment.id,
   });
+}
+
+/**
+ * Apply a confirmed USDC payment's subscription side effect exactly once.
+ *
+ * Two independent guards, because the two failure modes are different:
+ *  - `claimed`: the winner of the confirm race applies the effect; the loser
+ *    does not, so two concurrent verifications cannot double-extend a
+ *    subscription.
+ *  - the event ledger: if the confirm committed but the process died before the
+ *    effect landed, a later run repairs it; if the effect already landed, the
+ *    run is a no-op. This is the self-heal path for a confirmed payment that
+ *    never reached the subscription.
+ */
+async function applyUsdcOnce(
+  payment: PaymentRecord,
+  claimed: boolean,
+): Promise<boolean> {
+  if (claimed) {
+    await applyUsdcPaymentToSubscription(payment);
+    return true;
+  }
+  if (await hasSubscriptionEventForPayment(payment.id)) return false;
+  await applyUsdcPaymentToSubscription(payment);
+  return true;
 }
 
 export type UsdcVerifyOutcome =
@@ -489,31 +715,57 @@ export type UsdcVerifyOutcome =
  *   pending_verification for an administrator to review manually.
  * Returns a code the UI/admin can present safely.
  */
-export async function verifyUsdcPaymentNow(paymentId: string): Promise<UsdcVerifyOutcome> {
+export async function verifyUsdcPaymentNow(
+  paymentId: string,
+): Promise<UsdcVerifyOutcome> {
   const payment = await getPaymentById(paymentId);
   if (!payment) throw new BillingInputError("Payment not found.");
   if (payment.payment_provider !== "usdc") {
     throw new BillingInputError("This payment is not a USDC payment.");
   }
   if (payment.status === "confirmed") {
+    // Re-verifying a confirmed payment is a repair pass, not a no-op: the
+    // confirm can commit while the process dies before the subscription is
+    // touched, which would strand a paid user on the free plan. The ledger
+    // check keeps the repair from extending the subscription a second time.
+    const repaired = await applyUsdcOnce(payment, false);
+    if (repaired) {
+      await recordSystemEvent({
+        eventType: "usdc_effects_repaired",
+        severity: "warn",
+        status: "ok",
+        message: `USDC payment ${payment.id} was confirmed without its subscription effect; repaired on re-verification.`,
+        userId: payment.user_id,
+        metadata: { paymentId: payment.id },
+      });
+    }
     return { ok: true, payment, code: "already_confirmed" };
   }
-  if (payment.status !== "pending_verification" || !payment.crypto_transaction_hash) {
+  if (
+    payment.status !== "pending_verification" ||
+    !payment.crypto_transaction_hash
+  ) {
     throw new BillingInputError("Payment is not awaiting verification.");
   }
 
   const settings = usdcSettings();
   if (!settings.walletAddress) {
-    throw new BackendNotConfiguredError("USDC receiving wallet is not configured.");
+    throw new BackendNotConfiguredError(
+      "USDC receiving wallet is not configured.",
+    );
   }
 
-  const result = await verifyUsdcTransaction(settings, payment.crypto_transaction_hash, payment.amount);
+  const result = await verifyUsdcTransaction(
+    settings,
+    payment.crypto_transaction_hash,
+    expectedUsdcOnchainAmount(payment),
+  );
 
   if (result.ok) {
     // Atomic claim: confirmPayment only matches pending/pending_verification,
     // so a concurrent verification can never double-confirm (and therefore
     // never double-extend) a subscription.
-    const confirmed = await confirmPayment(payment.id);
+    const { payment: confirmed, claimed } = await confirmPayment(payment.id);
     if (confirmed.status !== "confirmed") {
       // The user cancelled the checkout while verification was in flight. The
       // funds may exist on-chain, but access is never granted from a cancelled
@@ -533,19 +785,27 @@ export async function verifyUsdcPaymentNow(paymentId: string): Promise<UsdcVerif
         payment: confirmed,
       };
     }
-    await applyUsdcPaymentToSubscription(payment);
+    await applyUsdcOnce(confirmed, claimed);
     await recordSystemEvent({
       eventType: "usdc_payment_verified",
       severity: "info",
       status: "ok",
       message: `USDC payment ${payment.id} verified on-chain`,
       userId: payment.user_id,
-      metadata: { paymentId: payment.id, confirmations: result.confirmations },
+      metadata: {
+        paymentId: payment.id,
+        confirmations: result.confirmations,
+        sender: result.from,
+        onchainAmount: result.valueOnchain,
+      },
     });
     return { ok: true, payment: confirmed, code: "verified" };
   }
 
-  const soft = result.code === "rpc_unavailable" || result.code === "not_mined" || result.code === "insufficient_finality";
+  const soft =
+    result.code === "rpc_unavailable" ||
+    result.code === "not_mined" ||
+    result.code === "insufficient_finality";
   if (soft) {
     await recordSystemEvent({
       eventType: "usdc_verification_pending",
@@ -569,7 +829,12 @@ export async function verifyUsdcPaymentNow(paymentId: string): Promise<UsdcVerif
     userId: payment.user_id,
     metadata: { paymentId: payment.id, code: result.code },
   });
-  return { ok: false, code: result.code, detail: result.detail, payment: rejected };
+  return {
+    ok: false,
+    code: result.code,
+    detail: result.detail,
+    payment: rejected,
+  };
 }
 
 /** Manual admin verification (confirmed/rejected) with audit trail. */
@@ -582,9 +847,14 @@ export async function adminVerifyPayment(opts: {
   const payment = await getPaymentById(opts.paymentId);
   if (!payment) throw new BillingInputError("Payment not found.");
   if (payment.payment_provider !== "usdc") {
-    throw new BillingInputError("Only USDC payments support manual verification.");
+    throw new BillingInputError(
+      "Only USDC payments support manual verification.",
+    );
   }
-  if (payment.status !== "pending" && payment.status !== "pending_verification") {
+  if (
+    payment.status !== "pending" &&
+    payment.status !== "pending_verification"
+  ) {
     throw new BillingInputError(
       payment.status === "confirmed"
         ? "This payment is already confirmed."
@@ -602,12 +872,12 @@ export async function adminVerifyPayment(opts: {
   });
 
   if (opts.decision === "confirmed") {
-    const confirmed = await confirmPayment(payment.id);
+    const { payment: confirmed, claimed } = await confirmPayment(payment.id);
     if (confirmed.status !== "confirmed") {
       // A concurrent user cancellation (or terminal state) won the race.
       throw new BillingInputError("This payment can no longer be confirmed.");
     }
-    await applyUsdcPaymentToSubscription(payment);
+    await applyUsdcOnce(confirmed, claimed);
     return confirmed;
   }
 
@@ -616,12 +886,17 @@ export async function adminVerifyPayment(opts: {
   return rejected;
 }
 
-export function intervalOf(payment: Pick<PaymentRecord, "metadata">): "monthly" | "annual" {
+export function intervalOf(
+  payment: Pick<PaymentRecord, "metadata">,
+): "monthly" | "annual" {
   const meta = (payment.metadata ?? {}) as { interval?: string };
   return meta.interval === "annual" ? "annual" : "monthly";
 }
 
-export function periodForInterval(interval: "monthly" | "annual", now = new Date()) {
+export function periodForInterval(
+  interval: "monthly" | "annual",
+  now = new Date(),
+) {
   const start = now.toISOString();
   const end = new Date(now);
   if (interval === "annual") end.setUTCFullYear(end.getUTCFullYear() + 1);
@@ -683,4 +958,3 @@ export async function listPaymentsAdmin(query: AdminPaymentQuery = {}) {
     }),
   );
 }
-

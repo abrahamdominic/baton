@@ -3,15 +3,20 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { rateLimiter } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/net";
 import { currentUser } from "@/lib/auth/session";
 import { config } from "@/lib/env-boot";
 import { isStripeConfigured, isUsdcConfigured } from "@/lib/config";
-import { getPlanById } from "@/lib/billing/plans";
+import { getPurchasablePlanById } from "@/lib/billing/plans";
 import { prepareSubscriptionForCheckout } from "@/lib/billing/subscriptions";
-import { createUsdcPayment, createStripePayment, patchPayment } from "@/lib/billing/payments";
+import { createUsdcPayment, createStripePayment, patchPayment, usdcDepositAmount } from "@/lib/billing/payments";
 import { createStripeCheckoutSession } from "@/lib/billing/stripe";
 import { planPriceCents } from "@/lib/billing/pricing";
-import { BillingInputError, BackendNotConfiguredError } from "@/lib/billing/errors";
+import {
+  BillingInputError,
+  BackendNotConfiguredError,
+  PlanChangeRequiresPortalError,
+} from "@/lib/billing/errors";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -28,12 +33,7 @@ const bodySchema = z.object({
  * client must pay (wallet address + exact amount shown on the checkout page).
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
-
-  if (!(await rateLimiter.check(`billing-checkout:${ip}`, 10, 60_000))) {
+  if (!(await rateLimiter.check(`billing-checkout:${await getClientIp(req)}`, 10, 60_000))) {
     return NextResponse.json({ error: "Too many checkout attempts. Try again shortly." }, { status: 429 });
   }
 
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const plan = await getPlanById(parsed.planId).catch(() => null);
+  const plan = await getPurchasablePlanById(parsed.planId).catch(() => null);
   if (!plan || !plan.is_active) {
     return NextResponse.json({ error: "That plan does not exist or is no longer available." }, { status: 404 });
   }
@@ -119,6 +119,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       provider: "usdc",
       paymentId: payment.id,
       amountMinor: payment.amount,
+      // The customer must send this exact figure, sub-cent nonce included: it
+      // is what makes the transfer attributable to this order. `amountMinor`
+      // stays the credited plan price.
+      amountOnchain: usdcDepositAmount(payment),
       walletAddress: payment.crypto_wallet_address,
       network: payment.crypto_network,
       token: payment.crypto_token,
@@ -126,6 +130,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       renewal: prepared.renewal,
     });
   } catch (err) {
+    if (err instanceof PlanChangeRequiresPortalError) {
+      // 409 with a machine code: the client turns this into a "manage billing"
+      // action instead of an error the user cannot act on.
+      return NextResponse.json(
+        { error: err.message, code: err.code },
+        { status: 409 },
+      );
+    }
     if (err instanceof BillingInputError) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }

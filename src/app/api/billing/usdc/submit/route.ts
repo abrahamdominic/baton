@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getClientIp } from "@/lib/net";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
@@ -21,10 +22,7 @@ const bodySchema = z.object({
  * payment to pending_verification for on-chain verification.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = await getClientIp(req);
 
   if (!(await rateLimiter.check(`billing-usdc-submit:${ip}`, 10, 60_000))) {
     return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 });

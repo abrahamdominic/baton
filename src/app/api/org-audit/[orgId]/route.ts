@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth/session";
 import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlement";
 import { organizationAuditLog, requireOrganizationMember } from "@/lib/workspaces";
 import { logger } from "@/lib/logger";
+import { contentDispositionFilename } from "@/lib/http-content-disposition";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,6 +27,12 @@ export async function GET(
   }
 
   const { orgId } = await params;
+  // The route parameter is interpolated into a `Content-Disposition` filename
+  // below, and that header is parsed by the browser, not by us. A value
+  // containing a quote, CR, or LF escapes the quoted-string and lets a caller
+  // inject their own header parameters (or a whole second header) into the
+  // response. Sanitize once, here, at the point of use.
+  const safeOrgId = contentDispositionFilename(orgId);
   const { role } = await requireOrganizationMember(orgId, user.id).catch(() => ({
     role: "" as string,
   }));
@@ -70,7 +77,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Content-Disposition": `attachment; filename="baton-org-${orgId}-audit.json"`,
+        "Content-Disposition": `attachment; filename="baton-org-${safeOrgId}-audit.json"`,
         ...noStoreHeaders,
       },
     });
@@ -120,7 +127,7 @@ export async function GET(
   const headers: Record<string, string> = {
     "Content-Type": "text/csv; charset=utf-8",
     "Content-Length": String(bytes),
-    "Content-Disposition": `attachment; filename="baton-org-${orgId}-audit.csv"`,
+    "Content-Disposition": `attachment; filename="baton-org-${safeOrgId}-audit.csv"`,
     ...noStoreHeaders,
   };
   return new NextResponse(body, { status: 200, headers });

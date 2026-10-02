@@ -52,11 +52,18 @@ coverage/
 # IDE / editor
 .vscode/
 .idea/
-*.swp
-*.swo
-*.swx
-*.orig
+# Editor droppings. These are the files that carry a full copy of whatever was
+# being edited, so anything that can hold a secret must never produce one next
+# to itself. See the warning at the top of .env.example.
+*.sw[a-p]
+*.un~
+.*.sw?
+.#*
+\#*\#
 *~
+*.bak
+*.orig
+*.rej
 # generated/local verification scripts
 /verify-*.mjs
 

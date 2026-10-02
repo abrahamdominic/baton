@@ -1,6 +1,6 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
-import { getPlanById } from "./plans";
+import { getPlanById, getPurchasablePlanById } from "./plans";
 import { giftFromRow, type Row } from "./records";
 import { BillingInputError } from "./errors";
 import { recordSubscriptionEvent } from "./events";
@@ -41,8 +41,8 @@ export interface GiftPlanResult {
 }
 
 export async function createGiftedAccess(input: GiftPlanInput): Promise<GiftPlanResult> {
-  const plan = await getPlanById(input.planId);
-  if (!plan || !plan.is_active) {
+  const plan = await getPurchasablePlanById(input.planId);
+  if (!plan) {
     throw new BillingInputError("That plan does not exist or is not available to gift.");
   }
   const months = Math.round(input.months);

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clientIpFromHeaders } from "@/lib/net";
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/auth/session";
 import {
@@ -30,7 +31,7 @@ async function requireAdmin() {
 
 async function auditIp(): Promise<string | null> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  return clientIpFromHeaders(h);
 }
 
 function requireConfirm(formData: FormData): string | null {

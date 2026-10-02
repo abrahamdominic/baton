@@ -124,16 +124,19 @@ export function ConfirmDialog({
   onClose,
   tone = "danger",
   labelledBy,
+  label,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   tone?: "brand" | "danger" | "warn";
   labelledBy?: string;
+  /** Accessible name when no `labelledBy` element id is available. */
+  label?: string;
   children: ReactNode;
 }) {
   return (
-    <Dialog open={open} onClose={onClose} tone={tone} labelledBy={labelledBy}>
+    <Dialog open={open} onClose={onClose} tone={tone} labelledBy={labelledBy} label={label}>
       {children}
     </Dialog>
   );

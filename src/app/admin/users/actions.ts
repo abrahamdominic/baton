@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clientIpFromHeaders } from "@/lib/net";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/db";
 import { currentUser } from "@/lib/auth/session";
@@ -23,7 +24,7 @@ async function requireAdmin() {
 async function requestMeta() {
   const h = await headers();
   return {
-    ip: h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+    ip: clientIpFromHeaders(h),
     userAgent: h.get("user-agent") ?? null,
   };
 }

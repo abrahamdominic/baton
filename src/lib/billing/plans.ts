@@ -95,6 +95,31 @@ export async function getPlanById(id: string): Promise<PlanRecord | null> {
   return planFromRow(data as Row);
 }
 
+/**
+ * A plan a customer is allowed to buy.
+ *
+ * `is_public`/`is_active` are the storefront switch. `getPlanById` answers
+ * "does this plan row exist", which is what admin screens and entitlement
+ * lookups want; it is NOT an authorization check for checkout, because a
+ * hidden or retired plan that a client names by id would otherwise be
+ * purchasable. Every purchase path must go through here.
+ */
+export async function getPurchasablePlanById(id: string): Promise<PlanRecord | null> {
+  const { data, error } = await selectPlanRow(sb =>
+    sb.from("plans").select("*").eq("id", id).eq("is_active", true).eq("is_public", true).maybeSingle(),
+  );
+  if (error) return null;
+  if (!data) {
+    const seed = DEFAULT_PLANS.find((p) => p.id === id || p.slug === id);
+    return seed && seed.is_active && seed.is_public ? seed : null;
+  }
+  const plan = planFromRow(data as Row);
+  // Re-check the returned row rather than trusting the filter alone: this is the
+  // check that decides whether money may be taken, and it has to hold even if
+  // the query is ever refactored to a wider select or an OR filter.
+  return plan.is_active && plan.is_public ? plan : null;
+}
+
 export interface PlanInput {
   slug: string;
   name: string;

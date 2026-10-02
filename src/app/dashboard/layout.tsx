@@ -1,3 +1,4 @@
+import { SignOutLink } from "@/components/sign-out-link";
 import { redirect } from "next/navigation";
 import { isConversationUnread } from "@/lib/messaging/unread";
 import type { Metadata } from "next";
@@ -42,9 +43,7 @@ export default async function DashboardLayout({
           </a>
           .
         </p>
-        <a href="/auth/logout" className="btn btn-ghost btn-sm">
-          {t("auth:sign_out_title")}
-        </a>
+        <SignOutLink className="btn btn-ghost btn-sm">{t("auth:sign_out_title")}</SignOutLink>
       </main>
     );
   }

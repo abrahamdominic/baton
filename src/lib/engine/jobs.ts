@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
 import { prisma } from "../db";
 
 export type JobPayload =
   | { kind: "pr_refresh"; installationId: number; owner: string; repo: string; number: number }
   | { kind: "install_register"; installationId: number }
   | { kind: "install_unregister"; installationId: number }
-  | { kind: "repo_intel"; installationId: number; owner: string; repo: string };
+  | { kind: "repo_intel"; installationId: number; owner: string; repo: string }
+  | { kind: "repo_automations"; installationId: number; owner: string; repo: string };
 
 /**
  * Kinds the runner knows how to execute. Enforced here so a payload with an
@@ -16,6 +18,7 @@ const KNOWN_KINDS = new Set<JobPayload["kind"]>([
   "install_register",
   "install_unregister",
   "repo_intel",
+  "repo_automations",
 ]);
 
 function isPositiveInt(v: unknown): v is number {
@@ -58,7 +61,7 @@ export function payloadOf(job: { payloadJson: string }): JobPayload {
   // Grouping them is deliberate: adding a new repository-addressing kind without
   // listing it here would let a payload with a blank owner reach the processor,
   // which then makes GitHub requests for a repository that does not exist.
-  if (kind === "pr_refresh" || kind === "repo_intel") {
+  if (kind === "pr_refresh" || kind === "repo_intel" || kind === "repo_automations") {
     if (!isNonEmptyString(p.owner) || !isNonEmptyString(p.repo)) {
       throw new Error(`malformed job payload: ${kind} requires owner and repo`);
     }
@@ -74,24 +77,60 @@ export function payloadOf(job: { payloadJson: string }): JobPayload {
 }
 
 /**
- * Enqueue a job. Idempotent-ish: a pending/processing job with the exact same
- * payload within the last 15 minutes is not duplicated. This absorbs webhook
- * duplicates and cron/sweep overlaps without loss.
+ * Stable occupancy key for a payload.
+ *
+ * Derived from the payload rather than from the row, so every producer that
+ * enqueues the same logical work computes the same key. The unique index on
+ * `(kind, dedupeKey)` then enforces "at most one in-flight job per payload"
+ * in the database, which is the only place that can actually arbitrate between
+ * concurrent writers.
+ */
+function dedupeKeyOf(payload: JobPayload): string {
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex").slice(0, 32);
+}
+
+/**
+ * Enqueue a job, collapsing duplicates onto one in-flight row.
+ *
+ * The invariant is "no two pending/processing rows carry the same payload", and
+ * it is enforced by the `Job_kind_dedupeKey_key` unique index rather than by a
+ * read-then-write check. A previous version counted overlapping rows and then
+ * inserted, with nothing between the two: two concurrent identical webhook
+ * deliveries could both observe zero overlaps and both insert, and the same PR
+ * was then classified twice, commenting twice on GitHub.
+ *
+ * `dedupeKey` is cleared by the runner on every terminal transition, so this
+ * only ever suppresses duplicates of work that is *already queued or running*.
+ * Once a job finishes, the same payload queues again normally.
  */
 export async function enqueueJob(payload: JobPayload): Promise<void> {
-  const overlaps = await prisma.job.count({
-    where: {
-      kind: payload.kind,
-      status: { in: ["pending", "processing"] },
-      payloadJson: JSON.stringify(payload),
-      createdAt: { gt: new Date(Date.now() - 15 * 60 * 1000) },
-    },
-  });
-  if (overlaps > 0) return;
+  const payloadJson = JSON.stringify(payload);
+  try {
+    await prisma.job.create({
+      data: {
+        kind: payload.kind,
+        payloadJson,
+        dedupeKey: dedupeKeyOf(payload),
+        maxAttempts: 6,
+      },
+    });
+  } catch (e) {
+    // P2002 is the unique index firing, i.e. exactly the duplicate we want to
+    // collapse. Anything else is a real failure and must not be swallowed.
+    if (isUniqueViolation(e)) return;
+    throw e;
+  }
+}
 
-  await prisma.job.create({
-    data: { kind: payload.kind, payloadJson: JSON.stringify(payload), maxAttempts: 6 },
-  });
+/** Prisma's unique-constraint violation, across client versions. */
+function isUniqueViolation(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const code = (e as { code?: unknown }).code;
+  if (code === "P2002") return true;
+  // The generated SQLite client has historically reported the constraint as a
+  // message rather than a code, so accept the shape too.
+  const message = (e as { message?: unknown }).message;
+  return typeof message === "string" && /unique constraint failed/i.test(message);
 }
 
 export async function enqueuePrRefresh(
@@ -124,4 +163,21 @@ export async function enqueueRepoIntel(
   repo: string,
 ): Promise<void> {
   await enqueueJob({ kind: "repo_intel", installationId, owner, repo });
+}
+
+/**
+ * Queue the automated-workflow suite for a repository (§8).
+ *
+ * Separate from `repo_intel` on purpose. Intelligence collection hits the
+ * GitHub API and is rate-limited; the workflow suite reads only persisted state,
+ * is cheap, and must not be blocked behind (or share a dedupe slot with) an
+ * expensive collection job. Sharing a kind would also make the admin latency
+ * report unable to distinguish a slow API sweep from a slow analysis.
+ */
+export async function enqueueRepoAutomations(
+  installationId: number,
+  owner: string,
+  repo: string,
+): Promise<void> {
+  await enqueueJob({ kind: "repo_automations", installationId, owner, repo });
 }

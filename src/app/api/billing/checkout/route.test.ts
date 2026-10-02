@@ -23,6 +23,9 @@ const state = vi.hoisted(() => ({
     crypto_wallet_address: "0xwallet",
     crypto_network: "base",
     crypto_token: "USDC",
+    // $15.00 plus the sub-cent nonce that makes this order's transfer
+    // attributable to this order alone.
+    crypto_expected_amount_onchain: "1500037",
   },
   /** Every amount the route asked the payment layer to charge. */
   charged: [] as number[],
@@ -55,6 +58,9 @@ vi.mock("@/lib/config", () => ({
 vi.mock("@/lib/billing/plans", () => ({
   // Mirrors the real resolver: an unknown id yields null, never a default plan.
   getPlanById: vi.fn(async (id: string) => (id === plan.id ? plan : null)),
+  // Checkout resolves through the purchasable variant, which is the one that
+  // refuses a plan the database reports as hidden or retired.
+  getPurchasablePlanById: vi.fn(async (id: string) => (id === plan.id ? plan : null)),
 }));
 vi.mock("@/lib/billing/subscriptions", () => ({
   prepareSubscriptionForCheckout: vi.fn(async () => state.prepared),
@@ -71,6 +77,7 @@ vi.mock("@/lib/billing/payments", () => ({
     return { ...state.usdcPayment, amount: input.amount };
   }),
   patchPayment: vi.fn(async () => {}),
+  usdcDepositAmount: vi.fn(() => "15.000037"),
 }));
 vi.mock("@/lib/billing/stripe", () => ({
   createStripeCheckoutSession: vi.fn(async (input: { plan: unknown; interval: string }) => {
@@ -180,8 +187,8 @@ describe("the charged amount is always server-derived", () => {
   });
 
   it("refuses a custom-priced plan over self-serve checkout", async () => {
-    const { getPlanById } = await import("@/lib/billing/plans");
-    (getPlanById as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+    const { getPurchasablePlanById } = await import("@/lib/billing/plans");
+    (getPurchasablePlanById as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ...plan,
       price_custom: true,
       monthly_price_cents: 0,
@@ -230,11 +237,35 @@ describe("no secret is echoed to the client", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(Object.keys(body).sort()).toEqual(
-      ["amountMinor", "crypto_transaction_hash", "network", "paymentId", "provider", "renewal", "token", "txSubmitted", "walletAddress"]
+      [
+        "amountMinor",
+        "amountOnchain",
+        "crypto_transaction_hash",
+        "network",
+        "paymentId",
+        "provider",
+        "renewal",
+        "token",
+        "txSubmitted",
+        "walletAddress",
+      ]
         .filter((k) => k in body)
         .sort(),
     );
     expect(JSON.stringify(body)).not.toMatch(/whsec|sk_live|sk_test|STRIPE_/);
+  });
+
+  /**
+   * The customer has to be told the exact figure: verification matches the
+   * order's unique on-chain amount, so a rounded "15.00 USDC" would be rejected.
+   * `amountMinor` stays the credited plan price.
+   */
+  it("the USDC order response carries the exact on-chain amount to send", async () => {
+    const res = await POST(request({ planId: "plan_team_default", billing: "monthly", provider: "usdc" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.amountOnchain).toBe("15.000037");
+    expect(body.amountMinor).toBe(1500);
   });
 
   it("the Stripe response contains only the checkout URL and ids", async () => {

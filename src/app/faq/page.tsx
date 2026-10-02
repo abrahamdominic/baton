@@ -1,3 +1,4 @@
+import { jsonLdScriptContent } from "@/lib/json-ld";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
@@ -60,7 +61,7 @@ export default async function FaqPage() {
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(faqJsonLd) }}
       />
       <MarketingHeader />
 

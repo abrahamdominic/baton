@@ -37,6 +37,26 @@ export async function recordSubscriptionEvent(input: SubscriptionEventInput): Pr
   });
 }
 
+/**
+ * Has a payment's subscription side effect already been applied?
+ *
+ * `subscription_events` is the durable ledger every activation/renewal writes,
+ * so it doubles as the idempotency key: a payment whose confirm committed but
+ * whose process died before the subscription was touched can be replayed, and
+ * one that was already applied is skipped instead of renewing twice.
+ */
+export async function hasSubscriptionEventForPayment(paymentId: string): Promise<boolean> {
+  const sb = getAdminClient();
+  const { data, error } = await sb
+    .from("subscription_events")
+    .select("id")
+    .eq("payment_id", paymentId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`subscription_events.has-for-payment failed: ${error.message}`);
+  return data !== null;
+}
+
 export async function listSubscriptionEvents(userId: string, limit = 50) {
   const sb = getAdminClient();
   const { data, error } = await sb

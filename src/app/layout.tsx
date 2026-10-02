@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { config } from "@/lib/env-boot";
 import { SITE_NAME, SITE_TITLE } from "@/lib/site";
@@ -76,18 +77,24 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const { locale, accountLocale } = await resolveRequestLocale();
   const bundles = await loadBundle(locale);
 
+  // The CSP nonce minted per request by the middleware. Next stamps its own
+  // inline flight-data scripts automatically; these two are ours, and an inline
+  // script without the nonce is blocked — which would drop the theme and locale
+  // prepaint and leave a flash on every page load.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang={localeTag(locale)} dir={directionFor(locale)} data-theme="dark" suppressHydrationWarning>
       <head>
         {/* Resolve the stored theme before first paint to avoid a flash. */}
-        <script dangerouslySetInnerHTML={{ __html: PREPAINT_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: PREPAINT_SCRIPT }} />
         {/*
           Stamps the stored/ detected language onto <html> before React
           hydrates, so direction and language are correct even on the very first
           frame. The server already sent the right value; this keeps the DOM in
           step if local storage holds a more recent explicit choice.
         */}
-        <script dangerouslySetInnerHTML={{ __html: LOCALE_PREPAINT_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: LOCALE_PREPAINT_SCRIPT }} />
       </head>
       <body>
         <I18nProvider

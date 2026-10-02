@@ -332,5 +332,9 @@
   "plan_saved": "Plan configuration saved successfully.",
   "plan_save_changes": "Save Changes",
   "plan_create": "Create Plan",
-  "loading_view": "Loading administrative view"
+  "loading_view": "Loading administrative view",
+  "health_lease_title": "Jobs are losing their executor mid-run",
+  "health_lease_body_one": "{{count}} job has a claim whose lease has expired, meaning the process running it was terminated before it finished.",
+  "health_lease_body_other": "{{count}} jobs have claims whose leases have expired, meaning the processes running them were terminated before they finished.",
+  "health_lease_hint": "These jobs are requeued automatically, so the queue still looks healthy. Repeated expiries mean the executor is being killed: check the function duration limit and the database connection pool. A running job refreshes its lease every 60s, so an expiry here is a hard kill rather than a slow job."
 }

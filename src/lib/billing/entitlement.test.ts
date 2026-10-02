@@ -32,6 +32,8 @@ function sub(
     current_period_start: "2026-01-01T00:00:00.000Z",
     current_period_end: "2026-12-01T00:00:00.000Z",
     cancel_at_period_end: false,
+    payment_action_required: false,
+    payment_action_reason: null,
     canceled_at: null,
     started_at: "2026-01-01T00:00:00.000Z",
     ended_at: null,

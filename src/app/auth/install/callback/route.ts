@@ -14,9 +14,11 @@ import {
   createSession,
   defaultRoleForLogin,
   SESSION_COOKIE,
+  SESSION_COOKIE_BASE_OPTS,
   SESSION_TTL_MS,
   type SessionUser,
 } from "@/lib/auth/session";
+import { INSTALL_STATE_COOKIE, verifyInstallState } from "@/lib/auth/oauth";
 import type { GitHubUser } from "@/lib/auth/github-oauth";
 import { getAppBaseUrl } from "@/lib/auth/redirect";
 import { enqueueInstallRegister } from "@/lib/engine/jobs";
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL("/dashboard", baseUrl));
   }
   const code = params.get("code");
+  const stateParam = params.get("state");
 
   // GitHub App user-authorization callbacks include iss=https://github.com/apps/<slug>.
   const iss = params.get("iss");
@@ -84,13 +87,24 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
           appUserToken = exchanged.access_token;
           const ghUser = await fetchGitHubUser(appUserToken);
           user = await upsertBatonUser(ghUser);
-          const session = await createSession(user.id, {
-            ip: getClientIp(req),
-            userAgent: req.headers.get("user-agent"),
-          });
-          newSessionToken = session.token;
-          newSessionExpiresAt = session.expiresAt;
-          logger.info("app-install-oauth-signin", { login: ghUser.login, ip: getClientIp(req) });
+          if (user.suspendedAt) {
+            // Same rule as the OAuth callback: a suspension blocks the minting
+            // of a session, it is not a post-login UI state.
+            logger.warn("app-install-signin-suspended", { login: ghUser.login, ip: getClientIp(req) });
+            user = null;
+            appUserToken = null;
+          }
+          const session = user
+            ? await createSession(user.id, {
+                ip: getClientIp(req),
+                userAgent: req.headers.get("user-agent"),
+              })
+            : null;
+          if (session) {
+            newSessionToken = session.token;
+            newSessionExpiresAt = session.expiresAt;
+            logger.info("app-install-oauth-signin", { login: ghUser.login, ip: getClientIp(req) });
+          }
         }
       } catch (err) {
         logger.error("app-install-oauth-user-failed", { error: String(err), ip: getClientIp(req) });
@@ -104,29 +118,40 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!user) {
     const login = new URL("/auth/login", baseUrl);
     const setupAction = params.get("setup_action") || "install";
+    // The install state rides through sign-in so the returning callback can
+    // still prove this browser started the flow. Without it the user would be
+    // bounced to /install and made to redo the GitHub side of the install.
+    const next = `/auth/install/callback?installation_id=${installationId}&setup_action=${encodeURIComponent(setupAction)}`;
     login.searchParams.set(
       "next",
-      `/auth/install/callback?installation_id=${installationId}&setup_action=${encodeURIComponent(setupAction)}`,
+      stateParam ? `${next}&state=${encodeURIComponent(stateParam)}` : next,
     );
     return NextResponse.redirect(login);
   }
 
-  // CSRF: `/install` puts `uid:<userId>` in the GitHub App `state`, and GitHub
-  // echoes it back here. It used to be ignored entirely, so this
-  // state-mutating GET could be triggered on any signed-in browser with an
-  // arbitrary `installation_id`. When GitHub supplies a state it must match the
-  // session performing the attribution.
-  const stateParam = params.get("state");
-  if (stateParam) {
-    const presented = stateParam.startsWith("uid:") ? stateParam.slice("uid:".length) : null;
-    if (presented !== user.id) {
-      logger.warn("app-install-state-mismatch", {
-        requestedBy: user.id,
-        hasUid: Boolean(presented),
-        ip: getClientIp(req),
-      });
-      return NextResponse.redirect(new URL("/dashboard?install_error=1&reason=state_mismatch", baseUrl));
+  // CSRF: this callback performs an attribution write, so it must be provably
+  // tied to an install flow this browser started. `/install` mints a one-time
+  // random nonce, stores its hash in an httpOnly cookie, and GitHub echoes the
+  // nonce back. The check used to run only `if (stateParam)`, so an absent state
+  // skipped validation entirely and the callback could be triggered on any
+  // signed-in browser with an attacker-chosen `installation_id`.
+  //
+  // A state is not required when GitHub granted an App-level user token: that
+  // token is its own proof, and the membership check below confirms the user
+  // administers this specific installation.
+  if (!appUserToken && !(await verifyInstallState(stateParam, req.cookies.get(INSTALL_STATE_COOKIE)?.value))) {
+    logger.warn("app-install-state-missing-or-mismatch", {
+      requestedBy: user.id,
+      presented: Boolean(stateParam),
+      ip: getClientIp(req),
+    });
+    // A direct install from GitHub's own app page arrives with no state at all.
+    // Restart the flow so the user gets a valid one instead of a dead end;
+    // re-invoking GitHub's install page re-triggers the setup URL with it.
+    if (!stateParam) {
+      return NextResponse.redirect(new URL("/install", baseUrl));
     }
+    return NextResponse.redirect(new URL("/dashboard?install_error=1&reason=state_mismatch", baseUrl));
   }
 
   // Authoritative ownership proof when the App granted a user token: GitHub
@@ -190,10 +215,36 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
         error: e instanceof Error ? e.message : String(e),
       });
     });
+    let registered: { accountLogin: string; accountType: string } | null = null;
     try {
-      await registerInstallation(installationId);
+      registered = await registerInstallation(installationId);
     } catch (e) {
       logger.warn("app-install-immediate-register-fallback-to-queue", { installationId, error: String(e) });
+    }
+
+    // Second, independent proof, available even without an App user token:
+    // GitHub reports which account the installation actually belongs to. A
+    // *user* installation is installed on one person's account, so if that
+    // login is not the signed-in user's, this installation is not theirs and the
+    // attribution written above is a claim against someone else's account.
+    // Organization installations are installed on the org, not on a person, so
+    // there is nothing to compare and the membership check above is the only
+    // proof available for them.
+    if (registered && registered.accountType === "User") {
+      const owner = registered.accountLogin.toLowerCase();
+      if (owner !== user.login.toLowerCase()) {
+        logger.warn("app-install-account-mismatch", {
+          installationId,
+          requestedBy: user.id,
+          requestedByLogin: user.login,
+          installationAccount: owner,
+        });
+        // Release the attribution we optimistically wrote and fail closed.
+        await prisma.appInstallation
+          .update({ where: { installationId }, data: { userId: null } })
+          .catch(() => {});
+        return NextResponse.redirect(new URL("/dashboard?install_error=1&reason=account_mismatch", baseUrl));
+      }
     }
 
     // Reuse the already-verified GitHub-side list; re-fetching here would also
@@ -214,12 +265,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const response = NextResponse.redirect(new URL("/dashboard?installed=1", baseUrl));
   if (newSessionToken && newSessionExpiresAt) {
-    const isHttps = baseUrl.startsWith("https");
+    // Shared cookie definition: `secure` from the environment, never from a
+    // request header.
     response.cookies.set(SESSION_COOKIE, newSessionToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: isHttps,
-      path: "/",
+      ...SESSION_COOKIE_BASE_OPTS,
       expires: newSessionExpiresAt,
       maxAge: SESSION_TTL_MS / 1000,
     });

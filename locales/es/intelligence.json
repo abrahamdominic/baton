@@ -158,6 +158,7 @@
   "architecture_empty": "No se reconoció ninguna estructura de primer nivel. El analizador busca src, prisma, app, lib, scripts o docs en la raíz del repositorio.",
   "checks_summary": "{{failing}} fallando / {{pending}} pendiente / {{passed}} pasando",
   "tab_knowledge": "Memoria del repositorio",
+  "tab_automations": "Automatizaciones",
   "knowledge_title": "Memoria del repositorio",
   "knowledge_subtitle": "Lo que Baton ha aprendido de este repositorio, actualizado a medida que cambia. Las entradas observadas se leen del árbol y se citan. Las decisiones son del equipo y nunca se sobrescriben.",
   "knowledge_empty": "Todavía no hay memoria registrada. Sincroniza el repositorio y Baton la construirá a partir de las pruebas que recopile.",

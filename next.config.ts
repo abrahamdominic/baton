@@ -1,5 +1,10 @@
 import type { NextConfig } from "next";
 
+/**
+ * Response headers that do not vary per request.
+ *
+ * Content-Security-Policy is NOT here — see the note below.
+ */
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },

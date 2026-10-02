@@ -22,6 +22,40 @@ export class BillingInputError extends Error {
   }
 }
 
+/**
+ * Raised when a guarded subscription write lost its compare-and-set race and
+ * the winner's state is not a valid predecessor for the intended transition.
+ *
+ * Distinct from `BillingInputError`: the request was legitimate, it just raced.
+ * Callers should surface a retry rather than "invalid request".
+ */
+export class SubscriptionConflictError extends Error {
+  readonly code = "subscription_conflict" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "SubscriptionConflictError";
+  }
+}
+
+/**
+ * Raised when a plan change was attempted through checkout on a subscription
+ * that is already recurring on Stripe.
+ *
+ * Carries a stable `code` so the API can tell the client to open the Billing
+ * Portal instead of showing a generic error. This is a distinct case rather than
+ * a validation failure because the user's intent is legitimate: they want the
+ * other plan. Only the route is impossible.
+ */
+export class PlanChangeRequiresPortalError extends BillingInputError {
+  readonly code = "plan_change_requires_portal" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "PlanChangeRequiresPortalError";
+  }
+}
+
 const STRIPE_FRIENDLY: Record<string, string> = {
   card_declined:
     "Your card was declined. Please try another payment method or contact your bank.",

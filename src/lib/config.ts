@@ -49,6 +49,13 @@ const envSchema = z.object({
   BATON_WORKER_POLL_MS: z.coerce.number().default(5000),
   BATON_CRON_INTERVAL_MIN: z.coerce.number().default(720),
   BATON_JOB_CONCURRENCY: z.coerce.number().default(4),
+  /**
+   * Jobs one tick of the standalone worker may execute. Decoupled from
+   * `BATON_JOB_CONCURRENCY` on purpose: sizing the batch by the parallelism
+   * caps throughput at `concurrency` jobs per poll interval, so a deep backlog
+   * can never be worked off on a dedicated host no matter how long it waits.
+   */
+  BATON_WORKER_BATCH_SIZE: z.coerce.number().default(50),
 
   // ------------------------------------------------------------------
   // Serverless queue execution.
@@ -65,6 +72,16 @@ const envSchema = z.object({
   BATON_DRAIN_BUDGET_MS: z.coerce.number().default(50_000),
   /** Parallel executors inside a drain. */
   BATON_DRAIN_CONCURRENCY: z.coerce.number().default(4),
+  /**
+   * Stripe-backed subscriptions a single reconciliation pass compares.
+   *
+   * Each one is an individual Stripe API read, so this is also the pass's cost.
+   * Sized to cover a normal install in a single run while staying well inside a
+   * serverless invocation; a larger install simply needs more frequent runs, and
+   * the pass orders oldest-update-first so successive runs walk the whole
+   * population rather than re-checking the same rows.
+   */
+  BATON_BILLING_RECONCILE_LIMIT: z.coerce.number().default(200),
   /**
    * Jobs a single webhook delivery may execute inline. Kept small: GitHub
    * expects a fast webhook response and a burst of deliveries must not turn
@@ -105,9 +122,6 @@ const envSchema = z.object({
   // Native Bridged USDC (axlUSDC) contract on Base.
   USDC_TOKEN_ADDRESS: trimmedString.default("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"),
   USDC_MIN_CONFIRMATIONS: z.coerce.number().default(12),
-  // Allowed mismatch (minor units) between on-chain transfer and expected
-  // amount. 0 means the exact amount must be received.
-  USDC_AMOUNT_TOLERANCE_MINOR: z.coerce.number().default(0),
 
   // ---------------------------------------------------------------
   // Stripe.
@@ -360,7 +374,6 @@ export interface UsdcSettings {
   rpcUrl: string;
   walletAddress: string;
   minConfirmations: number;
-  amountToleranceMinor: number;
 }
 
 export function usdcSettings(env: Env = getConfig()): UsdcSettings {
@@ -371,7 +384,6 @@ export function usdcSettings(env: Env = getConfig()): UsdcSettings {
     rpcUrl: env.USDC_RPC_URL,
     walletAddress: env.USDC_PAYMENT_WALLET_ADDRESS,
     minConfirmations: env.USDC_MIN_CONFIRMATIONS,
-    amountToleranceMinor: env.USDC_AMOUNT_TOLERANCE_MINOR,
   };
 }
 

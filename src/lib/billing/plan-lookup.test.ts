@@ -7,14 +7,20 @@ const maybeSingle = vi.fn();
 vi.mock("@/lib/supabase/client", () => ({
   getAdminClient: () => ({
     from: () => ({
-      select: () => ({
-        eq: () => ({ maybeSingle }),
-      }),
+      select: () => {
+        // Every filter funnels into the same terminal `maybeSingle`; the
+        // purchasable lookup chains two more `eq()` calls before it.
+        const chain: Record<string, unknown> = {
+          eq: () => chain,
+          maybeSingle,
+        };
+        return chain;
+      },
     }),
   }),
 }));
 
-import { getPlanById, getPlanBySlug, DEFAULT_PLANS } from "./plans";
+import { getPlanById, getPlanBySlug, getPurchasablePlanById, DEFAULT_PLANS } from "./plans";
 
 /**
  * The `plans` table is the runtime source of truth for what a customer is
@@ -27,6 +33,52 @@ import { getPlanById, getPlanBySlug, DEFAULT_PLANS } from "./plans";
  * instead of the admin-edited plan row, so a customer could be quoted and
  * charged a price the database never agreed to. A failed read must fail closed.
  */
+/**
+ * `is_public` / `is_active` are the storefront switch. `getPlanById` answers
+ * "does this plan row exist" — correct for admin screens and entitlement
+ * lookups, wrong as a checkout authorization check, because a hidden or
+ * retired plan that a client names by id would otherwise be purchasable.
+ */
+describe("purchase paths only accept public, active plans", () => {
+  beforeEach(() => {
+    maybeSingle.mockReset();
+  });
+
+  const STORED = {
+    id: "plan_team_default",
+    slug: "team",
+    name: "Team",
+    monthly_price_cents: 1500,
+    annual_price_cents: 15000,
+    sort_order: 1,
+    created_at: "2024-01-01T00:00:00.000Z",
+    updated_at: "2024-01-01T00:00:00.000Z",
+  } as const;
+  const storedRow = (over: Record<string, unknown>) => ({ data: { ...STORED, ...over }, error: null });
+
+  it("refuses a plan the database reports as not public", async () => {
+    maybeSingle.mockResolvedValue(storedRow({ is_public: false, is_active: true }));
+    await expect(getPurchasablePlanById("plan_team_default")).resolves.toBeNull();
+  });
+
+  it("refuses a plan the database reports as inactive", async () => {
+    maybeSingle.mockResolvedValue(storedRow({ is_public: true, is_active: false }));
+    await expect(getPurchasablePlanById("plan_team_default")).resolves.toBeNull();
+  });
+
+  it("returns the plan when it is public and active", async () => {
+    maybeSingle.mockResolvedValue(storedRow({ is_public: true, is_active: true }));
+    const plan = await getPurchasablePlanById("plan_team_default");
+    expect(plan?.slug).toBe("team");
+    expect(plan?.monthly_price_cents).toBe(1500);
+  });
+
+  it("fails closed on a query error rather than falling back to the seed price", async () => {
+    maybeSingle.mockResolvedValue({ data: null, error: { message: "connection refused" } });
+    await expect(getPurchasablePlanById("plan_team_default")).resolves.toBeNull();
+  });
+});
+
 describe("plan lookup fails closed when the plans table is unreachable", () => {
   beforeEach(() => {
     maybeSingle.mockReset();

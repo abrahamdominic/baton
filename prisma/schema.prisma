@@ -110,6 +110,7 @@ model Repo {
   insight        RepositoryInsight?
   workContexts   WorkContext[]
   knowledge      RepoKnowledge[]
+  automationRun  RepoAutomationRun?
 
   @@index([installationId])
   @@index([owner, name])
@@ -191,20 +192,34 @@ model WebhookEvent {
 }
 
 model Job {
-  id            String    @id @default(cuid())
-  kind          String
-  status        String    @default("pending") // pending | processing | done | failed | stale
-  attempts      Int       @default(0)
-  maxAttempts   Int       @default(5)
-  payloadJson   String
-  error         String?
-  nextAttemptAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  startedAt     DateTime?
-  finishedAt    DateTime?
+  id             String    @id @default(cuid())
+  kind           String
+  status         String    @default("pending") // pending | processing | done | failed
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(6)
+  payloadJson    String
+  error          String?
+  nextAttemptAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  // Occupancy key for the "one live job per payload" invariant. Set on create,
+  // cleared on every terminal transition, so the unique index below only ever
+  // constrains *in-flight* work. NULLs are distinct in both Postgres and SQLite,
+  // which is what lets an arbitrary number of finished rows share the column.
+  dedupeKey      String?
+  // Fencing token + lease deadline. `leaseToken` is minted per claim and must
+  // be echoed back on every terminal write, so an executor that lost its lease
+  // (and whose job was reclaimed and re-run by someone else) cannot overwrite
+  // the newer attempt's outcome. `leaseExpiresAt` is refreshed by the running
+  // executor's heartbeat and is the input to the reclaim sweep.
+  leaseToken     String?
+  leaseExpiresAt DateTime?
 
+  @@unique([kind, dedupeKey])
   @@index([status, createdAt])
+  @@index([status, leaseExpiresAt])
 }
 
 model Action {
@@ -670,6 +685,13 @@ model InsightDigest {
 
   @@index([userId, kind, slot])
   @@index([repoId, kind])
+  // One digest per (user, repo, kind, slot, revision). `saveDigest` read-then-wrote,
+  // so two concurrent generations of the same briefing both saw no row and both
+  // inserted; the dashboard then showed the same bullets twice and the "already
+  // generated" watermark counted rows it should not have. Declared here so the
+  // SQLite mirror used by the db suites enforces the same rule the SQL migration
+  // creates for PostgreSQL.
+  @@unique([userId, repoId, kind, slot, revision], map: "insight_digest_slot_revision_key")
 }
 
 // A grounded question and its cited answer. The answer is a structured object
@@ -761,4 +783,31 @@ model RepoKnowledge {
   @@index([repoId, status])
   @@index([repoId, kind, status])
   @@index([insightId])
+}
+
+// Automated workflows (§8).
+//
+// One row per repository, holding the findings of the most recent workflow run.
+// Deliberately NOT a table of individual findings: findings are a pure function
+// of persisted state and are replaced wholesale on every run, so an append-only
+// finding table would accumulate contradicted claims ("waiting on @bob" from
+// three weeks ago) and would need a tombstone on every one of them.
+//
+// `runsJson` stores the whole `WorkflowRun[]`, so a finding that a user was shown
+// can be reproduced exactly. The per-workflow `basis` string travels with it,
+// which is what lets the UI keep FACT and INFERENCE apart on a later render.
+model RepoAutomationRun {
+  id           String   @id @default(cuid())
+  repoId       String   @unique
+  repo         Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  // Serialized `WorkflowRun[]`: one entry per workflow, each with its findings.
+  runsJson     String
+  findingCount Int      @default(0)
+  ranAt        DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // The admin automation-health view lists the least-recently-analysed
+  // repositories, which is this index read in reverse.
+  @@index([ranAt])
 }

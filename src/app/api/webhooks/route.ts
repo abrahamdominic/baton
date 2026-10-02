@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getClientIp } from "@/lib/net";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { z } from "zod";
@@ -9,6 +10,7 @@ import { verifyWebhookSignature } from "@/lib/webhooks/verify";
 import { dispatchEvent, isEventTracked } from "@/lib/webhooks/dispatcher";
 import { drainQueue } from "@/lib/engine/job-runner";
 import { rateLimiter } from "@/lib/rate-limit";
+import { metrics } from "@/lib/observability/metrics";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,29 +21,32 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const eventType = req.headers.get("x-github-event") ?? "";
   const deliveryId = req.headers.get("x-github-delivery") ?? "";
   const signature = req.headers.get("x-hub-signature-256");
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = await getClientIp(req);
 
   if (!config.GITHUB_APP_WEBHOOK_SECRET) {
     logger.error("webhook-no-secret", { ip });
+    metrics.webhookRejected("github webhook misconfigured");
     return new NextResponse("misconfigured", { status: 500 });
   }
 
   if (!(await isAllowed(ip))) {
     logger.warn("webhook-rate-limited", { ip, event: eventType });
+    metrics.webhookRejected("github rate limited");
     return new NextResponse("rate limited", { status: 429 });
   }
 
   const raw = await req.text();
   if (raw.length > BODY_SIZE_LIMIT) {
     logger.warn("webhook-too-large", { ip, event: eventType, bytes: raw.length });
+    metrics.webhookRejected("github body too large");
     return new NextResponse("too large", { status: 413 });
   }
 
   if (!verifyWebhookSignature(config.GITHUB_APP_WEBHOOK_SECRET, raw, signature)) {
     logger.warn("webhook-bad-signature", { ip, event: eventType });
+    // Unsigned or forged deliveries are the signature of a probing client, and
+    // were previously visible only in stdout.
+    metrics.webhookRejected("github bad signature");
     return new NextResponse("invalid signature", { status: 401 });
   }
 
@@ -54,6 +59,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     payload = JSON.parse(raw);
   } catch {
+    metrics.webhookRejected("github bad json");
     return new NextResponse("bad json", { status: 400 });
   }
 
@@ -64,6 +70,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // request that then died before enqueueing must be reprocessable on GitHub's
   // retry; treating "seen" as "done" would silently discard the only chance to
   // recover that work.
+  metrics.webhookReceived(eventType);
+
   const recorded = await prisma.webhookEvent.create({
     data: { deliveryId, eventType, rawJson: raw },
   }).catch(async (e: { code?: string }) => {
@@ -113,6 +121,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
     logger.warn("webhook-invalid-payload", { event: eventType, deliveryId });
+    metrics.webhookRejected("github invalid payload");
     await prisma.webhookEvent.update({
       where: { deliveryId_eventType: { deliveryId, eventType } },
       data: { processedAt: new Date() },
@@ -132,6 +141,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       deliveryId,
       error: e instanceof Error ? e.message : String(e),
     });
+    metrics.webhookRejected("github dispatch failed");
     return new NextResponse("dispatch failed", { status: 500 });
   }
 

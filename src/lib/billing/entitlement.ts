@@ -126,12 +126,21 @@ export async function getEntitlement(
   scope: WorkspaceScope = {},
 ): Promise<Entitlement> {
   const [user, ownSub] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { role: true } }).catch(() => null),
+    prisma.user.findUnique({ where: { id: userId }, select: { role: true, suspendedAt: true } }).catch(() => null),
     getCurrentSubscription(userId).catch(() => null),
   ]);
 
-  if (user?.role === "admin") {
+  if (user?.role === "admin" && !user.suspendedAt) {
     return adminEntitlement(ownSub);
+  }
+
+  // Suspension outranks every other rule, including a live paid subscription and
+  // the admin override. This is the backstop behind the sign-in block: even a
+  // session minted before the account was suspended resolves to the free tier
+  // here, so a feature gate that asks "what can this user do?" can never be the
+  // thing that lets a suspended account through.
+  if (user?.suspendedAt) {
+    return freeEntitlement(ownSub);
   }
 
   const own = entitlementFromSubscription(ownSub, "own");

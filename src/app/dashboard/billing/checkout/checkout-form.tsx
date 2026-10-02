@@ -30,6 +30,8 @@ type CheckoutState = "idle" | "creating" | "error" | "submitting_tx";
 interface UsdcOrder {
   paymentId: string;
   amountMinor: number;
+  /** Exact on-chain figure to send, sub-cent nonce included. */
+  amountOnchain: string;
   walletAddress: string;
   network: string;
   token: string;
@@ -101,6 +103,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
     setOrder({
       paymentId: body.paymentId,
       amountMinor: body.amountMinor ?? 0,
+      amountOnchain: body.amountOnchain ?? "",
       walletAddress: body.walletAddress ?? props.usdcWalletAddress ?? "",
       network: body.network ?? "base",
       token: body.token ?? "USDC",
@@ -261,13 +264,18 @@ export function CheckoutForm(props: CheckoutFormProps) {
           <div className="space-y-4 px-6 py-5">
             <div className="flex items-baseline justify-between">
               <span className="text-xs font-medium text-ink-400">{t("billing:exact_amount")}</span>
-              <span className="font-mono text-xl font-extrabold tabular-nums text-white">
-                {order.amountMinor > 0
-                  ? `${formatNumber(order.amountMinor / 100, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })} ${order.token}`
-                  : t("billing:not_available")}
+              <span
+                className="font-mono text-xl font-extrabold tabular-nums text-white"
+                data-testid="usdc-exact-amount"
+              >
+                {order.amountOnchain
+                  ? `${order.amountOnchain} ${order.token}`
+                  : order.amountMinor > 0
+                    ? `${formatNumber(order.amountMinor / 100, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })} ${order.token}`
+                    : t("billing:not_available")}
               </span>
             </div>
 
@@ -291,6 +299,9 @@ export function CheckoutForm(props: CheckoutFormProps) {
             </div>
 
             <ul className="space-y-1.5 text-[11px] leading-relaxed text-ink-400">
+              {order.amountOnchain ? (
+                <li className="font-medium text-warning-300">{t("billing:usdc_note_exact_amount")}</li>
+              ) : null}
               <li>{t("billing:usdc_note_network", { network: order.network })}</li>
               <li>{t("billing:usdc_note_amount", { token: order.token })}</li>
               <li>{t("billing:usdc_note_confirm")}</li>

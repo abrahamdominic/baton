@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getClientIp } from "@/lib/net";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { rateLimiter } from "@/lib/rate-limit";
@@ -7,6 +8,7 @@ import { constructStripeWebhookEvent } from "@/lib/billing/stripe";
 import { stripeEventTypeSupported, processStripeEvent } from "@/lib/billing/stripe-webhooks";
 import { recordSystemEvent } from "@/lib/billing/system-events";
 import { BackendNotConfiguredError } from "@/lib/billing/errors";
+import { metrics } from "@/lib/observability/metrics";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,19 +17,18 @@ const BODY_SIZE_LIMIT = 1_000_000;
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const signature = req.headers.get("stripe-signature");
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = await getClientIp(req);
 
   if (!(await isAllowed(ip))) {
     logger.warn("stripe-webhook-rate-limited", { ip });
+    metrics.webhookRejected("stripe rate limited");
     return new NextResponse("rate limited", { status: 429 });
   }
 
   const raw = await req.text();
   if (raw.length > BODY_SIZE_LIMIT) {
     logger.warn("stripe-webhook-too-large", { ip, bytes: raw.length });
+    metrics.webhookRejected("stripe body too large");
     return new NextResponse("too large", { status: 413 });
   }
 
@@ -37,10 +38,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   } catch (err) {
     const kind = err instanceof BackendNotConfiguredError ? "misconfigured" : "bad signature";
     logger.warn("stripe-webhook-rejected", { ip, kind });
+    // A bad signature is the expected shape of a spoofed delivery, but a rising
+    // count is still the only signal that someone is probing the endpoint.
+    metrics.webhookRejected(`stripe ${kind}`);
     return new NextResponse(kind === "misconfigured" ? "misconfigured" : "invalid signature", {
       status: kind === "misconfigured" ? 500 : 401,
     });
   }
+
+  metrics.stripeEvent(event.type);
 
   if (!stripeEventTypeSupported(event.type)) {
     return new NextResponse("ok", { status: 200 });
@@ -64,6 +70,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       type: event.type,
       error: err instanceof Error ? err.message : "unknown",
     });
+    metrics.stripeFailure(event.type);
     await recordSystemEvent({
       eventType: "stripe_webhook_failed",
       severity: "error",

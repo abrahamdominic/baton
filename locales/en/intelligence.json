@@ -158,6 +158,7 @@
   "architecture_empty": "No top-level structure was recognized. The analyzer looks for src, prisma, app, lib, scripts, or docs at the repository root.",
   "checks_summary": "{{failing}} failing / {{pending}} pending / {{passed}} passed",
   "tab_knowledge": "Repository memory",
+  "tab_automations": "Automations",
   "knowledge_title": "Repository memory",
   "knowledge_subtitle": "What Baton has learned about this repository, kept current as it changes. Observed entries are read from the tree and cited. Decisions are yours and are never overwritten.",
   "knowledge_empty": "No memory recorded yet. Sync the repository and Baton will build it from the evidence it collects.",

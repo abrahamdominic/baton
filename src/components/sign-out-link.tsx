@@ -12,10 +12,14 @@ import { forgetDevice } from "@/lib/messaging/client";
  * its still-registered public key and read every conversation the device was
  * ever issued a key wrap for.
  *
- * The key is removed *before* navigating so a failed or interrupted redirect
- * cannot skip the wipe. The click handler is best-effort and never cancels the
- * navigation: the server session is revoked by the link itself regardless, and
- * a storage error must never strand a user in a signed-in-looking UI.
+ * The key is removed *before* the request goes out so a failed or interrupted
+ * request cannot skip the wipe.
+ *
+ * Sign-out is a POST, not a link to a GET: a state-changing GET is forgeable
+ * from any page, so signing out is a same-origin action only. The click handler
+ * is best-effort and never blocks the sign-out: a storage error must not strand
+ * the user in a signed-in-looking UI, and if the fetch itself fails the browser
+ * is still navigated to the destination.
  */
 export function SignOutLink({
   className,
@@ -30,9 +34,19 @@ export function SignOutLink({
   /** Post-sign-out path; passed through to the existing redirect sanitizer. */
   next?: string;
 }) {
-  function handleClick() {
+  function handleClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    event.preventDefault();
     forgetDevice();
     onNavigate?.();
+    const destination = next ? `/auth/logout?next=${encodeURIComponent(next)}` : "/auth/logout";
+    // Awaited before navigating: the response is what clears the session cookie,
+    // and leaving early would race the unload. `keepalive` covers the case where
+    // the user closes the tab mid-request.
+    void fetch(destination, { method: "POST", credentials: "same-origin", keepalive: true })
+      .catch(() => {})
+      .then(() => {
+        window.location.assign(next ?? "/");
+      });
   }
 
   return (

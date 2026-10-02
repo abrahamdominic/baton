@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { currentUser } from "@/lib/auth/session";
+import { requireActiveUser } from "@/lib/auth/session";
 import { logger } from "@/lib/logger";
 import {
   getSubscriptionById,
@@ -26,7 +26,7 @@ export interface ResumeCheckoutResult {
 }
 
 async function ownedSubscriptionOrThrow(subscriptionId: string) {
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) throw new Error("Authentication required.");
   const subscription = await getSubscriptionById(subscriptionId);
   if (!subscription || subscription.user_id !== user.id) throw new Error("Subscription not found.");
@@ -51,7 +51,7 @@ export async function cancelPendingCheckoutAction(
     if (formData.get("confirm") !== "on") {
       return { ok: false, error: "Please confirm that you want to cancel this checkout." };
     }
-    const user = await currentUser();
+    const user = await requireActiveUser();
     if (!user) throw new Error("Authentication required.");
     const subscriptionId = String(formData.get("subscriptionId") ?? "");
     if (!subscriptionId) return { ok: false, error: "Missing checkout." };

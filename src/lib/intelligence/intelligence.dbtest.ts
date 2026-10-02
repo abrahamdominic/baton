@@ -211,6 +211,52 @@ describe("digests", () => {
     expect(second).toBe(first);
   });
 
+  /**
+   * The concurrent-generation regression.
+   *
+   * `saveDigest` decided whether to insert by reading first. Firing several at
+   * once for the same slot means several of them see no row, and without a
+   * unique index every one of them inserts — the dashboard then renders the same
+   * briefing repeatedly. The index makes the collision the arbiter, and the
+   * losing writers resolve to the winner's row instead of failing.
+   *
+   * The payload is given a `userId` because these digests are normally repo-level
+   * and anonymous, and NULL is distinct from itself in a unique index on both
+   * PostgreSQL and SQLite — the anonymous key is carried by a partial index that
+   * the SQLite mirror cannot express, so it is created by
+   * `supabase/migrations/0014_insight_digest_slot_uniqueness.sql` instead. This
+   * test therefore pins the conflict-resolution path using the constraint the
+   * mirror does have.
+   */
+  it("stores one digest when the same slot is generated concurrently", async () => {
+    await saveRepositoryIntelligence(repoRowId, collected());
+    const withEvidence = await prisma.repositoryInsight.findUniqueOrThrow({
+      where: { repoId: repoRowId },
+      include: { evidence: { select: { id: true, kind: true, label: true, rank: true } } },
+    });
+    const payload = {
+      ...buildDeveloperBriefing(withEvidence, { days: 3, openPrs: [] }),
+      userId: owner.id,
+    };
+
+    const ids = await Promise.all(
+      Array.from({ length: 5 }, () => saveDigest(repoRowId, "race", payload)),
+    );
+
+    // Every caller ends up pointing at the same row...
+    expect(new Set(ids).size).toBe(1);
+    // ...and the table holds exactly one of them.
+    const rows = await prisma.insightDigest.count({
+      where: {
+        repoId: repoRowId,
+        kind: "developer_briefing",
+        slot: "race",
+        userId: owner.id,
+      },
+    });
+    expect(rows).toBe(1);
+  });
+
   it("refuses to digest a repository that has no profile", async () => {
     await expect(saveDigest(`${repoRowId}-nope`, "main", {
       kind: "developer_briefing",

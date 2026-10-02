@@ -1,9 +1,10 @@
 import { prisma } from "../db";
 import { logger } from "../logger";
 import { fetchGitHubUser, fetchUserInstallations } from "./github-oauth";
-import { createSession, defaultRoleForLogin, type SessionUser } from "./session";
+import { AccountSuspendedError, createSession, defaultRoleForLogin, type SessionUser } from "./session";
 import { enqueueInstallRegister } from "../engine/jobs";
 import { claimUnownedInstallations } from "../github/install";
+import { metrics } from "../observability/metrics";
 
 export interface FinishOAuthSignInParams {
   accessToken: string;
@@ -30,7 +31,16 @@ export async function finishOAuthSignIn(
 ): Promise<FinishOAuthSignInResult> {
   const { accessToken, next } = params;
 
-  const gh = await fetchGitHubUser(accessToken);
+  // A failed identity exchange is the signature of a revoked or invalid grant.
+  // It is counted before the throw so the admin view can distinguish "GitHub is
+  // rejecting our callback" from "nobody is signing in".
+  let gh;
+  try {
+    gh = await fetchGitHubUser(accessToken);
+  } catch (e) {
+    metrics.authFailure("github identity exchange failed");
+    throw e;
+  }
 
   const user = await prisma.user.upsert({
     where: { githubId: gh.id },
@@ -49,6 +59,16 @@ export async function finishOAuthSignIn(
       avatarUrl: gh.avatar_url,
     },
   });
+
+  // Suspension is enforced here, at the only place a session can be minted from
+  // a GitHub grant. Blocking it in the dashboard layout instead left a suspended
+  // user holding a live session: they simply skipped the page that showed the
+  // notice and hit every server action, which mostly never re-checked.
+  if (user.suspendedAt) {
+    metrics.authFailure("suspended account sign-in refused");
+    logger.warn("oauth-signin-suspended", { login: gh.login, ip: params.ip });
+    throw new AccountSuspendedError();
+  }
 
   const session = await createSession(user.id, {
     ip: params.ip ?? null,
@@ -88,6 +108,7 @@ export async function finishOAuthSignIn(
     }
   }
 
+  metrics.authSuccess("github-oauth");
   logger.info("oauth-signin", { login: gh.login, installations: installationIds.length, ip: params.ip });
 
   return {

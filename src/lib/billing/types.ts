@@ -106,6 +106,10 @@ export interface SubscriptionRecord {
   canceled_at: string | null;
   started_at: string | null;
   ended_at: string | null;
+  /** Stripe needs the customer to update their payment method before access continues. */
+  payment_action_required: boolean;
+  /** Short, non-sensitive explanation of `payment_action_required`, safe to render. */
+  payment_action_reason: string | null;
   created_at: string;
   updated_at: string;
   plan?: PlanRecord | null;
@@ -127,6 +131,8 @@ export interface PaymentRecord {
   crypto_network: string | null;
   crypto_token: string | null;
   crypto_wallet_address: string | null;
+  /** Exact on-chain USDC base-unit amount this order must be paid with. */
+  crypto_expected_amount_onchain: string | null;
   crypto_transaction_hash: string | null;
   failure_reason: string | null;
   metadata: unknown;

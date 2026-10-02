@@ -538,3 +538,12 @@ export function IconBrain(props: P) {
     </svg>
   );
 }
+// Used by the automations surface. A bolt rather than a gear: these are automated
+// runs producing proposals, not settings the user is configuring.
+export function IconBolt(props: P) {
+  return (
+    <svg {...base(props)}>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}

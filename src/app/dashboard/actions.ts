@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { currentUser, readSessionCookie, hashToken } from "@/lib/auth/session";
+import { requireActiveUser, readSessionCookie, hashToken, type SessionUser } from "@/lib/auth/session";
 import { enqueuePrRefresh } from "@/lib/engine/jobs";
 import { myInstallations } from "@/lib/queries/dashboard";
 import { logger } from "@/lib/logger";
@@ -13,9 +13,8 @@ import { getEntitlement, hasFeature, FEATURE_KEYS } from "@/lib/billing/entitlem
 import { registerInstallation } from "@/lib/github/install";
 
 /** Tenant check: does this repo belong to the signed-in user's installations? */
-async function assertRepoAccess(repoId: string): Promise<{ repoId: string; user: NonNullable<Awaited<ReturnType<typeof currentUser>>> }> {
-  const user = await currentUser();
-  if (!user) throw new Error("sign-in required");
+async function assertRepoAccess(repoId: string): Promise<{ repoId: string; user: SessionUser }> {
+  const user = await requireActiveUser();
   const installations = await myInstallations(user, { allRepos: true });
   const owned = installations.some((i) => i.repos.some((r) => r.id === repoId));
   if (!owned) throw new Error("not your repo");
@@ -91,7 +90,7 @@ export async function updateRepoSettings(input: z.infer<typeof settingsSchema>):
 
 /** Synchronize all accessible repositories from GitHub App installations */
 export async function syncUserRepositories(): Promise<{ count: number }> {
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) throw new Error("sign-in required");
 
   const installations = await myInstallations(user, { allRepos: true });
@@ -116,7 +115,7 @@ export async function syncUserRepositories(): Promise<{ count: number }> {
 }
 
 export async function rescanRepo(fullName: string): Promise<void> {
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) throw new Error("sign-in required");
   const installations = await myInstallations(user);
   const match = installations.flatMap((i) =>
@@ -143,7 +142,7 @@ export async function rescanRepo(fullName: string): Promise<void> {
 /** Revoke one of the user's own sessions. The current session is handled by
  * regular sign-out; revoking it here would just log the user out mid-action. */
 export async function revokeSessionById(sessionId: string): Promise<{ revoked: boolean }> {
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) throw new Error("sign-in required");
   const currentToken = await readSessionCookie();
   const currentHash = currentToken ? hashToken(currentToken) : null;
@@ -168,7 +167,7 @@ export async function revokeSessionById(sessionId: string): Promise<{ revoked: b
 
 /** Sign out of every session except the current one. */
 export async function revokeOtherSessions(): Promise<{ revoked: number }> {
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) throw new Error("sign-in required");
   const currentToken = await readSessionCookie();
   const currentHash = currentToken ? hashToken(currentToken) : null;
@@ -197,7 +196,7 @@ export async function revokeOtherSessions(): Promise<{ revoked: number }> {
  */
 export async function resumeContextAction(contextId: string): Promise<void> {
   const { restoreContext } = await import("@/lib/intelligence/context");
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) throw new Error("sign-in required");
 
   const entitlement = await getEntitlement(user.id);

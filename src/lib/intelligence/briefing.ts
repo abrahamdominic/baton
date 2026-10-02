@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { logger } from "../logger";
+import { isUniqueViolation } from "../db/unique-violation";
 
 /**
  * Briefings: a dated, cited, regenerable summary of what a repository needs.
@@ -15,7 +16,8 @@ import { logger } from "../logger";
  *  - nothing is asserted that the collection job could not observe.
  */
 
-export type DigestKind = "developer_briefing" | "review_brief" | "impact" | "onboarding";
+export type DigestKind =
+  "developer_briefing" | "review_brief" | "impact" | "onboarding";
 
 export interface DigestBullet {
   text: string;
@@ -78,16 +80,29 @@ function parseJson<T>(raw: string, fallback: T): T {
  */
 export function buildDeveloperBriefing(
   profile: Profile,
-  options: { days: number; openPrs: { number: number; title: string; url: string; ageDays: number }[] },
+  options: {
+    days: number;
+    openPrs: { number: number; title: string; url: string; ageDays: number }[];
+  },
 ): InsightDigestPayload {
-  const ev = (kinds: string[]) => kinds.flatMap((k) => profile.evidence.filter((e) => e.kind === k).map((e) => e.id));
+  const ev = (kinds: string[]) =>
+    kinds.flatMap((k) =>
+      profile.evidence.filter((e) => e.kind === k).map((e) => e.id),
+    );
   const bullets: DigestBullet[] = [];
-  const add = (text: string, evidenceIds: string[], tone: DigestBullet["tone"] = "fact") => {
+  const add = (
+    text: string,
+    evidenceIds: string[],
+    tone: DigestBullet["tone"] = "fact",
+  ) => {
     if (evidenceIds.length > 0) bullets.push({ text, evidenceIds, tone });
   };
 
   const repoEv = ev(["repo"]);
-  const langs = parseJson<{ name: string; percent: number }[]>(profile.languages, []);
+  const langs = parseJson<{ name: string; percent: number }[]>(
+    profile.languages,
+    [],
+  );
 
   // Orientation
   if (langs.length > 0) {
@@ -100,7 +115,10 @@ export function buildDeveloperBriefing(
     );
   }
   if (profile.hasCodeowners) {
-    add("Ownership is declared in CODEOWNERS, so review routing can follow the repository's own rules.", ev(["codeowners"]));
+    add(
+      "Ownership is declared in CODEOWNERS, so review routing can follow the repository's own rules.",
+      ev(["codeowners"]),
+    );
   } else {
     add(
       "No CODEOWNERS file, so reviewers are not defined by the repository and have to be chosen by hand.",
@@ -109,12 +127,23 @@ export function buildDeveloperBriefing(
     );
   }
   if (profile.hasCiWorkflows) {
-    add("CI is configured through GitHub Actions workflows in the default branch.", ev(["workflow"]));
+    add(
+      "CI is configured through GitHub Actions workflows in the default branch.",
+      ev(["workflow"]),
+    );
   } else {
-    add("There are no GitHub Actions workflows, so a broken build has nothing to fail.", ev(["structure"]), "risk");
+    add(
+      "There are no GitHub Actions workflows, so a broken build has nothing to fail.",
+      ev(["structure"]),
+      "risk",
+    );
   }
   if (!profile.hasReadme) {
-    add("There is no README in the default branch, so setup steps are not discoverable.", ev(["structure"]), "risk");
+    add(
+      "There is no README in the default branch, so setup steps are not discoverable.",
+      ev(["structure"]),
+      "risk",
+    );
   }
 
   // Throughput, with the observed cadence rather than a claimed one. When
@@ -189,10 +218,17 @@ export function buildReviewBrief(
     ageDays: number;
   },
 ): InsightDigestPayload {
-  const ev = (kinds: string[]) => kinds.flatMap((k) => profile.evidence.filter((e) => e.kind === k).map((e) => e.id));
+  const ev = (kinds: string[]) =>
+    kinds.flatMap((k) =>
+      profile.evidence.filter((e) => e.kind === k).map((e) => e.id),
+    );
   const repoEv = ev(["repo"]);
   const bullets: DigestBullet[] = [];
-  const add = (text: string, evidenceIds: string[], tone: DigestBullet["tone"] = "fact") => {
+  const add = (
+    text: string,
+    evidenceIds: string[],
+    tone: DigestBullet["tone"] = "fact",
+  ) => {
     if (evidenceIds.length > 0) bullets.push({ text, evidenceIds, tone });
   };
 
@@ -214,14 +250,28 @@ export function buildReviewBrief(
       ev(["codeowners"]),
     );
   } else {
-    add("This repository has no CODEOWNERS, so reviewer assignment is manual and completeness depends on the author.", ev(["structure"]), "risk");
+    add(
+      "This repository has no CODEOWNERS, so reviewer assignment is manual and completeness depends on the author.",
+      ev(["structure"]),
+      "risk",
+    );
   }
   if (profile.hasCiWorkflows) {
-    add("CI runs on GitHub Actions for this repository, so check status before approving.", ev(["workflow"]));
+    add(
+      "CI runs on GitHub Actions for this repository, so check status before approving.",
+      ev(["workflow"]),
+    );
   } else {
-    add("This repository has no GitHub Actions workflows, so there is no automated check to rely on on this PR.", ev(["structure"]), "risk");
+    add(
+      "This repository has no GitHub Actions workflows, so there is no automated check to rely on on this PR.",
+      ev(["structure"]),
+      "risk",
+    );
   }
-  const langs = parseJson<{ name: string; percent: number }[]>(profile.languages, []);
+  const langs = parseJson<{ name: string; percent: number }[]>(
+    profile.languages,
+    [],
+  );
   if (langs.length > 0) {
     add(
       `Review in the context of a ${langs[0]!.name}-dominant codebase.`,
@@ -262,33 +312,69 @@ export async function saveDigest(
   });
   if (!profile) throw new Error("no repository insight to digest");
 
+  const where = {
+    userId: payload.userId,
+    repoId: repoRowId,
+    kind: payload.kind,
+    slot,
+    revision: payload.revision,
+  };
+
   const existing = await prisma.insightDigest.findFirst({
-    where: {
-      userId: payload.userId,
-      repoId: repoRowId,
-      kind: payload.kind,
-      slot,
-      revision: payload.revision,
-    },
+    where,
     select: { id: true },
   });
   if (existing) return existing.id;
 
-  const created = await prisma.insightDigest.create({
-    data: {
-      userId: payload.userId,
-      repoId: repoRowId,
-      insightId: profile.id,
-      kind: payload.kind,
+  try {
+    const created = await prisma.insightDigest.create({
+      data: {
+        userId: payload.userId,
+        repoId: repoRowId,
+        insightId: profile.id,
+        kind: payload.kind,
+        slot,
+        title: payload.title,
+        body: JSON.stringify(payload.bullets),
+        evidence: JSON.stringify(payload.bullets.flatMap((b) => b.evidenceIds)),
+        revision: payload.revision,
+      },
+      select: { id: true },
+    });
+    logger.info("insight-digest-saved", {
+      repoRowId,
       slot,
-      title: payload.title,
-      body: JSON.stringify(payload.bullets),
-      evidence: JSON.stringify(payload.bullets.flatMap((b) => b.evidenceIds)),
-      revision: payload.revision,
-    },
-  });
-  logger.info("insight-digest-saved", { repoRowId, slot, kind: payload.kind, bullets: payload.bullets.length });
-  return created.id;
+      kind: payload.kind,
+      bullets: payload.bullets.length,
+    });
+    return created.id;
+  } catch (e) {
+    // The check above is not a lock: a second generator for the same briefing can
+    // pass it and reach the insert first. The unique index is what actually makes
+    // "one digest per slot" true, so treat the collision as a win rather than an
+    // error — the row the other writer inserted is the digest we wanted.
+    if (!isUniqueViolation(e)) {
+      logger.warn("insight-digest-save-failed", {
+        repoRowId,
+        slot,
+        kind: payload.kind,
+        error: String(e),
+      });
+      throw e;
+    }
+    const winner = await prisma.insightDigest.findFirst({
+      where,
+      select: { id: true },
+    });
+    if (!winner) throw e;
+    logger.info("insight-digest-save-raced", {
+      repoRowId,
+      slot,
+      kind: payload.kind,
+      digestId: winner.id,
+    });
+    return winner.id;
+  }
 }
 
 export async function loadDigest(
@@ -296,7 +382,13 @@ export async function loadDigest(
   kind: DigestKind,
   slot: string,
   userId: string | null = null,
-): Promise<{ id: string; title: string; bullets: DigestBullet[]; revision: number; readAt: Date | null } | null> {
+): Promise<{
+  id: string;
+  title: string;
+  bullets: DigestBullet[];
+  revision: number;
+  readAt: Date | null;
+} | null> {
   const row = await prisma.insightDigest.findFirst({
     where: { userId, repoId: repoRowId, kind, slot },
     orderBy: [{ revision: "desc" }, { createdAt: "desc" }],
@@ -311,4 +403,3 @@ export async function loadDigest(
     readAt: row.readAt,
   };
 }
-

@@ -28,10 +28,13 @@ import {
   IconGift,
 } from "@/components/icons";
 import { PendingCheckoutControls } from "./pending-checkout-controls";
+import { ManageBillingButton } from "./manage-billing-button";
+import { billingPortalAvailability } from "@/lib/billing/billing-portal";
 import { CancelPlanButton, ReactivateButton } from "./billing-buttons";
 import { ResumeCheckoutButton } from "./resume-checkout-button";
 import { PageHeader } from "@/components/ui";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { config } from "@/lib/env-boot";
 
 export const dynamic = "force-dynamic";
 
@@ -111,6 +114,15 @@ export default async function BillingPage() {
   const isGifted = subscription?.payment_provider === "gift";
 
   const availablePlans = await publicPlans();
+
+  // Offered only where it can work: a Stripe-backed subscription has a customer
+  // to open the portal for, a USDC or gifted one does not.
+  const portal = await billingPortalAvailability(user.id);
+
+  // Stripe needs the customer to act on their card before the plan can renew.
+  // This is shown instead of, not in addition to, the generic failure notice,
+  // because the required action is completely different.
+  const actionRequired = Boolean(subscription?.payment_action_required);
 
   // Plan prices in the catalog are always USD. Payments are not: the ledger
   // stores whichever rail was used, so a payment amount must carry its own
@@ -229,7 +241,26 @@ export default async function BillingPage() {
                 </p>
               ) : null}
 
-              {status === "payment_failed" || status === "past_due" ? (
+              {actionRequired ? (
+                <div className="flex flex-col gap-3 rounded-lg border border-warn-500/30 bg-warn-500/10 p-3 text-xs font-medium text-warn-200 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="flex items-start gap-2.5">
+                    <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      {subscription?.payment_action_reason ??
+                        t("billing:action_required_banner")}
+                    </span>
+                  </span>
+                  {portal.available ? (
+                    <ManageBillingButton
+                      className="btn btn-sm shrink-0 border-warn-500/40 bg-warn-500/15 text-warn-100 hover:bg-warn-500/25"
+                      returnPath={`${config.SITE_URL}/dashboard/billing`}
+                      label={t("billing:update_payment_method")}
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+
+              {!actionRequired && (status === "payment_failed" || status === "past_due") ? (
                 <div className="flex items-start gap-2.5 rounded-lg border border-danger-500/30 bg-danger-500/10 p-3 text-xs font-medium text-danger-300">
                   <IconAlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>{t("billing:payment_not_cleared")}</span>
@@ -274,16 +305,22 @@ export default async function BillingPage() {
                 <ReactivateButton subscriptionId={subscription!.id} />
               ) : null}
 
-              <Link href="/pricing" className="btn btn-ghost btn-sm">
-                <span>
-                  {t(
-                    status === "none"
-                      ? "billing:upgrade_to_team"
-                      : "billing:change_plan",
-                  )}
-                </span>
-                <IconArrowRight className="h-3 w-3" />
-              </Link>
+              {status !== "none" && portal.available ? (
+                <ManageBillingButton
+                  returnPath={`${config.SITE_URL}/dashboard/billing`}
+                />
+              ) : (
+                <Link href="/pricing" className="btn btn-ghost btn-sm">
+                  <span>
+                    {t(
+                      status === "none"
+                        ? "billing:upgrade_to_team"
+                        : "billing:change_plan",
+                    )}
+                  </span>
+                  <IconArrowRight className="h-3 w-3" />
+                </Link>
+              )}
 
               {!isGifted &&
               plan &&

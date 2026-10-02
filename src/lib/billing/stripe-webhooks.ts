@@ -9,6 +9,10 @@ import {
   renewSubscription,
   markPastDue,
   markSubscriptionPaymentFailed,
+  markPaymentActionRequired,
+  clearPaymentActionRequired,
+  changeSubscriptionPlan,
+  transitionSubscription,
   completeCancellation,
   expireSubscription,
 } from "./subscriptions";
@@ -16,14 +20,26 @@ import { validateTransition } from "./subscription-machine";
 import {
   getPaymentByCheckoutSessionId,
   getPaymentById,
+  getPaymentByStripeCharge,
   confirmPayment,
   createPayment,
   patchPayment,
   periodForInterval,
   rejectPayment,
 } from "./payments";
+import { applyRefund } from "./refunds";
+import { hasSubscriptionEventForPayment } from "./events";
+import {
+  loadPriceIndex,
+  resolveSubscriptionPlan,
+  subscriptionPriceIds,
+  classifyPlanChange,
+  intervalFromPeriod,
+} from "./stripe-price-map";
+import type { RefundStatus } from "./refunds";
 import { getPlanById } from "./plans";
 import { recordSystemEvent } from "./system-events";
+import type { SubscriptionRecord } from "./types";
 
 /**
  * Stripe webhook event processing. All business rules run server-side; the
@@ -42,6 +58,14 @@ const EVENT_TYPES = new Set([
   "checkout.session.async_payment_failed",
   "invoice.paid",
   "invoice.payment_failed",
+  // The saved card cannot be charged (expired, failed 3DS, insufficient funds
+  // after the issuer declined). Stripe stops retrying, so this is the only
+  // notice that the user has to act before access is lost.
+  "invoice.payment_action_required",
+  // Refunds are initiated on Stripe, not in Baton, so these are the only way a
+  // returned payment is ever learned about.
+  "charge.refunded",
+  "refund.updated",
   "customer.subscription.updated",
   "customer.subscription.deleted",
   "customer.subscription.created",
@@ -67,6 +91,15 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
       break;
     case "invoice.payment_failed":
       await onInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+      break;
+    case "invoice.payment_action_required":
+      await onInvoicePaymentActionRequired(event.data.object as Stripe.Invoice);
+      break;
+    case "charge.refunded":
+      await onChargeRefunded(event.data.object as Stripe.Charge);
+      break;
+    case "refund.updated":
+      await onRefundUpdated(event.data.object as Stripe.Refund);
       break;
     case "customer.subscription.updated":
       await onSubscriptionUpdated(event.data.object as Stripe.Subscription);
@@ -119,7 +152,7 @@ async function onCheckoutSessionCompleted(session: Stripe.Checkout.Session): Pro
     return;
   }
 
-  const confirmed = await confirmPayment(payment.id);
+  const { payment: confirmed, claimed } = await confirmPayment(payment.id);
   if (confirmed.status !== "confirmed") {
     // The user cancelled the checkout while the payment was in flight (or the
     // payment was already terminal). Money may have moved at Stripe, but access
@@ -146,6 +179,12 @@ async function onCheckoutSessionCompleted(session: Stripe.Checkout.Session): Pro
     // Subscription intent wasn't created before checkout; leave the confirmed
     // payment as the source of truth and let the subscription.bound events
     // activate the row when Stripe reports it.
+    return;
+  }
+  // Idempotency: the confirm-race loser must not re-apply the activation, and a
+  // re-delivered webhook must not either. The event ledger records that this
+  // payment already activated the subscription.
+  if (!claimed && (await hasSubscriptionEventForPayment(payment.id))) {
     return;
   }
   const subscription = await getSubscriptionById(subId);
@@ -268,6 +307,13 @@ async function onInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     });
   }
 
+  if (subscription.payment_action_required) {
+    // The invoice settled, so whatever made the card unusable is resolved. The
+    // flag is cleared before the transition so the dashboard stops prompting even
+    // if the transition below is refused.
+    await clearPaymentActionRequired(subscription.id, "invoice paid");
+  }
+
   if (subscription.status === "pending") {
     await activateSubscription(subscription.id, {
       source: "stripe",
@@ -317,6 +363,205 @@ async function onInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
   }
 }
 
+/**
+ * Stripe stopped retrying and is waiting on the customer.
+ *
+ * Unlike `invoice.payment_failed`, this will never resolve on its own: the saved
+ * card is unusable (expired, or a 3DS challenge was not completed). Marking it
+ * past_due would be wrong twice over — housekeeping would expire a subscription
+ * Stripe is still willing to collect once the card is fixed, and the dashboard
+ * would tell the user to wait. The row gets a durable flag instead, which the
+ * billing page renders as "update your card".
+ */
+async function onInvoicePaymentActionRequired(invoice: Stripe.Invoice): Promise<void> {
+  const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null;
+  if (!subscriptionId) return;
+  const subscription = await getSubscriptionByProviderSubId(subscriptionId);
+  if (!subscription) {
+    await recordSystemEvent({
+      eventType: "stripe_action_required_no_subscription",
+      severity: "warn",
+      status: "missing",
+      message: `Invoice ${invoice.id} requires a payment action but subscription ${subscriptionId} is unknown locally.`,
+      metadata: { invoiceId: invoice.id, subscriptionId },
+    });
+    return;
+  }
+
+  const reason = actionRequiredReason(invoice);
+  await markPaymentActionRequired(subscription.id, reason);
+
+  await recordSystemEvent({
+    eventType: "stripe_payment_action_required",
+    severity: "warn",
+    status: "action_required",
+    message: `Subscription ${subscription.id} requires the customer to update their payment method: ${reason}`,
+    userId: subscription.user_id,
+    metadata: { invoiceId: invoice.id, subscriptionId, reason },
+  });
+}
+
+/**
+ * Turn Stripe's machine reason into something a user can act on.
+ *
+ * Only a short, fixed vocabulary is produced. `invoice.last_finalization_error`
+ * can carry gateway detail (issuer response codes, AVS/CVV outcomes) which is
+ * neither safe to store nor useful to show, so the raw code is deliberately
+ * dropped in favour of a human sentence.
+ */
+function actionRequiredReason(invoice: Stripe.Invoice): string {
+  const code = invoice.last_finalization_error?.code ?? null;
+  switch (code) {
+    case "expired_card":
+      return "Your card has expired. Update your payment method to keep your plan.";
+    case "incorrect_cvc":
+      return "The security code on your card was declined. Update your payment method.";
+    case "incorrect_number":
+      return "Your card number was declined. Update your payment method.";
+    case "invalid_number":
+      return "That card number is not valid. Update your payment method.";
+    case "card_declined":
+      return "Your bank declined the card. Update your payment method.";
+    case "authentication_required":
+      return "Your bank needs you to verify this payment. Update your payment method.";
+    case "processing_error":
+      return "Your bank could not process this card. Update your payment method.";
+    default:
+      return "Your payment method could not be charged. Update it to keep your plan.";
+  }
+}
+
+/**
+ * A charge was refunded (fully or partially).
+ *
+ * `charge.refunds` is the complete list of refunds against the charge, not just
+ * the one that triggered the event, so every entry is applied. `recordRefund`
+ * ignores ones already on the ledger, which makes redelivery cheap and correct.
+ */
+async function onChargeRefunded(charge: Stripe.Charge): Promise<void> {
+  const paymentIntentId = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+  const invoiceId = typeof charge.invoice === "string" ? charge.invoice : null;
+
+  const refunds = charge.refunds?.data ?? [];
+  if (refunds.length === 0) {
+    // Stripe can report a charge as refunded with no refund objects on this
+    // payload version. Nothing can be attributed, so record it rather than
+    // silently treating the payment as still paid.
+    await recordSystemEvent({
+      eventType: "stripe_refund_without_refunds",
+      severity: "warn",
+      status: "missing",
+      message: `Charge ${charge.id} was reported refunded but carried no refund objects; ${charge.amount_refunded} of ${charge.amount} ${charge.currency.toUpperCase()} returned.`,
+      metadata: {
+        chargeId: charge.id,
+        amountRefunded: charge.amount_refunded,
+        amount: charge.amount,
+      },
+    });
+    return;
+  }
+
+  for (const refund of refunds) {
+    const payment = await getPaymentByStripeCharge(paymentIntentId, invoiceId);
+    if (!payment) {
+      await recordSystemEvent({
+        eventType: "stripe_refund_unmatched",
+        severity: "warn",
+        status: "missing",
+        message: `Refund ${refund.id} on charge ${charge.id} could not be matched to a Baton payment.`,
+        metadata: { refundId: refund.id, chargeId: charge.id, paymentIntentId, invoiceId },
+      });
+      continue;
+    }
+    const outcome = await applyRefund({
+      paymentId: payment.id,
+      refund: {
+        stripeRefundId: refund.id,
+        stripeChargeId: typeof charge.id === "string" ? charge.id : null,
+        amount: refund.amount,
+        currency: refund.currency,
+        status: refundStatus(refund),
+        reason: refundFailureReason(refund),
+        cumulativeRefundedAmount: charge.amount_refunded,
+      },
+    });
+    logger.info("stripe-refund-applied", {
+      refundId: refund.id,
+      paymentId: payment.id,
+      outcome: outcome ?? "unmatched",
+    });
+  }
+}
+
+/**
+ * A refund's state changed after it was created (a pending refund that later
+ * settled, failed, or was cancelled).
+ *
+ * `charge.refunded` fires on every refund, so this handler exists for the case
+ * where the refund settles *after* the charge event: without it a refund that
+ * was pending when first seen would stay pending in the ledger forever.
+ */
+async function onRefundUpdated(refund: Stripe.Refund): Promise<void> {
+  const chargeId = typeof refund.charge === "string" ? refund.charge : refund.charge?.id ?? null;
+  const paymentIntentId =
+    typeof refund.payment_intent === "string" ? refund.payment_intent : refund.payment_intent?.id ?? null;
+
+  // This Stripe version's `Refund` type has no invoice field, so a refund is
+  // resolved by payment intent only. A refund with neither is unmatched rather
+  // than guessed at.
+  const payment = await getPaymentByStripeCharge(paymentIntentId, null);
+  if (!payment) {
+    logger.debug("stripe-refund-update-unmatched", { refundId: refund.id, chargeId });
+    return;
+  }
+
+  const outcome = await applyRefund({
+    paymentId: payment.id,
+    refund: {
+      stripeRefundId: refund.id,
+      stripeChargeId: chargeId,
+      amount: refund.amount,
+      currency: refund.currency,
+      status: refundStatus(refund),
+      reason: refundFailureReason(refund),
+      cumulativeRefundedAmount: refund.amount,
+    },
+  });
+  logger.info("stripe-refund-state-updated", {
+    refundId: refund.id,
+    paymentId: payment.id,
+    outcome: outcome ?? "unmatched",
+  });
+}
+
+/** Only Stripe's own fixed reason enum; `failure_reason` can hold gateway detail. */
+function refundFailureReason(refund: Stripe.Refund): string | null {
+  return refund.reason ? String(refund.reason) : null;
+}
+
+/**
+ * Map Stripe's refund status onto the ledger vocabulary.
+ *
+ * Stripe's enum is open-ended in the API surface (`string` plus a union of known
+ * values), so an unrecognised value is mapped by meaning rather than passed
+ * through: anything that is not an explicit failure or cancellation is treated as
+ * a settled refund, because `charge.refunded` only fires for refunds Stripe has
+ * actually applied.
+ */
+function refundStatus(refund: Stripe.Refund): RefundStatus {
+  const status = String(refund.status ?? "succeeded");
+  switch (status) {
+    case "pending":
+    case "succeeded":
+    case "failed":
+    case "cancelled":
+    case "canceled":
+      return status === "canceled" ? "cancelled" : (status as RefundStatus);
+    default:
+      return "succeeded";
+  }
+}
+
 async function onSubscriptionUpdated(subscription: Stripe.Subscription): Promise<void> {
   const local = await getSubscriptionByProviderSubId(subscription.id);
   if (!local) {
@@ -339,6 +584,180 @@ async function onSubscriptionUpdated(subscription: Stripe.Subscription): Promise
 
   if (subscription.status === "past_due" && validateTransition(local.status, "past_due") === null) {
     await markPastDue(local.id);
+  }
+
+  // Upgrades and downgrades are made on Stripe (through the Billing Portal), so
+  // this is the only place the new plan becomes visible. Without it the user pays
+  // for a different plan and keeps the old entitlement until a renewal happens
+  // to overwrite the period.
+  await syncPlanFromStripe(local, subscription);
+
+  await syncIncompleteState(local, subscription);
+}
+
+/**
+ * Align the local plan with the price Stripe is actually charging.
+ *
+ * Skipped when the price does not map to a configured plan: that is a
+ * configuration gap, and guessing would either grant or revoke access on a
+ * technicality. It is recorded instead so an operator can fix the plan row.
+ */
+async function syncPlanFromStripe(
+  local: SubscriptionRecord,
+  stripeSub: Stripe.Subscription,
+): Promise<void> {
+  const { index, duplicatePriceIds } = await loadPriceIndex();
+  if (duplicatePriceIds.length > 0) {
+    await recordSystemEvent({
+      eventType: "stripe_plan_price_duplicate",
+      severity: "error",
+      status: "config_error",
+      message: `Stripe price id(s) ${duplicatePriceIds.join(", ")} are mapped to more than one plan; plan resolution for upgrades/downgrades is ambiguous.`,
+      metadata: { duplicatePriceIds },
+    });
+  }
+
+  const resolved = resolveSubscriptionPlan(stripeSub, index);
+  if (!resolved) {
+    await recordSystemEvent({
+      eventType: "stripe_plan_unmapped_price",
+      severity: "warn",
+      status: "config_error",
+      message: `Subscription ${local.id} is billed for a price that no plan maps to; local plan left unchanged.`,
+      metadata: {
+        subscriptionId: local.id,
+        stripeSubscriptionId: stripeSub.id,
+        priceIds: subscriptionPriceIds(stripeSub),
+      },
+    });
+    return;
+  }
+
+  const { binding, ambiguous } = resolved;
+  if (ambiguous) {
+    await recordSystemEvent({
+      eventType: "stripe_plan_multiple_prices",
+      severity: "info",
+      status: "ambiguous",
+      message: `Subscription ${local.id} has several billable prices; the highest (${binding.planSlug}) was used.`,
+      metadata: { subscriptionId: local.id, priceIds: subscriptionPriceIds(stripeSub) },
+    });
+  }
+
+  if (binding.planId === local.plan_id) return;
+
+  const currentPlan = local.plan;
+  const direction = currentPlan
+    ? classifyPlanChange(
+        {
+          monthlyCents: currentPlan.monthly_price_cents,
+          annualCents: currentPlan.annual_price_cents,
+        },
+        { monthlyCents: binding.monthlyCents, annualCents: binding.annualCents },
+        intervalOfPeriod(local),
+        binding.interval,
+      )
+    : "lateral";
+
+  await changeSubscriptionPlan(local.id, binding.planId, {
+    reason: `Stripe subscription changed to ${binding.planName} (${binding.interval})`,
+    eventType:
+      direction === "upgrade"
+        ? "subscription_upgraded"
+        : direction === "downgrade"
+          ? "subscription_downgraded"
+          : "subscription_plan_changed",
+  });
+
+  logger.info("stripe-plan-synced", {
+    subscriptionId: local.id,
+    from: local.plan_id,
+    to: binding.planId,
+    direction,
+  });
+}
+
+/**
+ * The interval the local subscription is on, read from its own paid window.
+ *
+ * There is no interval column on the subscription: it is only recorded on the
+ * payment that opened it. Reconstructing it from the length of the window that
+ * was actually charged avoids a second query per plan change and cannot drift
+ * from the period the user is really on.
+ */
+function intervalOfPeriod(subscription: SubscriptionRecord): "monthly" | "annual" {
+  return intervalFromPeriod(subscription.current_period_start, subscription.current_period_end);
+}
+
+/**
+ * Reconcile Stripe's non-billing subscription statuses.
+ *
+ *  - `incomplete`: the first payment never settled. Stripe retries for 23 hours,
+ *    so the row stays pending but is flagged so the user is told to act. A
+ *    scheduled housekeeping pass fails it once Stripe's own window closes.
+ *  - `incomplete_expired` / `unpaid`: Stripe has given up. Fail or expire the row
+ *    so access stops, rather than leaving a customer on a plan that is unpaid.
+ *  - `active` / `trialing`: clear the action-required flag, since the card
+ *    clearly works now.
+ *  - `paused`: access is already suspended at Stripe; the row is closed.
+ */
+async function syncIncompleteState(
+  local: SubscriptionRecord,
+  stripeSub: Stripe.Subscription,
+): Promise<void> {
+  switch (stripeSub.status) {
+    case "incomplete": {
+      if (!local.payment_action_required) {
+        await markPaymentActionRequired(
+          local.id,
+          "Your first payment has not completed. Finish it to activate your plan.",
+        );
+      }
+      return;
+    }
+    case "incomplete_expired": {
+      if (validateTransition(local.status, "payment_failed") === null) {
+        await markSubscriptionPaymentFailed(local.id, {
+          source: "stripe",
+          reason: "Stripe could not collect the initial payment and the subscription expired",
+        });
+      }
+      return;
+    }
+    case "unpaid": {
+      // Stripe stops retrying entirely here; the paid window is over.
+      if (validateTransition(local.status, "expired") === null) {
+        await transitionSubscription(local.id, {
+          to: "expired",
+          eventType: "subscription_expired",
+          source: "system",
+          reason: "Stripe marked the subscription unpaid and stopped retrying",
+          endedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+    case "active":
+    case "trialing": {
+      if (local.payment_action_required) {
+        await clearPaymentActionRequired(local.id, "payment method is working again");
+      }
+      return;
+    }
+    case "paused": {
+      if (validateTransition(local.status, "expired") === null) {
+        await transitionSubscription(local.id, {
+          to: "expired",
+          eventType: "subscription_expired",
+          source: "system",
+          reason: "Stripe paused the subscription (no payment method on file)",
+          endedAt: new Date().toISOString(),
+        });
+      }
+      return;
+    }
+    default:
+      return;
   }
 }
 

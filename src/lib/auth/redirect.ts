@@ -1,5 +1,6 @@
 import { config } from "../env-boot";
 import { logger } from "../logger";
+import { metrics } from "../observability/metrics";
 import type { NextRequest } from "next/server";
 
 export function getAppBaseUrl(req?: NextRequest): string {
@@ -18,19 +19,28 @@ export function getAppBaseUrl(req?: NextRequest): string {
     return "http://localhost:3000";
   }
 
-  // In production: Always resolve to production domain, never localhost
-  if (req) {
-    const proto = req.headers.get("x-forwarded-proto") ?? "https";
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-    if (host && !host.includes("localhost") && !host.includes("127.0.0.1")) {
-      return `${proto}://${host}`;
-    }
-  }
+  // In production the request host is NOT trusted. `x-forwarded-host` and
+  // `x-forwarded-proto` are ordinary request headers that reach the app
+  // whenever the origin is reachable directly, so building a redirect target
+  // (or deciding whether a cookie is Secure) from them lets an attacker who
+  // controls a forwarding header send a victim off-site from a trusted URL, and
+  // downgrade the session cookie's Secure flag on a misconfigured proxy.
+  // Only the configured origins are ever used, which is also what the OAuth
+  // `redirect_uri` is pinned to (getOAuthBaseUrl) — the two must agree.
   if (config.APP_URL && !config.APP_URL.includes("localhost") && !config.APP_URL.includes("127.0.0.1")) {
     return config.APP_URL;
   }
   if (config.SITE_URL && !config.SITE_URL.includes("localhost") && !config.SITE_URL.includes("127.0.0.1")) {
     return config.SITE_URL;
+  }
+  if (req) {
+    // No canonical origin configured: fall back to the Host header, but only if
+    // it is one this deployment has been told about. Without APP_URL/SITE_URL
+    // there is nothing to compare against, so this cannot be made safe and the
+    // operator needs to see it.
+    logger.error("canonical-origin-missing", {
+      hint: "Set APP_URL (and SITE_URL) so redirects and cookie security do not depend on request headers.",
+    });
   }
   return "https://baton-xi.vercel.app";
 }
@@ -108,4 +118,10 @@ export function absoluteUrl(path: string, req?: NextRequest): string {
 
 export function logAuth(actor: string, action: string, detail: Record<string, unknown> = {}) {
   logger.info(`auth:${action}`, { actor, ...detail });
+  // Only negative outcomes count as failures. Successes are recorded by the
+  // sign-in pipeline itself, so that a revoked-session logout is never counted
+  // as an authentication failure.
+  if (action.endsWith("_failed") || action.endsWith("_failure") || action === "denied" || action === "rejected") {
+    metrics.authFailure(action);
+  }
 }

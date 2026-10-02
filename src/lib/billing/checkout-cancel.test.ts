@@ -28,19 +28,36 @@ vi.mock("@/lib/supabase/client", () => ({
     from: vi.fn((table: string) => {
       if (table === "subscriptions") {
         const row = { ...baseRow, status: mockSubStatus, user_id: mockSubUser };
+        // `transitionSubscription` writes with a compare-and-set
+        // (`.eq("id").eq("status")`) and reads the row back with `maybeSingle`,
+        // so the chain has to be filter-aware: a write whose `status` predicate
+        // does not match the current row must return no rows, which is exactly
+        // how a lost race looks to the caller.
+        const writeChain = (filters: Record<string, unknown>) => {
+          const self: Record<string, unknown> = {};
+          self.eq = vi.fn((col: string, val: unknown) => {
+            filters[col] = val;
+            return self;
+          });
+          self.select = vi.fn(() => ({
+            maybeSingle: vi.fn(async () => {
+              const statusFilter = filters.status;
+              if (statusFilter !== undefined && statusFilter !== row.status) {
+                return { data: null, error: null };
+              }
+              return { data: { ...row, status: "canceled" }, error: null };
+            }),
+            single: vi.fn(async () => ({ data: { ...row, status: "canceled" }, error: null })),
+          }));
+          return self;
+        };
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               maybeSingle: vi.fn(async () => ({ data: row, error: null })),
             })),
           })),
-          update: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              select: vi.fn(() => ({
-                single: vi.fn(async () => ({ data: { ...row, status: "canceled" }, error: null })),
-              })),
-            })),
-          })),
+          update: vi.fn(() => writeChain({})),
         };
       }
       return {

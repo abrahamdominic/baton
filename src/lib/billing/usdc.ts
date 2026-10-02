@@ -1,5 +1,4 @@
-import type { Cents } from "./types";
-import { minorToUsdcOnchain, usdcOnchainToMinor } from "./amounts";
+import { ONCHAIN_UNITS_PER_CENT } from "./amounts";
 import type { UsdcSettings } from "@/lib/config";
 
 /**
@@ -43,7 +42,14 @@ export type UsdcVerificationResult =
       transactionHash: string;
       from: string;
       recipient: string;
+      /**
+       * Plan value credited for this payment, in cents. On-chain transfers for
+       * an order carry a unique sub-cent nonce, so this is the *floored* value
+       * and deliberately excludes the nonce dust.
+       */
       valueMinor: number;
+      /** Exact on-chain total observed, in 6-decimal USDC base units. */
+      valueOnchain: string;
       blockNumber: number;
       confirmations: number;
       network: string;
@@ -56,7 +62,19 @@ interface RpcRequestParams {
   params?: unknown[];
 }
 
-async function rpcCall(settings: UsdcSettings, method: string, params: unknown[]): Promise<unknown> {
+/**
+ * Distinguishes "the node said this object does not exist" from "we could not
+ * ask the node". Collapsing both to `null` made every RPC outage look like a
+ * permanently missing transaction, and made a missing block height look like
+ * a fully-confirmed one.
+ */
+type RpcOutcome =
+  | { ok: true; result: unknown }
+  | { ok: false; reason: "unreachable" | "http_error" | "rpc_error" | "malformed" };
+
+const RPC_UNAVAILABLE: RpcOutcome = { ok: false, reason: "unreachable" };
+
+async function rpcCall(settings: UsdcSettings, method: string, params: unknown[]): Promise<RpcOutcome> {
   const body: RpcRequestParams = { method, params };
   let res: Response;
   try {
@@ -67,16 +85,25 @@ async function rpcCall(settings: UsdcSettings, method: string, params: unknown[]
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    return null;
+    return RPC_UNAVAILABLE;
   }
-  if (!res.ok) return null;
+  if (!res.ok) return { ok: false, reason: "http_error" };
+  let json: { result?: unknown; error?: unknown };
   try {
-    const json = (await res.json()) as { result?: unknown; error?: unknown };
-    if (json.error) return null;
-    return json.result ?? null;
+    json = (await res.json()) as { result?: unknown; error?: unknown };
   } catch {
-    return null;
+    return { ok: false, reason: "malformed" };
   }
+  if (json.error !== undefined && json.error !== null) return { ok: false, reason: "rpc_error" };
+  return { ok: true, result: json.result ?? null };
+}
+
+function rpcUnavailable(method: string, outcome: RpcOutcome & { ok: false }): UsdcVerificationResult {
+  return {
+    ok: false,
+    code: "rpc_unavailable",
+    detail: `Base RPC call ${method} failed (${outcome.reason}); the chain state is unknown, so verification is retried rather than failed permanently`,
+  };
 }
 
 function hexToBigInt(value: string | null | undefined): bigint | null {
@@ -102,28 +129,39 @@ interface ParsedTransfer {
 }
 
 /**
- * Verify that `transactionHash` paid exactly the expected amount to the
- * configured Baton USDC wallet, on the Base network.
+ * Verify that `transactionHash` paid exactly `expectedOnchain` base units of
+ * USDC to the configured Baton USDC wallet, on the Base network.
+ *
+ * `expectedOnchain` is the order's *unique* on-chain amount (plan price plus a
+ * per-order sub-cent nonce, see `newUsdcOrderNonce` in payments.ts). Matching on the exact
+ * amount — not just "at least the price" — is what binds a transfer to one
+ * order: a transaction can only ever satisfy the single order that was issued
+ * that precise figure, so a public transfer cannot be re-pointed at somebody
+ * else's pending order.
  */
 export async function verifyUsdcTransaction(
   settings: UsdcSettings,
   transactionHash: string,
-  expectedAmountMinor: Cents,
+  expectedOnchain: bigint,
 ): Promise<UsdcVerificationResult> {
   if (!isValidTransactionHash(transactionHash)) {
     return { ok: false, code: "invalid_hash", detail: "transaction hash does not look like a Base transaction hash" };
   }
 
-  const tx = (await rpcCall(settings, "eth_getTransactionByHash", [transactionHash])) as Record<string, unknown> | null;
-  if (!tx || tx.hash === null || tx.hash === undefined) {
+  const txOutcome = await rpcCall(settings, "eth_getTransactionByHash", [transactionHash]);
+  if (!txOutcome.ok) return rpcUnavailable("eth_getTransactionByHash", txOutcome);
+  const tx = txOutcome.result as Record<string, unknown> | null;
+  if (!tx || typeof tx !== "object" || tx.hash === null || tx.hash === undefined) {
     return { ok: false, code: "not_found", detail: "transaction does not exist on this network" };
   }
   if (!tx.blockNumber) {
     return { ok: false, code: "not_mined", detail: "transaction has not been mined yet" };
   }
 
-  const receipt = (await rpcCall(settings, "eth_getTransactionReceipt", [transactionHash])) as Record<string, unknown> | null;
-  if (!receipt) {
+  const receiptOutcome = await rpcCall(settings, "eth_getTransactionReceipt", [transactionHash]);
+  if (!receiptOutcome.ok) return rpcUnavailable("eth_getTransactionReceipt", receiptOutcome);
+  const receipt = receiptOutcome.result as Record<string, unknown> | null;
+  if (!receipt || typeof receipt !== "object") {
     return { ok: false, code: "not_mined", detail: "no receipt available for this transaction" };
   }
   const status = hexToNumber(receipt.status);
@@ -181,37 +219,50 @@ export async function verifyUsdcTransaction(
   }
 
   const totalValue = toWallet.reduce((n, t) => n + t.value, 0n);
-  let valueMinor: number;
-  try {
-    valueMinor = usdcOnchainToMinor(Number(totalValue));
-  } catch {
-    return {
-      ok: false,
-      code: "amount_mismatch",
-      detail: "transferred amount has sub-cent precision and cannot match a plan price",
-    };
-  }
 
-  const expectedOnchain = minorToUsdcOnchain(expectedAmountMinor);
-  const toleranceOnchain = minorToUsdcOnchain(settings.amountToleranceMinor);
-  const diff = totalValue - BigInt(expectedOnchain);
-  if (diff < 0n || diff > BigInt(toleranceOnchain)) {
+  // Floor to whole cents for the credited plan value. Orders carry a sub-cent
+  // nonce in the on-chain amount, so an exact `usdcOnchainToMinor` conversion
+  // would reject every legitimate transfer.
+  const valueMinor = Number(totalValue / ONCHAIN_UNITS_PER_CENT);
+
+  // Exact, in both directions, and deliberately with no tolerance knob.
+  //
+  // The whole attribution guarantee rests on "this transfer's amount is this
+  // order's amount and no other open order's", and each order's amount is unique
+  // by its sub-cent nonce. A tolerance of even one cent means a single transfer
+  // can satisfy several open orders at once: an attacker opens the cheapest
+  // order, pays it with the difference folded in, and the same transfer now also
+  // covers every order priced within the window. Underpayment is rejected for
+  // the same reason in reverse. The nonce is at most 0.009999 USDC, so requiring
+  // an exact figure costs a real payer nothing they would have sent anyway.
+  if (totalValue !== expectedOnchain) {
     return {
       ok: false,
       code: "amount_mismatch",
-      detail: `expected ${expectedAmountMinor} minor units, received ${valueMinor}`,
+      detail: `this order expects exactly ${expectedOnchain} on-chain USDC units, received ${totalValue}`,
     };
   }
 
   const txBlock = hexToNumber(tx.blockNumber);
-  const currentBlockRaw = await rpcCall(settings, "eth_blockNumber", []);
-  const currentBlock = hexToNumber(currentBlockRaw);
-  let confirmations = 0;
-  if (txBlock !== null) {
-    confirmations = currentBlock !== null ? Math.max(0, currentBlock - txBlock + 1) : 0;
+  const currentBlockOutcome = await rpcCall(settings, "eth_blockNumber", []);
+  const currentBlock = currentBlockOutcome.ok ? hexToNumber(currentBlockOutcome.result) : null;
+  if (txBlock === null) {
+    return { ok: false, code: "not_mined", detail: "transaction has no usable block height" };
+  }
+  // Fail closed: if the head height is unknown, confirmations are unknown, and
+  // treating unknown as zero would let a reorg-fresh transaction settle.
+  if (currentBlock === null) {
+    return {
+      ok: false,
+      code: "insufficient_finality",
+      detail: currentBlockOutcome.ok
+        ? "Base RPC returned an unusable block height; cannot confirm finality"
+        : `Base RPC block height unavailable (${currentBlockOutcome.reason}); cannot confirm finality`,
+    };
   }
 
-  if (txBlock !== null && currentBlock !== null && confirmations < settings.minConfirmations) {
+  const confirmations = Math.max(0, currentBlock - txBlock + 1);
+  if (confirmations < settings.minConfirmations) {
     return {
       ok: false,
       code: "insufficient_finality",
@@ -226,7 +277,8 @@ export async function verifyUsdcTransaction(
     from,
     recipient: normalizeAddress(settings.walletAddress),
     valueMinor,
-    blockNumber: txBlock ?? 0,
+    valueOnchain: totalValue.toString(),
+    blockNumber: txBlock,
     confirmations,
     network: settings.network,
     token: settings.token,

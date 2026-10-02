@@ -5,11 +5,12 @@ import { currentUser } from "@/lib/auth/session";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { config } from "@/lib/env-boot";
 import { isStripeConfigured, isUsdcConfigured, usdcSettings } from "@/lib/config";
-import { getPlanById } from "@/lib/billing/plans";
+import { getPurchasablePlanById } from "@/lib/billing/plans";
 import { getEntitlement } from "@/lib/billing/entitlement";
 import { listSubscriptionsForUser } from "@/lib/billing/subscriptions";
 import { planPriceCents } from "@/lib/billing/pricing";
 import { CheckoutForm } from "./checkout-form";
+import { ManageBillingButton } from "../manage-billing-button";
 import { PageHeader } from "@/components/ui";
 import { IconArrowLeft, IconAlertCircle } from "@/components/icons";
 
@@ -32,7 +33,7 @@ export default async function CheckoutPage({
   const planId = params?.plan;
   const interval = params?.billing === "annual" ? "annual" : "monthly";
 
-  const plan = planId ? await getPlanById(planId).catch(() => null) : null;
+  const plan = planId ? await getPurchasablePlanById(planId).catch(() => null) : null;
   if (!plan || !plan.is_active) redirect("/pricing");
 
   const entitlement = await getEntitlement(user.id);
@@ -45,6 +46,21 @@ export default async function CheckoutPage({
   const pendingCheckout =
     openSubs.find((s) => s.status === "pending" || s.status === "payment_failed") ?? null;
   const blocksPlanChange = pendingCheckout && pendingCheckout.plan_id !== plan.id;
+
+  // Changing plan on a live card subscription must happen on Stripe, not through
+  // a second checkout: checkout always creates a new Stripe subscription, so
+  // completing it here would leave the current one billing every month for a plan
+  // the account is no longer on. The server refuses this too
+  // (PlanChangeRequiresPortalError); the page exists so the user is routed to the
+  // right place rather than shown a form that cannot succeed.
+  const liveSub = entitlement.subscription;
+  const requiresPortal = Boolean(
+    liveSub &&
+      liveSub.payment_provider === "stripe" &&
+      liveSub.provider_subscription_id &&
+      liveSub.plan_id !== plan.id &&
+      ["active", "active_until_period_end", "past_due"].includes(liveSub.status),
+  );
 
   const monthlyPrice = planPriceCents(plan, "monthly");
   const annualPrice = planPriceCents(plan, "annual");
@@ -123,6 +139,21 @@ export default async function CheckoutPage({
         description={t("billing:checkout_description")}
       />
 
+      {requiresPortal ? (
+        <div className="space-y-5 rounded-xl border border-brand-500/25 bg-brand-500/[0.05] p-5 sm:p-6">
+          <div>
+            <h2 className="text-base font-bold text-white">{t("billing:portal_required_title")}</h2>
+            <p className="mt-2 max-w-xl text-xs leading-relaxed text-ink-300">
+              {t("billing:portal_required_body")}
+            </p>
+          </div>
+          <ManageBillingButton
+            variant="primary"
+            returnPath={`${config.SITE_URL}/dashboard/billing`}
+            label={t("billing:portal_required_cta")}
+          />
+        </div>
+      ) : (
       <CheckoutForm
         plan={{
           id: plan.id,
@@ -150,6 +181,7 @@ export default async function CheckoutPage({
             entitlement.subscription.payment_provider === "usdc",
         )}
       />
+      )}
     </div>
   );
 }

@@ -28,6 +28,59 @@ export interface QueueSnapshot {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Which repositories the workflow suite has and has not analysed.
+ *
+ * Analysis runs on a schedule in the background, so "no findings" and "never
+ * looked" look identical from the outside unless something counts the gap. This
+ * is the operator's view of that gap: how many enabled repositories have a
+ * stored run, how many do not, and which ones have gone longest without one.
+ *
+ * Reads `RepoAutomationRun` oldest-first, which is the `ranAt` index read in
+ * reverse, and deliberately counts repositories with no row at all — the missing
+ * rows are the thing worth surfacing.
+ */
+export async function automationCoverage(limit = 10): Promise<{
+  enabledRepos: number;
+  analysedRepos: number;
+  neverAnalysed: number;
+  totalFindings: number;
+  oldestUnanalysed: { owner: string; name: string }[];
+  mostRecent: { owner: string; name: string; ranAt: Date; findingCount: number } | null;
+}> {
+  const [enabledRepos, analysedRepos, findingAgg, oldestUnanalysed, mostRecent] = await Promise.all([
+    prisma.repo.count({ where: { enabled: true } }),
+    prisma.repoAutomationRun.count(),
+    prisma.repoAutomationRun.aggregate({ _sum: { findingCount: true } }),
+    prisma.repo.findMany({
+      where: { enabled: true, automationRun: { is: null } },
+      select: { owner: true, name: true },
+      take: limit,
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.repoAutomationRun.findFirst({
+      select: { ranAt: true, findingCount: true, repo: { select: { owner: true, name: true } } },
+      orderBy: { ranAt: "desc" },
+    }),
+  ]);
+
+  return {
+    enabledRepos,
+    analysedRepos,
+    neverAnalysed: Math.max(0, enabledRepos - analysedRepos),
+    totalFindings: findingAgg._sum.findingCount ?? 0,
+    oldestUnanalysed,
+    mostRecent: mostRecent
+      ? {
+          owner: mostRecent.repo.owner,
+          name: mostRecent.repo.name,
+          ranAt: mostRecent.ranAt,
+          findingCount: mostRecent.findingCount,
+        }
+      : null,
+  };
+}
+
 export async function queueSnapshot(now: Date = new Date()): Promise<QueueSnapshot> {
   const since = new Date(now.getTime() - DAY_MS);
   const nowMs = now.getTime();
@@ -163,4 +216,58 @@ export async function recentJobFailures(limit = 20): Promise<JobFailure[]> {
     ...r,
     error: r.error ? r.error.slice(0, 400) : null,
   }));
+}
+
+/**
+ * Put a dead-lettered job back in the queue.
+ *
+ * Dead-lettering is a terminal state by design: a job that exhausted its retry
+ * budget, or that failed permanently, must not silently restart on its own,
+ * because nothing else distinguishes "we gave up" from "we are working on it".
+ * That leaves an operator with a dead-letter queue they can observe but cannot
+ * act on, which for a payload that was only failing because of a transient
+ * cause (an App that had not finished being installed, a transient 5xx) means
+ * the work is only ever recovered by hand-editing the database.
+ *
+ * Requeueing is therefore an explicit, audited action: it resets the attempt
+ * budget, restores a runnable `nextAttemptAt`, and lets the normal claim path
+ * take the row. It does not mutate the payload, so a job that genuinely cannot
+ * succeed will simply exhaust its budget again and re-enter this list.
+ */
+export async function requeueDeadLetter(jobId: string): Promise<"requeued" | "not_found" | "not_failed"> {
+  const row = await prisma.job.findUnique({ where: { id: jobId }, select: { id: true, status: true } });
+  if (!row) return "not_found";
+  if (row.status !== "failed") return "not_failed";
+
+  await prisma.job.updateMany({
+    where: { id: jobId, status: "failed" },
+    data: {
+      status: "pending",
+      attempts: 0,
+      error: null,
+      nextAttemptAt: null,
+      startedAt: null,
+      finishedAt: null,
+      leaseToken: null,
+      leaseExpiresAt: null,
+    },
+  });
+  return "requeued";
+}
+
+/**
+ * Jobs whose lease has lapsed but that have not yet been reclaimed.
+ *
+ * A non-zero value alongside `processing` means executors are dying mid-job
+ * (OOM, an instance being frozen before its response is written, SIGKILL).
+ * That is the single most important queue health signal there is, because it is
+ * invisible in `pending`/`failed` counts: the job keeps being resurrected.
+ */
+export async function expiringLeases(now: Date = new Date()): Promise<number> {
+  return prisma.job.count({
+    where: {
+      status: "processing",
+      OR: [{ leaseExpiresAt: { lt: now } }, { leaseExpiresAt: null }],
+    },
+  });
 }

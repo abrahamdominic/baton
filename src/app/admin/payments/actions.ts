@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { clientIpFromHeaders } from "@/lib/net";
 import { headers } from "next/headers";
 import { currentUser } from "@/lib/auth/session";
 import { getPaymentById, verifyUsdcPaymentNow, adminVerifyPayment } from "@/lib/billing/payments";
@@ -15,7 +16,7 @@ async function requireAdmin() {
 
 async function auditIp(): Promise<string | null> {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  return clientIpFromHeaders(h);
 }
 
 /** Sensitive admin actions require an explicit confirm checkbox (nk.md §17). */

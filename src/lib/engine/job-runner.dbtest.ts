@@ -44,6 +44,16 @@ vi.mock("@/lib/engine/runner", () => ({
     if (failOn.has(key)) throw new Error("simulated collection failure");
     processed.push({ kind: "repo_intel", payload });
   },
+  // Same reasoning for the automation branch: the processor reads persisted
+  // state only, but it lives in the same module as the GitHub-facing processors
+  // and so must be present on the mock for the dispatch path to be reachable.
+  processRepoAutomations: async (payload: unknown) => {
+    const p = payload as { owner: string; repo: string };
+    const key = `automations:${p.owner}/${p.repo}`;
+    if (failOn.has(key)) throw new Error("simulated automation failure");
+    processed.push({ kind: "repo_automations", payload });
+    return { repoRowId: "row-1", workflowCount: 11, findingCount: 3 };
+  },
 }));
 
 vi.mock("@/lib/github/install", () => ({
@@ -57,7 +67,11 @@ const { enqueueJob } = await import("@/lib/engine/jobs");
 const { claimOne, drainQueue, recoverStaleJobs, runClaimedJob } = await import(
   "@/lib/engine/job-runner"
 );
-const { queueSnapshot } = await import("@/lib/engine/queue-metrics");
+const { queueSnapshot, requeueDeadLetter, expiringLeases } = await import(
+  "@/lib/engine/queue-metrics"
+);
+
+const prismaJobCount = () => prisma.job.count();
 
 async function clearJobs(): Promise<void> {
   await prisma.job.deleteMany({});
@@ -96,7 +110,14 @@ describe("worker queue (real database)", () => {
     expect(row.status).toBe("done");
     expect(row.finishedAt).not.toBeNull();
     expect(row.error).toBeNull();
-    expect(row.startedAt).toBeNull();
+    // `startedAt` is PRESERVED on a terminal row: the latency report is computed
+    // from it, and nulling it here made `jobLatency()` match nothing at all.
+    expect(row.startedAt).not.toBeNull();
+    // The lease and the occupancy key are released, so the same payload can be
+    // queued again and nothing can try to write this attempt's outcome.
+    expect(row.leaseToken).toBeNull();
+    expect(row.leaseExpiresAt).toBeNull();
+    expect(row.dedupeKey).toBeNull();
   });
 
   it("returns empty (not a failure) when the queue has no work", async () => {
@@ -242,7 +263,7 @@ describe("worker queue (real database)", () => {
     const row = await prisma.job.findFirstOrThrow();
     expect(row.status).toBe("failed");
     expect(row.error).toContain("malformed job payload");
-    expect(row.startedAt).toBeNull();
+    expect(row.dedupeKey).toBeNull();
 
     // And it must not be picked up again.
     expect(await runClaimedJob()).toBe("empty");
@@ -269,19 +290,31 @@ describe("worker queue (real database)", () => {
 
     // Claim it, then simulate the executor being killed before finishing.
     const claimed = await claimOne();
-    expect(claimed).not.toBeNull();
+    expect(claimed.status).toBe("claimed");
+    const claimedJob = claimed.status === "claimed" ? claimed.job : null;
+    expect(claimedJob).not.toBeNull();
     let row = await prisma.job.findFirstOrThrow();
     expect(row.status).toBe("processing");
     expect(row.startedAt).not.toBeNull();
 
-    // A fresh job is not reapplicable yet: the reclaim window is 5 minutes.
+    // A fresh claim is not reapplicable yet: the lease runs for 5 minutes.
     expect(await recoverStaleJobs(5 * 60 * 1000, { force: true })).toBe(0);
     expect(await runClaimedJob()).toBe("empty");
 
-    // Age the claim past the window, as real elapsed time would.
+    // Ageing only `startedAt` must not reclaim it either.
     await prisma.job.update({
-      where: { id: claimed!.id },
-      data: { startedAt: new Date(Date.now() - 10 * 60 * 1000) },
+      where: { id: claimedJob!.id },
+      data: { startedAt: new Date(Date.now() - 60 * 60 * 1000) },
+    });
+    expect(await recoverStaleJobs(5 * 60 * 1000, { force: true })).toBe(0);
+
+    // Age the LEASE past the window, as real elapsed time would. `leaseExpiresAt`
+    // is now the single liveness signal: ageing `startedAt` alone must NOT
+    // reclaim a job, because that is exactly the bug where a legitimately long
+    // job was reclaimed while its executor was still running.
+    await prisma.job.update({
+      where: { id: claimedJob!.id },
+      data: { leaseExpiresAt: new Date(Date.now() - 10 * 60 * 1000) },
     });
     expect(await recoverStaleJobs(5 * 60 * 1000, { force: true })).toBe(1);
 
@@ -336,6 +369,58 @@ describe("worker queue (real database)", () => {
     expect(processed).toEqual([
       { kind: "repo_intel", payload: { kind: "repo_intel", installationId: 42, owner: "acme", repo: "widgets" } },
     ]);
+  });
+
+  it("dispatches a repo_automations job to the workflow processor", async () => {
+    await enqueueJob({ kind: "repo_automations", installationId: 42, owner: "acme", repo: "widgets" });
+    const result = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+
+    expect(result.failed).toBe(0);
+    expect(processed).toEqual([
+      {
+        kind: "repo_automations",
+        payload: { kind: "repo_automations", installationId: 42, owner: "acme", repo: "widgets" },
+      },
+    ]);
+  });
+
+  it("retries a failed automation run on the same backoff path as other work", async () => {
+    // The workflow suite reads only the database, so a failure here is a defect
+    // or a transient database error — not something to drop silently.
+    failOn.add("automations:acme/widgets");
+    await enqueueJob({ kind: "repo_automations", installationId: 42, owner: "acme", repo: "widgets" });
+
+    const first = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(first.failed).toBe(1);
+
+    const row = await prisma.job.findFirstOrThrow({ where: { kind: "repo_automations" } });
+    // A transient failure requeues with backoff rather than dropping the work.
+    expect(row.status).toBe("pending");
+    expect(row.attempts).toBe(1);
+    expect(row.nextAttemptAt!.getTime()).toBeGreaterThan(Date.now());
+
+    // Bring the retry forward rather than waiting out the backoff, then confirm
+    // the second attempt really runs the processor and completes the job.
+    await prisma.job.update({ where: { id: row.id }, data: { nextAttemptAt: new Date(Date.now() - 1000) } });
+    failOn.delete("automations:acme/widgets");
+    const second = await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(second.failed).toBe(0);
+    expect(second.processed).toBe(1);
+    expect((await prisma.job.findFirstOrThrow({ where: { kind: "repo_automations" } })).status).toBe("done");
+  });
+
+  it("rejects a repo_automations payload with a non-positive installation id", async () => {
+    await prisma.job.create({
+      data: {
+        kind: "repo_automations",
+        payloadJson: JSON.stringify({ kind: "repo_automations", installationId: 0, owner: "a", repo: "b" }),
+      },
+    });
+    await drainQueue({ maxJobs: 10, budgetMs: 15_000, concurrency: 1, label: "test" });
+
+    const row = await prisma.job.findFirstOrThrow({ where: { kind: "repo_automations" } });
+    expect(row.status).toBe("failed");
+    expect(processed).toEqual([]);
   });
 
   it("retries a failed collection and dead-letters it after the limit", async () => {
@@ -395,6 +480,323 @@ describe("worker queue (real database)", () => {
     expect(row.status).toBe("failed");
     // The blank owner must be caught at the boundary, never dispatched.
     expect(row.error).toContain("requires owner and repo");
+  });
+});
+
+/**
+ * Lease, fencing, and occupancy.
+ *
+ * These are the properties that make "safe across concurrent executors" true
+ * rather than merely intended. Each one is a defect that was live before:
+ * reclaim never counted an attempt (so a job that killed its executor could
+ * never dead-letter), a lapsed claim had no fence (so a slow executor could
+ * stamp its result over a newer attempt's), and enqueue dedupe was
+ * check-then-act (so two concurrent identical deliveries both inserted).
+ */
+describe("queue leases and fencing", () => {
+  beforeEach(async () => {
+    await clearJobs();
+    processed.length = 0;
+    failOn.clear();
+  });
+
+  afterAll(async () => {
+    await clearJobs();
+    await prisma.$disconnect();
+  });
+
+  it("mints a distinct lease token per claim so attempts cannot collide", async () => {
+    await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: 1 });
+    const first = await claimOne();
+    expect(first.status).toBe("claimed");
+    const firstToken = first.status === "claimed" ? first.job.leaseToken : "";
+    expect(firstToken).toMatch(/^[0-9a-f-]{36}$/);
+
+    const row = await prisma.job.findFirstOrThrow();
+    expect(row.leaseToken).toBe(firstToken);
+    expect(row.leaseExpiresAt).not.toBeNull();
+    expect(row.leaseExpiresAt!.getTime()).toBeGreaterThan(Date.now());
+
+    // Reclaim, then claim again: the second attempt must be fenced differently,
+    // or it could not be told apart from the first.
+    await prisma.job.update({
+      where: { id: row.id },
+      data: { leaseExpiresAt: new Date(Date.now() - 1000) },
+    });
+    await recoverStaleJobs(0, { force: true });
+
+    const second = await claimOne();
+    expect(second.status).toBe("claimed");
+    const secondToken = second.status === "claimed" ? second.job.leaseToken : "";
+    expect(secondToken).not.toBe(firstToken);
+  });
+
+  it("counts a reclaimed attempt, so a repeatedly-killed job dead-letters", async () => {
+    // The original defect: reclaim reset status without touching attempts, so a
+    // job that hard-killed its executor every time was reclaimed forever and
+    // never reached maxAttempts. It could not be dead-lettered at all.
+    await prisma.job.create({
+      data: {
+        kind: "pr_refresh",
+        maxAttempts: 3,
+        payloadJson: JSON.stringify({
+          kind: "pr_refresh",
+          installationId: 1,
+          owner: "acme",
+          repo: "api",
+          number: 1,
+        }),
+      },
+    });
+
+    // Each round: claim (attempt N begins), lose the executor, reclaim. The
+    // reclaim increments `attempts`, so the budget walks down 1 -> 2 -> 3 and the
+    // reclaim that observes attempts == maxAttempts records the job instead of
+    // requeueing it.
+    for (let i = 0; i < 4; i += 1) {
+      const claim = await claimOne();
+      if (claim.status !== "claimed") break;
+      const row = await prisma.job.findFirstOrThrow();
+      await prisma.job.update({
+        where: { id: row.id },
+        data: { leaseExpiresAt: new Date(Date.now() - 1000) },
+      });
+      await recoverStaleJobs(0, { force: true });
+    }
+
+    const row = await prisma.job.findFirstOrThrow();
+    expect(row.status).toBe("failed");
+    expect(row.attempts).toBe(3);
+    expect(row.error).toContain("lease expired repeatedly");
+    expect(row.dedupeKey).toBeNull();
+
+    // A dead-lettered job is terminal: nothing picks it up again.
+    expect(await runClaimedJob()).toBe("empty");
+  });
+
+  it("refuses a terminal write from an executor that lost its lease", async () => {
+    // The fence. An executor whose lease lapsed keeps running; without a token
+    // check its late write overwrites whatever the attempt that replaced it
+    // decided. With it, the write affects zero rows.
+    await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: 1 });
+
+    const stale = await claimOne();
+    expect(stale.status).toBe("claimed");
+    const staleToken = stale.status === "claimed" ? stale.job.leaseToken : "";
+
+    const staleId = await prisma.job.findFirstOrThrow().then((r) => r.id);
+    await prisma.job.update({
+      where: { id: staleId },
+      data: { leaseExpiresAt: new Date(Date.now() - 1000) },
+    });
+    await recoverStaleJobs(0, { force: true });
+    await runClaimedJob(); // the replacement attempt finishes
+    expect(processed).toHaveLength(1);
+
+    // Replay the original attempt's terminal write with its now-stale token.
+    const fenced = await prisma.job.updateMany({
+      where: { id: staleId, status: "processing", leaseToken: staleToken },
+      data: { status: "failed", error: "stale executor" },
+    });
+    expect(fenced.count).toBe(0);
+
+    const row = await prisma.job.findFirstOrThrow({ where: { id: staleId } });
+    expect(row.status).toBe("done");
+    expect(row.error).toBeNull();
+  });
+
+  it("keeps the lease alive for a long-running job so it is not reclaimed", async () => {
+    await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: 1 });
+    const claim = await claimOne();
+    expect(claim.status).toBe("claimed");
+    const job = claim.status === "claimed" ? claim.job : null;
+
+    const before = await prisma.job.findFirstOrThrow();
+    expect(before.leaseExpiresAt!.getTime()).toBeGreaterThan(Date.now());
+
+    // The heartbeat pushes the deadline forward. Exercised directly rather than
+    // by waiting 60s: the guarantee under test is that the deadline is derived
+    // from "now" and is not a fixed stamp taken at claim time.
+    await prisma.job.updateMany({
+      where: { id: job!.id, status: "processing", leaseToken: job!.leaseToken },
+      data: { leaseExpiresAt: new Date(Date.now() + 5 * 60 * 1000) },
+    });
+
+    // A reclaim run with a 5-minute window must not touch it.
+    expect(await recoverStaleJobs(5 * 60 * 1000, { force: true })).toBe(0);
+    expect((await prisma.job.findFirstOrThrow()).status).toBe("processing");
+  });
+
+  it("enforces one in-flight job per payload in the database, not by counting", async () => {
+    // The dedupe used to be `count()` then `insert()`, with nothing between the
+    // two. Concurrent identical deliveries both saw zero overlaps and both
+    // inserted, so the same PR was classified twice and commented on twice.
+    const payload = {
+      kind: "pr_refresh",
+      installationId: 1,
+      owner: "acme",
+      repo: "api",
+      number: 1,
+    } as const;
+
+    await Promise.all(Array.from({ length: 8 }, () => enqueueJob(payload)));
+    expect(await prisma.job.count({ where: { status: "pending" } })).toBe(1);
+
+    // Different payloads are not collapsed.
+    await enqueueJob({ ...payload, number: 2 });
+    await enqueueJob({ kind: "repo_intel", installationId: 1, owner: "acme", repo: "api" });
+    expect(await prisma.job.count({ where: { status: "pending" } })).toBe(3);
+  });
+
+  it("lets the same payload queue again once the previous run finished", async () => {
+    // The dedupe key is cleared on every terminal transition, so the unique
+    // index only ever constrains in-flight work.
+    const payload = {
+      kind: "pr_refresh",
+      installationId: 1,
+      owner: "acme",
+      repo: "api",
+      number: 1,
+    } as const;
+
+    await enqueueJob(payload);
+    expect(await prismaJobCount()).toBe(1);
+    await drainQueue({ maxJobs: 5, budgetMs: 15_000, concurrency: 1, label: "test" });
+    expect(await prisma.job.count({ where: { status: "done" } })).toBe(1);
+
+    // A webhook redelivery for work that is already complete must be accepted.
+    await enqueueJob(payload);
+    expect(await prismaJobCount()).toBe(2);
+  });
+
+  it("never hands the same job to two concurrent claimers", async () => {
+    // Many claimers, fewer jobs than claimers, so some must lose the
+    // compare-and-swap. Whoever loses must report `contended` or `empty` —
+    // crucially never `claimed` for a row someone else already owns, and never
+    // the same job id twice.
+    for (let n = 1; n <= 3; n += 1) {
+      await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: n });
+    }
+
+    const results = await Promise.all(Array.from({ length: 12 }, () => claimOne()));
+    const claimedIds = results
+      .filter((r): r is Extract<typeof r, { status: "claimed" }> => r.status === "claimed")
+      .map((r) => r.job.id);
+
+    // The invariant is exclusivity: no job is ever handed to two executors, and
+    // no claim reports a lease token for a row it did not actually win. How many
+    // of the three are taken in a single burst is timing-dependent — a loser
+    // that reads the same head row returns `contended` and the next round moves
+    // on — so that count is deliberately not asserted. It is bounded, and the
+    // drain test below is what proves the backlog actually gets worked off.
+    expect(claimedIds.length).toBeGreaterThan(0);
+    expect(claimedIds.length).toBeLessThanOrEqual(3);
+    expect(new Set(claimedIds).size).toBe(claimedIds.length);
+    expect(await prisma.job.count({ where: { status: "processing" } })).toBe(claimedIds.length);
+  });
+
+  it("works off a contended backlog over several rounds, losing nothing", async () => {
+    // Combined with the drain test: contention must cost a retry, not a job.
+    for (let n = 1; n <= 5; n += 1) {
+      await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: n });
+    }
+
+    let claimed = 0;
+    for (let round = 0; round < 20 && claimed < 5; round += 1) {
+      const results = await Promise.all(Array.from({ length: 5 }, () => claimOne()));
+      claimed += results.filter((r) => r.status === "claimed").length;
+    }
+
+    expect(claimed).toBe(5);
+    expect(new Set((await prisma.job.findMany({ select: { id: true } })).map((r) => r.id)).size).toBe(5);
+  });
+
+  it("reports an exhausted queue as empty, never as contention", async () => {
+    // The distinction only means something if `empty` is still reachable. A lane
+    // that got `contended` for a genuinely idle queue would spin until the
+    // drain's contention cap, turning a quiet queue into a busy loop.
+    await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: 1 });
+    expect((await claimOne()).status).toBe("claimed");
+    expect((await claimOne()).status).toBe("empty");
+    expect((await runClaimedJob())).toBe("empty");
+  });
+
+  it("surfaces a lapsed claim as an expiring lease and clears it on completion", async () => {
+    await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: 1 });
+
+    // Healthy claim: the lease deadline is in the future, so nothing is reported.
+    expect(await expiringLeases()).toBe(0);
+    const claim = await claimOne();
+    expect(claim.status).toBe("claimed");
+
+    // Expire it: this is the signal that an executor is being killed mid-job.
+    const row = await prisma.job.findFirstOrThrow();
+    await prisma.job.update({
+      where: { id: row.id },
+      data: { leaseExpiresAt: new Date(Date.now() - 1000) },
+    });
+    expect(await expiringLeases()).toBe(1);
+
+    // Reclaiming it puts it back in the queue; finishing normally then clears
+    // the lease signal again.
+    await recoverStaleJobs(0, { force: true });
+    expect(await runClaimedJob()).toBe("ok");
+    expect(await expiringLeases()).toBe(0);
+  });
+
+  it("lets an operator requeue a dead-lettered job, and refuses anything else", async () => {
+    failOn.add("acme/api#1");
+    await prisma.job.create({
+      data: {
+        kind: "pr_refresh",
+        maxAttempts: 1,
+        payloadJson: JSON.stringify({
+          kind: "pr_refresh",
+          installationId: 1,
+          owner: "acme",
+          repo: "api",
+          number: 1,
+        }),
+      },
+    });
+    await drainQueue({ maxJobs: 5, budgetMs: 15_000, concurrency: 1, label: "test" });
+    const dead = await prisma.job.findFirstOrThrow();
+    expect(dead.status).toBe("failed");
+
+    // A dead-lettered job is terminal on its own; nothing retries it silently.
+    expect(await runClaimedJob()).toBe("empty");
+
+    expect(await requeueDeadLetter(dead.id)).toBe("requeued");
+    const revived = await prisma.job.findFirstOrThrow();
+    expect(revived.status).toBe("pending");
+    expect(revived.attempts).toBe(0);
+    expect(revived.error).toBeNull();
+    expect(revived.nextAttemptAt).toBeNull();
+
+    // The cause is still present, so it runs again and dead-letters again. That
+    // is the intended loop: requeueing is an operator judgement, not a fix.
+    failOn.delete("acme/api#1");
+    expect(await runClaimedJob()).toBe("ok");
+    expect(processed).toHaveLength(1);
+
+    // Guard rails: a missing row, and a row that is not dead-lettered.
+    expect(await requeueDeadLetter("does-not-exist")).toBe("not_found");
+    const doneRow = await prisma.job.findFirstOrThrow({ where: { status: "done" } });
+    expect(await requeueDeadLetter(doneRow.id)).toBe("not_failed");
+  });
+
+  it("drains the whole backlog when lanes contend for the same head row", async () => {
+    // The regression that matters for throughput: with contention treated as
+    // emptiness, concurrent lanes quit after the first round and `remaining`
+    // stayed high while the queue reported itself drained.
+    for (let n = 1; n <= 24; n += 1) {
+      await enqueueJob({ kind: "pr_refresh", installationId: 1, owner: "acme", repo: "api", number: n });
+    }
+    const result = await drainQueue({ maxJobs: 50, budgetMs: 20_000, concurrency: 8, label: "test" });
+    expect(result.processed).toBe(24);
+    expect(result.remaining).toBe(0);
+    expect(result.stopReason).toBe("drained");
+    expect(new Set(processed.map((p) => JSON.stringify(p.payload))).size).toBe(24);
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { currentUser } from "@/lib/auth/session";
+import { requireActiveUser } from "@/lib/auth/session";
 import { rememberContext, forgetContext } from "@/lib/intelligence/context";
 import { authorizedRepo } from "@/lib/queries/intelligence";
 import { intelligenceAccess } from "@/lib/intelligence/access";
@@ -29,7 +29,7 @@ const toggleInput = z.object({
 export async function toggleSaveContextAction(
   input: z.input<typeof toggleInput>,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const user = await currentUser();
+  const user = await requireActiveUser();
   if (!user) return { ok: false, error: "Unauthorized" };
 
   const parsed = toggleInput.safeParse(input);

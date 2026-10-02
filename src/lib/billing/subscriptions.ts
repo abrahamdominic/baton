@@ -1,14 +1,14 @@
 import "server-only";
 import { getAdminClient } from "@/lib/supabase/client";
 import { isSupabaseConfigured } from "@/lib/config";
-import { getPlanById } from "./plans";
+import { getPlanById, getPurchasablePlanById } from "./plans";
 import { recordSubscriptionEvent } from "./events";
 import { recordSystemEvent } from "./system-events";
 import { subscriptionFromRow, type Row } from "./records";
 import { validateTransition } from "./subscription-machine";
 import { cancelCheckoutPayment, findOpenPaymentForSubscription } from "./payments";
 import { getStripe } from "./stripe";
-import { BillingInputError } from "./errors";
+import { BillingInputError, PlanChangeRequiresPortalError, SubscriptionConflictError } from "./errors";
 import type { PaymentProvider, PlanRecord, SubscriptionRecord, SubscriptionStatus } from "./types";
 
 /**
@@ -16,6 +16,9 @@ import type { PaymentProvider, PlanRecord, SubscriptionRecord, SubscriptionStatu
  * change goes through an explicitly validated transition + lifecycle event.
  * The client can never set a status: these are server-only operations.
  */
+
+/** Statuses that represent a live, paying subscription. */
+const LIVE_STATUSES: SubscriptionStatus[] = ["active", "active_until_period_end", "past_due"];
 
 const OPEN_STATUSES: SubscriptionStatus[] = [
   "pending",
@@ -104,7 +107,7 @@ export async function createSubscription(input: CreateSubscriptionInput): Promis
     if (existing.status === "payment_failed") {
       // Retry of an orphaned/failed checkout: reuse the SAME row instead of
       // inserting a second open `pending` row (see prepareSubscriptionForCheckout).
-      const plan = await getPlanById(input.planId);
+      const plan = await getPurchasablePlanById(input.planId);
       const retried = await retryFailedSubscription(
         existing,
         input.provider,
@@ -115,8 +118,8 @@ export async function createSubscription(input: CreateSubscriptionInput): Promis
     }
   }
   const sb = getAdminClient();
-  const plan = await getPlanById(input.planId);
-  if (!plan || !plan.is_active) throw new BillingInputError("This plan is not available for purchase.");
+  const plan = await getPurchasablePlanById(input.planId);
+  if (!plan) throw new BillingInputError("This plan is not available for purchase.");
 
   const { data, error } = await sb
     .from("subscriptions")
@@ -158,11 +161,27 @@ export interface TransitionOptions {
   canceledAt?: string | null;
   startedAt?: string | null;
   endedAt?: string | null;
+  /**
+   * Stripe requires the customer to update their payment method. Distinct from
+   * `past_due`: a past-due invoice is still being retried, this state is not
+   * going to resolve without the user doing something.
+   */
+  paymentActionRequired?: boolean | null;
+  /** Non-sensitive explanation shown in the dashboard (why the card needs updating). */
+  paymentActionReason?: string | null;
 }
 
 /**
  * Core guarded transition. Validates the subscription state machine before
  * touching the row, then records an immutable lifecycle event.
+ *
+ * The state machine is enforced twice: once here against the row we read, and
+ * once in SQL by the `.eq("status", observed)` compare-and-set. Without the
+ * second check, two webhooks that read the same status both validate and both
+ * write — a renewal landing on a `pending` row could, for example, be written
+ * by a cancel in the same window. When the CAS loses the race the row is
+ * re-read and re-validated, so a genuinely newer state is honoured rather than
+ * silently overwritten.
  */
 export async function transitionSubscription(id: string, opts: TransitionOptions): Promise<SubscriptionRecord> {
   const current = await getSubscriptionById(id);
@@ -183,15 +202,38 @@ export async function transitionSubscription(id: string, opts: TransitionOptions
   if (opts.canceledAt !== undefined) patch.canceled_at = opts.canceledAt;
   if (opts.startedAt !== undefined) patch.started_at = opts.startedAt;
   if (opts.endedAt !== undefined) patch.ended_at = opts.endedAt;
+  if (opts.paymentActionRequired !== undefined) {
+    patch.payment_action_required = opts.paymentActionRequired;
+    patch.payment_action_reason = opts.paymentActionRequired ? (opts.paymentActionReason ?? null) : null;
+  }
 
   const sb = getAdminClient();
   const { data, error: updateError } = await sb
     .from("subscriptions")
     .update(patch)
     .eq("id", id)
+    .eq("status", current.status)
     .select("*")
-    .single();
+    .maybeSingle();
   if (updateError) throw new Error(`subscriptions.update failed: ${updateError.message}`);
+  if (!data) {
+    // Lost the race: the status changed between our read and our write, so the
+    // machine has to be re-evaluated against the state that actually won.
+    const latest = await getSubscriptionById(id);
+    if (!latest) throw new BillingInputError("Subscription not found.");
+    const retryError = validateTransition(latest.status, opts.to);
+    if (retryError) {
+      throw new BillingInputError(`Illegal subscription transition: ${retryError.from} → ${retryError.to}`);
+    }
+    if (latest.status === opts.to) {
+      // A concurrent identical transition already applied this target status;
+      // the observable end state is the one the caller asked for.
+      return latest;
+    }
+    throw new SubscriptionConflictError(
+      `Subscription changed to ${latest.status} while applying ${opts.to}; retry the operation.`,
+    );
+  }
   const sub = subscriptionFromRow(data as Row);
 
   await recordSubscriptionEvent({
@@ -322,6 +364,89 @@ export async function reactivateSubscription(id: string): Promise<SubscriptionRe
   });
 }
 
+// ---------------------------------------------------------------------------
+// Plan changes (upgrade / downgrade)
+// ---------------------------------------------------------------------------
+
+/**
+ * Move a subscription to a different plan without touching its lifecycle status.
+ *
+ * The status transition is a no-op (from === to is always legal), so this is a
+ * plan swap: the period, the renewal schedule, and the customer's payment all
+ * stay exactly as Stripe has them, and only the entitlement Baton grants changes.
+ * Stripe is what created the change — via the Billing Portal — so the caller
+ * passes the plan Stripe's price actually maps to.
+ *
+ * Recording the event with the before/after plan is what makes an upgrade
+ * auditable later; without it the subscription history shows renewals but never
+ * shows the moment the user's plan changed.
+ */
+export async function changeSubscriptionPlan(
+  id: string,
+  planId: string,
+  opts: { reason: string; eventType?: string },
+): Promise<SubscriptionRecord> {
+  return transitionSubscription(id, {
+    to: "active",
+    eventType: opts.eventType ?? "subscription_plan_changed",
+    source: "stripe",
+    reason: opts.reason,
+    planId,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Payment action required (the user must update their payment method)
+// ---------------------------------------------------------------------------
+
+/**
+ * Stripe told us the saved payment method cannot be charged.
+ *
+ * This is deliberately not `past_due`. A past-due invoice is still being retried
+ * by Stripe and usually resolves itself; an action-required invoice will not, no
+ * matter how long we wait, because the customer has to supply a working card.
+ * Conflating the two makes the dashboard tell a user to wait for something that
+ * is never going to happen, and makes housekeeping expire a subscription Stripe
+ * would still have collected.
+ */
+export async function markPaymentActionRequired(id: string, reason: string): Promise<SubscriptionRecord> {
+  const current = await getSubscriptionById(id);
+  if (!current) throw new BillingInputError("Subscription not found.");
+
+  // An incomplete Stripe subscription has no paid period at all, so the row
+  // stays `pending` and only carries the flag. A live subscription keeps its
+  // status and gains the flag.
+  const to = current.status === "pending" ? "pending" : current.status;
+  return transitionSubscription(id, {
+    to,
+    eventType: "subscription_payment_action_required",
+    source: "stripe",
+    reason,
+    paymentActionRequired: true,
+    paymentActionReason: reason,
+  });
+}
+
+/**
+ * Clear the action-required flag.
+ *
+ * Called when an invoice is paid, so the prompt disappears the moment the user's
+ * card starts working again instead of lingering until the next renewal.
+ */
+export async function clearPaymentActionRequired(id: string, reason?: string): Promise<SubscriptionRecord> {
+  const current = await getSubscriptionById(id);
+  if (!current) throw new BillingInputError("Subscription not found.");
+  if (!current.payment_action_required) return current;
+
+  return transitionSubscription(id, {
+    to: current.status,
+    eventType: "subscription_payment_action_resolved",
+    source: "stripe",
+    reason: reason ?? "payment method updated",
+    paymentActionRequired: false,
+  });
+}
+
 /** Period ended with cancel_at_period_end set: final cancellation. */
 export async function completeCancellation(id: string): Promise<SubscriptionRecord> {
   return transitionSubscription(id, {
@@ -369,8 +494,8 @@ export async function prepareSubscriptionForCheckout(
   provider: PaymentProvider,
 ): Promise<PreparedSubscription> {
   const existing = await getCurrentSubscription(userId);
-  const plan = await getPlanById(planId);
-  if (!plan || !plan.is_active) throw new BillingInputError("This plan is not available for purchase.");
+  const plan = await getPurchasablePlanById(planId);
+  if (!plan) throw new BillingInputError("This plan is not available for purchase.");
 
   if (!existing) {
     const created = await createSubscription({ userId, planId, provider });
@@ -399,6 +524,29 @@ export async function prepareSubscriptionForCheckout(
       return retryFailedSubscription(existing, provider, planId, plan);
     }
     return { subscription: existing, planChanged: false, alreadyOnPlan: true, renewal: false };
+  }
+
+  // A plan change on a live *recurring Stripe* subscription cannot go through
+  // checkout. Checkout always creates a brand-new Stripe subscription, so
+  // continuing from here would leave the existing one alive and still billing:
+  // the user pays for the old plan every month, the local row only knows about
+  // the new one, and every renewal of the abandoned subscription lands as an
+  // unmatched "subscription_missing" warning while Stripe keeps taking money.
+  //
+  // Plan changes mutate the existing subscription in Stripe's Billing Portal
+  // instead, which is also the only place proration is calculated correctly. The
+  // resulting `customer.subscription.updated` webhook moves the entitlement (see
+  // `syncPlanFromStripe`). USDC is unaffected: it has no recurring billing and no
+  // portal, so re-purchasing a period is the correct mechanism there.
+  if (
+    provider === "stripe" &&
+    existing.payment_provider === "stripe" &&
+    existing.provider_subscription_id &&
+    LIVE_STATUSES.includes(existing.status)
+  ) {
+    throw new PlanChangeRequiresPortalError(
+      "You already have an active Stripe subscription. Change your plan from the billing portal so your current subscription is updated instead of duplicated.",
+    );
   }
 
   // Plan change on a live subscription: reuse the row.
@@ -621,6 +769,8 @@ export interface HousekeepingResult {
   failedOrphans: number;
   /** Admin-gifted `active` plans that reached their access end and were closed. */
   expiredGifts: number;
+  /** Stripe `incomplete` subscriptions past Stripe's own retry deadline. */
+  expiredIncomplete: number;
 }
 
 /**
@@ -638,11 +788,13 @@ export async function runBillingHousekeeping(now = new Date()): Promise<Housekee
     completedCancellations: 0,
     failedOrphans: 0,
     expiredGifts: 0,
+    expiredIncomplete: 0,
   };
   if (!isSupabaseConfigured()) return result;
 
   const sb = getAdminClient();
   const stalePendingBefore = new Date(now.getTime() - PENDING_STALE_MS).toISOString();
+  const incompletePendingBefore = new Date(now.getTime() - PENDING_INCOMPLETE_STALE_MS).toISOString();
 
   const { data, error } = await sb
     .from("subscriptions")
@@ -678,7 +830,7 @@ export async function runBillingHousekeeping(now = new Date()): Promise<Housekee
       ) {
         await completeCancellation(sub.id);
         result.completedCancellations += 1;
-      } else if (sub.status === "pending" && new Date(sub.created_at) <= new Date(stalePendingBefore)) {
+      } else if (sub.status === "pending" && new Date(sub.updated_at ?? sub.created_at) <= new Date(stalePendingBefore)) {
         await transitionSubscription(sub.id, {
           to: "payment_failed",
           eventType: "subscription_orphaned",
@@ -686,6 +838,22 @@ export async function runBillingHousekeeping(now = new Date()): Promise<Housekee
           reason: "checkout was never completed by the user",
         });
         result.failedOrphans += 1;
+      } else if (
+        sub.status === "pending" &&
+        sub.payment_action_required &&
+        new Date(sub.updated_at ?? sub.created_at) <= new Date(incompletePendingBefore)
+      ) {
+        // Stripe's own retry window for an incomplete initial payment has closed.
+        // Failing it here is what makes a new checkout possible; leaving it
+        // pending forever blocks the user from trying again.
+        await transitionSubscription(sub.id, {
+          to: "payment_failed",
+          eventType: "subscription_incomplete_expired",
+          source: "system",
+          reason: "Stripe could not collect the initial payment and its retry window expired",
+          paymentActionRequired: false,
+        });
+        result.expiredIncomplete += 1;
       }
     } catch (err) {
       await recordSystemEvent({
@@ -701,3 +869,13 @@ export async function runBillingHousekeeping(now = new Date()): Promise<Housekee
 }
 
 const PENDING_STALE_MS = 1000 * 60 * 60 * 72; // 72 hours
+
+/**
+ * Stripe gives a subscription in `incomplete` exactly 23 hours of automatic
+ * retries on the initial payment before it expires. Failing the local row before
+ * that window closes would cancel an order Stripe is still legitimately retrying
+ * (a bank debit that settles on the second attempt, a 3DS challenge the user
+ * completes an hour later), so the orphan sweep has to wait it out. 26 hours is
+ * the first housekeeping tick that is safely past Stripe's own deadline.
+ */
+const PENDING_INCOMPLETE_STALE_MS = 1000 * 60 * 60 * 26;

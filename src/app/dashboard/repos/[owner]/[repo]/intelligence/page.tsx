@@ -20,6 +20,7 @@ import {
   IconActivity,
   IconCheckCircle,
   IconAlertCircle,
+  IconBolt,
   IconBrain,
 } from "@/components/icons";
 import { getOnboardingGuideForRepo } from "@/lib/intelligence/onboarding";
@@ -29,6 +30,7 @@ import { intelligenceAccess, UPGRADE_HREF } from "@/lib/intelligence/access";
 import { FEATURE_KEYS } from "@/lib/billing/types";
 import { IntelligenceQuestionForm } from "./question-form";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { AutomationPanel } from "./automation-panel";
 import type { Translator } from "@/lib/i18n/translate";
 
 export const dynamic = "force-dynamic";
@@ -74,7 +76,9 @@ export default async function IntelligencePage({
       ? "onboarding"
       : resolvedSearchParams?.tab === "knowledge"
         ? "knowledge"
-        : "profile";
+        : resolvedSearchParams?.tab === "automations"
+          ? "automations"
+          : "profile";
 
   const { t, tc } = await getTranslatorForRequest();
 
@@ -118,6 +122,15 @@ export default async function IntelligencePage({
   // largest read on this page and nobody scrolling the profile tab needs it.
   const knowledgeFacts = currentTab === "knowledge" ? await loadKnowledge(view.repo.id, { limit: 200 }) : [];
   const knowledgeSummary = currentTab === "knowledge" ? await summariseKnowledge(view.repo.id) : null;
+
+  // Finding count for the tab badge. A single projected column on a table that
+  // holds one row per repository, so it is cheaper than rendering the panel just
+  // to learn whether it would be empty.
+  const automationRow = await prisma.repoAutomationRun.findUnique({
+    where: { repoId: view.repo.id },
+    select: { findingCount: true },
+  });
+  const automationCount = automationRow?.findingCount ?? null;
 
   const githubRepoUrl = `https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
@@ -258,9 +271,25 @@ export default async function IntelligencePage({
             <span className="font-mono text-[10px] opacity-70">({knowledgeSummary.total})</span>
           ) : null}
         </Link>
+        <Link
+          href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=automations`}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+            currentTab === "automations"
+              ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
+              : "text-ink-400 hover:text-white"
+          }`}
+        >
+          <IconBolt className="h-3 w-3" />
+          {t("intelligence:tab_automations")}
+          {automationCount !== null && automationCount > 0 ? (
+            <span className="font-mono text-[10px] opacity-70">({automationCount})</span>
+          ) : null}
+        </Link>
       </div>
 
-      {currentTab === "knowledge" ? (
+      {currentTab === "automations" ? (
+        <AutomationPanel owner={owner} repo={repo} />
+      ) : currentTab === "knowledge" ? (
         <div className="space-y-4">
           {knowledgeSummary && knowledgeSummary.total > 0 ? (
             <p className="text-[11px] leading-relaxed text-ink-400">

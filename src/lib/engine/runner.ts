@@ -15,6 +15,8 @@ import { statusCommentBody } from "./message";
 import { decideNudge, parseNudgeBuckets } from "./nudges";
 import { applyOrgPolicyToSetting } from "./thresholds";
 import { createNotification } from "../notifications";
+import { loadWorkflowInputs, runWorkflows } from "../workflows/automation";
+import { releaseReadinessFor } from "../workflows/release";
 import type { SnapshotInput } from "./types";
 
 // AI review assistants that set "FAILURE" conclusions on their own checks and
@@ -469,6 +471,92 @@ export async function processRepoIntel(input: {
 
   const collected = await collectRepositoryIntelligence(input.installationId, input.owner, input.repo);
   return saveRepositoryIntelligence(row.id, collected);
+}
+
+/**
+ * Run the automated-workflow suite for a repository and persist what it finds.
+ *
+ * This is the background half of §8: the page renders from the stored findings,
+ * so no user request ever pays for the analysis. Findings are recomputed and
+ * replaced on every run rather than accumulated, because a workflow's output is a
+ * function of current state — a stale finding that says "waiting on @bob" after
+ * bob has reviewed is worse than no finding.
+ *
+ * Automation never acts: nothing here comments, labels, assigns, or closes.
+ */
+export async function processRepoAutomations(input: {
+  installationId: number;
+  owner: string;
+  repo: string;
+}): Promise<{ repoRowId: string; workflowCount: number; findingCount: number } | null> {
+  const row = await prisma.repo.findFirst({
+    where: {
+      owner: input.owner,
+      name: input.repo,
+      installation: { installationId: input.installationId },
+    },
+    select: { id: true, enabled: true },
+  });
+  if (!row) {
+    logger.info("repo-automations-skipped-unknown-repo", {
+      installationId: input.installationId,
+      owner: input.owner,
+      repo: input.repo,
+    });
+    return null;
+  }
+  if (!row.enabled) {
+    logger.info("repo-automations-skipped-disabled-repo", { repoRowId: row.id });
+    return null;
+  }
+
+  const input2 = await loadWorkflowInputs(row.id);
+  if (!input2) return null;
+
+  const runs = runWorkflows(input2);
+  const readiness = await releaseReadinessFor(row.id);
+  if (readiness) {
+    runs.push({
+      kind: "release_readiness",
+      findings: readiness.blockers.map((b, i) => ({
+        id: `release-blocker-${i}`,
+        kind: "release_readiness" as const,
+        title: b.text,
+        basis: b.basis,
+        confidence: "derived" as const,
+        href: null,
+        paths: [],
+        actors: [],
+        severity: 65,
+      })),
+    });
+  }
+
+  const findingCount = runs.reduce((sum, r) => sum + r.findings.length, 0);
+
+  // One row per repository. Upsert rather than create so a re-run replaces the
+  // previous result instead of leaving the page showing an older analysis.
+  await prisma.repoAutomationRun.upsert({
+    where: { repoId: row.id },
+    create: {
+      repoId: row.id,
+      runsJson: JSON.stringify(runs),
+      findingCount,
+      ranAt: new Date(),
+    },
+    update: {
+      runsJson: JSON.stringify(runs),
+      findingCount,
+      ranAt: new Date(),
+    },
+  });
+
+  logger.info("repo-automations-complete", {
+    repoRowId: row.id,
+    workflows: runs.length,
+    findings: findingCount,
+  });
+  return { repoRowId: row.id, workflowCount: runs.length, findingCount };
 }
 
 function actorList(

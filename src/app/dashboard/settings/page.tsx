@@ -1,3 +1,4 @@
+import { SignOutLink } from "@/components/sign-out-link";
 import Link from "next/link";
 import { myInstallations, userSessions } from "@/lib/queries/dashboard";
 import { currentUser, readSessionCookie, hashToken } from "@/lib/auth/session";
@@ -138,13 +139,10 @@ export default async function SettingsPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <a
-              href="/auth/logout"
-              className="btn btn-ghost btn-sm text-ink-400 hover:text-white"
-            >
+            <SignOutLink className="btn btn-ghost btn-sm text-ink-400 hover:text-white">
               <IconLogOut className="h-3.5 w-3.5" />
               <span>{t("common:sign_out")}</span>
-            </a>
+            </SignOutLink>
           </div>
         </div>
       </section>
@@ -349,10 +347,10 @@ export default async function SettingsPage() {
                   </div>
 
                   {s.isCurrent ? (
-                    <a href="/auth/logout" className="btn btn-ghost btn-sm">
+                    <SignOutLink className="btn btn-ghost btn-sm">
                       <IconLogOut className="h-3 w-3" />
                       <span>{t("common:sign_out")}</span>
-                    </a>
+                    </SignOutLink>
                   ) : (
                     <form
                       action={async () => {

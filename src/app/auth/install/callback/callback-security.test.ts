@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
+import { createHash } from "node:crypto";
 
 /**
  * Regression cover for the cross-tenant installation takeover class of bugs.
@@ -33,6 +34,7 @@ const sessionMock = {
   createSession: vi.fn(),
   defaultRoleForLogin: vi.fn(() => "user"),
   SESSION_COOKIE: "baton_session",
+  SESSION_COOKIE_BASE_OPTS: { httpOnly: true, sameSite: "lax", secure: true, path: "/" },
   SESSION_TTL_MS: 1000,
 };
 
@@ -42,6 +44,16 @@ const fetchUserInstallationsMock = vi.fn();
 const exchangeAppCodeMock = vi.fn();
 const fetchGitHubUserMock = vi.fn();
 const exchangeUserCodeMock = vi.fn();
+
+const cookieJar = new Map<string, string>();
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: (name: string) => (cookieJar.has(name) ? { name, value: cookieJar.get(name) as string } : undefined),
+    set: (name: string, value: string) => void cookieJar.set(name, value),
+    delete: (name: string) => void cookieJar.delete(name),
+  }),
+  headers: async () => new Headers(),
+}));
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
 vi.mock("@/lib/auth/session", () => sessionMock);
@@ -92,21 +104,39 @@ beforeEach(() => {
   });
   prismaMock.appInstallation.update.mockResolvedValue({});
   enqueueMock.mockResolvedValue({ id: "job-1" });
-  registerMock.mockResolvedValue({ installationId: VICTIM_INSTALL, repositories: [] });
+  // GitHub reports which account the installation is really on. For a personal
+  // installation that login must match the caller; the callback uses it as an
+  // ownership proof independent of the App user token.
+  registerMock.mockResolvedValue({
+    installationId: VICTIM_INSTALL,
+    accountLogin: "attacker",
+    accountType: "User",
+    repositories: [],
+  });
   fetchUserInstallationsMock.mockResolvedValue([]);
 });
 
+const INSTALL_STATE = "s3cret-install-nonce";
+const STATE_HASH = createHash("sha256").update(INSTALL_STATE).digest("hex");
+
 describe("install callback CSRF (state)", () => {
-  it("rejects a state minted for a different user", async () => {
+  /**
+   * The state is now an opaque nonce hashed into a cookie rather than
+   * `uid:<userId>`. Two things change: the internal id stops travelling through
+   * GitHub's query string, and a *missing* state is now a failure rather than a
+   * skipped check — the old `if (stateParam) { ... }` meant an attacker could
+   * omit it entirely and the attribution write ran anyway.
+   */
+  it("rejects a state that does not match this browser's cookie", async () => {
     const { GET } = await loadCallback();
+    cookieJar.set("baton_install_state", STATE_HASH);
     prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: VICTIM });
 
     const res = await GET(
       makeRequest({
         installation_id: String(VICTIM_INSTALL),
         setup_action: "install",
-        // State minted for a different (victim) session than the one calling.
-        state: `uid:${VICTIM}`,
+        state: "forged-state",
       }),
     );
 
@@ -117,27 +147,31 @@ describe("install callback CSRF (state)", () => {
     expect(enqueueMock).not.toHaveBeenCalled();
   });
 
-  it("rejects a non-uid state outright", async () => {
+  it("rejects a request with no state at all and no App user token", async () => {
     const { GET } = await loadCallback();
-    prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: VICTIM });
-
-    const res = await GET(
-      makeRequest({ installation_id: String(VICTIM_INSTALL), state: "anything-else" }),
-    );
-
-    expect(res.headers.get("location")).toContain("reason=state_mismatch");
-    expect(enqueueMock).not.toHaveBeenCalled();
-  });
-
-  it("accepts a state bound to the current session", async () => {
-    const { GET } = await loadCallback();
+    cookieJar.delete("baton_install_state");
     prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: null });
 
     const res = await GET(
-      makeRequest({
-        installation_id: String(VICTIM_INSTALL),
-        state: `uid:${ATTACKER}`,
-      }),
+      makeRequest({ installation_id: String(VICTIM_INSTALL), setup_action: "install" }),
+    );
+
+    // A direct install from GitHub's own app page has no state; bounce the user
+    // back through /install so they pick up a valid one.
+    expect(new URL(res.headers.get("location") as string).pathname).toBe("/install");
+    expect(prismaMock.appInstallation.create).not.toHaveBeenCalled();
+    expect(prismaMock.appInstallation.update).not.toHaveBeenCalled();
+    expect(enqueueMock).not.toHaveBeenCalled();
+    expect(registerMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a state matching this browser's cookie", async () => {
+    const { GET } = await loadCallback();
+    cookieJar.set("baton_install_state", STATE_HASH);
+    prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: null });
+
+    const res = await GET(
+      makeRequest({ installation_id: String(VICTIM_INSTALL), state: INSTALL_STATE }),
     );
 
     expect(res.headers.get("location")).toBe(
@@ -147,14 +181,30 @@ describe("install callback CSRF (state)", () => {
       expect.objectContaining({ data: { userId: ATTACKER } }),
     );
   });
+
+  it("consumes the state so a replayed callback cannot reuse it", async () => {
+    const { GET } = await loadCallback();
+    cookieJar.set("baton_install_state", STATE_HASH);
+    prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: null });
+
+    await GET(makeRequest({ installation_id: String(VICTIM_INSTALL), state: INSTALL_STATE }));
+    const second = await GET(
+      makeRequest({ installation_id: String(VICTIM_INSTALL + 1), state: INSTALL_STATE }),
+    );
+
+    expect(second.headers.get("location")).toContain("reason=state_mismatch");
+  });
 });
 
 describe("install callback ownership", () => {
   it("never re-attributes an installation owned by someone else", async () => {
     const { GET } = await loadCallback();
+    cookieJar.set("baton_install_state", STATE_HASH);
     prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: VICTIM });
 
-    const res = await GET(makeRequest({ installation_id: String(VICTIM_INSTALL) }));
+    const res = await GET(
+      makeRequest({ installation_id: String(VICTIM_INSTALL), state: INSTALL_STATE }),
+    );
 
     expect(res.headers.get("location")).toContain("reason=already_claimed");
     expect(prismaMock.appInstallation.update).not.toHaveBeenCalled();
@@ -201,5 +251,55 @@ describe("install callback ownership", () => {
       VICTIM_INSTALL,
       8888,
     ]);
+  });
+});
+
+/**
+ * A second ownership proof that works with no App user token: GitHub reports
+ * which account the installation lives on, and a *user* installation lives on
+ * exactly one person's account. If it is not the caller's, the caller is trying
+ * to claim somebody else's installation — the state cookie only proves the
+ * browser started an install flow, not which installation it may attribute.
+ */
+describe("install callback account proof", () => {
+  it("releases the attribution when GitHub says the installation belongs to another login", async () => {
+    const { GET } = await loadCallback();
+    cookieJar.set("baton_install_state", STATE_HASH);
+    prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: null });
+    registerMock.mockResolvedValue({
+      installationId: VICTIM_INSTALL,
+      accountLogin: "victim",
+      accountType: "User",
+      repositories: [],
+    });
+
+    const res = await GET(
+      makeRequest({ installation_id: String(VICTIM_INSTALL), state: INSTALL_STATE }),
+    );
+
+    expect(res.headers.get("location")).toContain("reason=account_mismatch");
+    expect(prismaMock.appInstallation.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { userId: null } }),
+    );
+  });
+
+  it("accepts an organization installation, which has no personal login to compare", async () => {
+    const { GET } = await loadCallback();
+    cookieJar.set("baton_install_state", STATE_HASH);
+    prismaMock.appInstallation.findUnique.mockResolvedValue({ userId: null });
+    registerMock.mockResolvedValue({
+      installationId: VICTIM_INSTALL,
+      accountLogin: "acme-inc",
+      accountType: "Organization",
+      repositories: [],
+    });
+
+    const res = await GET(
+      makeRequest({ installation_id: String(VICTIM_INSTALL), state: INSTALL_STATE }),
+    );
+
+    expect(res.headers.get("location")).toBe(
+      "https://baton-xi.vercel.app/dashboard?installed=1",
+    );
   });
 });

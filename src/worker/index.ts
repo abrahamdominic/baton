@@ -30,8 +30,13 @@ export async function main(): Promise<void> {
       // Bounded per tick: a single iteration drains a limited batch rather than
       // looping forever, so the shutdown handler can actually be honoured and
       // one slow job cannot monopolise the process.
+      //
+      // The batch is sized independently of concurrency. Tying them together (as
+      // this previously did) capped throughput at concurrency jobs per poll
+      // interval no matter how much work was waiting, so a deep backlog could
+      // never be worked off on a dedicated host.
       await drainQueue({
-        maxJobs: config.BATON_JOB_CONCURRENCY,
+        maxJobs: Math.max(config.BATON_JOB_CONCURRENCY, config.BATON_WORKER_BATCH_SIZE),
         budgetMs: config.BATON_WORKER_POLL_MS * 2,
         concurrency: config.BATON_JOB_CONCURRENCY,
         label: "worker",
@@ -55,8 +60,18 @@ export async function main(): Promise<void> {
   };
 
   const timer = setInterval(() => void safeTick(), config.BATON_WORKER_POLL_MS);
-  timer.unref();
   await safeTick();
+
+  // Hold the event loop open deliberately.
+  //
+  // The timer used to be `unref()`ed while the process then awaited a bare
+  // Promise. Nothing but the Prisma connection pool kept the loop alive, so the
+  // moment that pool went idle (idle-in-transaction timeout, a database-side
+  // idle disconnect, an RDS proxy recycling the session) the process exited with
+  // code 0 and the supervisor saw a healthy shutdown of a worker that was
+  // silently no longer draining the queue. A dedicated worker must exit only via
+  // SIGTERM/SIGINT or a fatal error.
+  let keepAlive: ReturnType<typeof setInterval> | null = setInterval(() => {}, 1 << 30);
 
   await new Promise<void>((resolve) => {
     const shutdown = (signal: string) => {
@@ -64,6 +79,10 @@ export async function main(): Promise<void> {
       stopping = true;
       logger.info("worker-shutdown", { signal });
       clearInterval(timer);
+      if (keepAlive) {
+        clearInterval(keepAlive);
+        keepAlive = null;
+      }
       // Release the pool and exit cleanly so a rolling deploy does not report
       // the old instance as crashed, and in-flight DB handles are closed.
       void prisma

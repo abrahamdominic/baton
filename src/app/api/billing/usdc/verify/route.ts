@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getClientIp } from "@/lib/net";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
@@ -17,10 +18,7 @@ const bodySchema = z.object({ paymentId: z.string().min(1) });
  * stable `code` the result page can map to a friendly payment outcome.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown";
+  const ip = await getClientIp(req);
 
   if (!(await rateLimiter.check(`billing-usdc-verify:${ip}`, 10, 60_000))) {
     return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 });

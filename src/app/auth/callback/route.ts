@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { exchangeCode, GITHUB_OAUTH_ISSUER, GITHUB_OAUTH_CALLBACK_PATH, GitHubApiError } from "@/lib/auth/github-oauth";
 import { verifyOauthState, OAUTH_STATE_COOKIE, OAUTH_VERIFIER_COOKIE } from "@/lib/auth/oauth";
-import { SESSION_COOKIE, SESSION_TTL_MS } from "@/lib/auth/session";
+import { AccountSuspendedError, SESSION_COOKIE, SESSION_COOKIE_BASE_OPTS, SESSION_TTL_MS } from "@/lib/auth/session";
 import { sanitizeNextPath, getAppBaseUrl, getOAuthBaseUrl } from "@/lib/auth/redirect";
 import { databaseUrlIssue } from "@/lib/config";
 import { finishOAuthSignIn } from "@/lib/auth/oauth-flow";
 import { getClientIp } from "@/lib/net";
+import { metrics } from "@/lib/observability/metrics";
+import { rateLimiter } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -37,12 +39,29 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // OAuth failures redirect to the public site with a machine-readable reason
   // the landing page turns into a human-readable message (instead of the old
   // bare `?oauth_error=1` that told the user nothing).
-  const oauthFailure = (reason: string) =>
-    NextResponse.redirect(new URL(`/?oauth_error=1&reason=${encodeURIComponent(reason)}`, baseUrl));
+  // Every rejection below funnels through here, so the failure counter is
+  // incremented in exactly one place and cannot double-count a single delivery.
+  const oauthFailure = (reason: string) => {
+    metrics.authFailure(`oauth ${reason}`);
+    return NextResponse.redirect(new URL(`/?oauth_error=1&reason=${encodeURIComponent(reason)}`, baseUrl));
+  };
   const oauthDeniedUrl = new URL("/?oauth_denied=1", baseUrl);
+
+  // Rate limit per client IP, before any state or code is inspected. Each hit
+  // can otherwise cost a GitHub OAuth token exchange, so an unauthenticated
+  // caller can burn the App's OAuth quota from the open internet. Sixty per
+  // minute leaves room for a shared NAT address and a user retrying a stale
+  // link, and still bounds the abuse.
+  if (!rateLimiter.check(`auth:callback:${getClientIp(req)}`, 60, 60_000)) {
+    logger.warn("oauth-callback-rate-limited", { ip: getClientIp(req) });
+    return oauthFailure("rate_limited");
+  }
 
   // User declined authorization on GitHub.
   if (params.get("error")) {
+    // A decline is a user decision, not an attack, but a sustained rate still
+    // indicates a broken or confusing authorize step.
+    metrics.authFailure("oauth denied by user");
     return NextResponse.redirect(oauthDeniedUrl);
   }
 
@@ -123,12 +142,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     });
 
     const response = NextResponse.redirect(new URL(result.next, baseUrl));
-    const isHttps = baseUrl.startsWith("https");
+    // `secure` comes from the environment, never from the request: deriving it
+    // from a header meant a spoofable forwarded-proto could mint the session
+    // cookie without the Secure flag, which is what lets a network attacker
+    // read it over plaintext on a misconfigured proxy.
     response.cookies.set(SESSION_COOKIE, result.token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: isHttps,
-      path: "/",
+      ...SESSION_COOKIE_BASE_OPTS,
       expires: result.expiresAt,
       maxAge: SESSION_TTL_MS / 1000,
     });
@@ -136,6 +155,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     response.cookies.set(OAUTH_VERIFIER_COOKIE, "", { path: "/", maxAge: 0 });
     return response;
   } catch (err) {
+    // A suspended account is not a server error: report it as its own reason
+    // so the landing page can explain the suspension instead of telling the
+    // user sign-in failed for an unknown reason.
+    if (err instanceof AccountSuspendedError) {
+      return oauthFailure("account_suspended");
+    }
+
     // Classify the failure so users see the truth and operators can find the
     // real cause: GitHub API problems are NOT "database unavailable", a missing
     // or invalid DATABASE_URL is NOT a GitHub error, and RLS/Prisma failures
