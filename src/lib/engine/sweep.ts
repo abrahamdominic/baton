@@ -32,7 +32,7 @@ const INTEL_MAX_PER_SWEEP = 50;
  * them.
  *
  * The workflow suite reads only persisted state, so it costs no GitHub quota and
- * no API time — but it does read several indexed tables per repository, so it is
+ * no API time, but it does read several indexed tables per repository, so it is
  * still scheduled rather than run inline. Six hours keeps "what is blocked?"
  * current within a working day while staying far below the PR-refresh cadence.
  */
@@ -54,7 +54,7 @@ const AUTOMATION_MAX_PER_SWEEP = 50;
  * most likely to have changed. Capping the walk is therefore a statement about
  * what the periodic sweep is *for*: it is the safety net that re-checks repos
  * whose webhooks were missed or whose App was reinstalled, not the primary
- * mechanism — real-time changes arrive by webhook.
+ * mechanism, real-time changes arrive by webhook.
  *
  * Without a cap, one organization with a few thousand open PRs re-enqueued all
  * of them every sweep, which is both wasted GitHub API quota and queue
@@ -203,8 +203,8 @@ async function sweepRepo(
   const { rest } = await installationClients(installationId);
   let enqueued = 0;
   let skipped = 0;
-  // Paginate: a single page silently dropped the oldest open PRs — exactly the
-  // long-stalled ones the sweep exists to find — on any repo with more than 100
+  // Paginate: a single page silently dropped the oldest open PRs, exactly the
+  // long-stalled ones the sweep exists to find, on any repo with more than 100
   // open non-draft PRs. The walk stops once `maxPrs` have been enqueued rather
   // than paginating to the end of an unbounded backlog.
   for await (const page of rest.paginate.iterator(rest.pulls.list, {

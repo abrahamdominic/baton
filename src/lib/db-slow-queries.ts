@@ -12,7 +12,7 @@ import { logger } from "./logger";
  * Scope and honesty about the buffer: this is per-instance state. On a
  * serverless platform each warm function has its own buffer, so the admin view
  * shows slow queries observed by whichever instance served the request. It is a
- * diagnostic aid, not a fleet-wide metric — the log lines are the durable
+ * diagnostic aid, not a fleet-wide metric, the log lines are the durable
  * record, and a proper fleet view would need a metrics backend. The page labels
  * it accordingly rather than presenting it as complete.
  */

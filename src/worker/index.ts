@@ -6,10 +6,10 @@ import { drainQueue } from "../lib/engine/job-runner";
 /**
  * Baton background worker (long-lived process).
  *
- * Use this when you have a container/VM host — Fly.io, Railway, Render, ECS.
+ * Use this when you have a container/VM host, Fly.io, Railway, Render, ECS.
  * On Vercel this CANNOT run: functions are request-scoped and frozen between
  * requests, so a `setInterval` loop makes no progress past its first tick. Vercel
- * deployments execute queued work through bounded drains instead — inline after
+ * deployments execute queued work through bounded drains instead, inline after
  * a webhook (`/api/webhooks`) and on a schedule (`/api/cron/drain`).
  *
  * Both paths use the same atomic job claiming, so running this process next to

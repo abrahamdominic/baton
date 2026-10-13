@@ -1,16 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { IconZap, IconCheckCircle } from "@/components/icons";
+import { IconZap, IconCheckCircle } from "@/components/marketing/icons";
 import { useI18n } from "@/lib/i18n/provider";
 
-/** Hours of waiting Baton is modelled to leave behind on a healthy repo. */
+/**
+ * How much waiting Baton is modelled to leave behind on a healthy repository,
+ * in hours, and the most any single pull request is allowed to contribute.
+ * The cap is what keeps the headline conservative: a 3 day wait cannot be
+ * claimed as a full 3 day saving.
+ */
 const BATON_TARGET_WAIT_HOURS = 8;
+const HOURS_SAVED_CAP_PER_PR = 48;
 
-/** "Someone went looking for the PR instead of the person" pings per open PR. */
+/** "Someone went looking for the PR" pings avoided per open pull request. */
 const CHASE_PINGS_PER_PR = 2.4;
 
 const WEEKS_PER_MONTH = 4.33;
+
+/** The low end of the directional range, as a fraction of the point estimate. */
+const RANGE_FLOOR = 0.6;
 
 export function RoiCalculator() {
   const { t, tc, formatNumber } = useI18n();
@@ -18,27 +27,33 @@ export function RoiCalculator() {
   const [prsPerWeek, setPrsPerWeek] = useState(25);
   const [avgWaitDays, setAvgWaitDays] = useState(3);
 
-  // Math:
-  // Total PRs per month = prsPerWeek * 4.33
-  // Current total wait hours = total PRs * (avgWaitDays * 24)
-  // With Baton: avg wait drops to ~8h (0.33 days)
-  // Hours saved = total PRs * ((avgWaitDays - 0.33) * 24)
+  // Transparent, conservative model:
+  //   pull requests per month = weekly pull requests x 4.33
+  //   hours saved per pull request = min(current wait minus Baton target, cap)
+  //   waiting hours removed per month = pull requests per month x hours saved
   const totalPrsMonth = Math.round(prsPerWeek * WEEKS_PER_MONTH);
-  const currentStallHours = Math.round(totalPrsMonth * avgWaitDays * 24);
-  const batonStallHours = Math.round(totalPrsMonth * BATON_TARGET_WAIT_HOURS);
-  const savedStallHours = Math.max(0, currentStallHours - batonStallHours);
+  const savedPerPr = Math.max(
+    0,
+    Math.min(Math.round(avgWaitDays * 24) - BATON_TARGET_WAIT_HOURS, HOURS_SAVED_CAP_PER_PR),
+  );
+  const savedStallHours = Math.round(totalPrsMonth * savedPerPr);
+  const rangeLow = Math.round(savedStallHours * RANGE_FLOOR);
   const chaseMessagesAvoided = Math.round(totalPrsMonth * CHASE_PINGS_PER_PR);
 
   return (
-    <div className="rounded-2xl border border-white/[0.1] bg-ink-900 p-6 sm:p-8">
-      <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_1fr]">
+    <div className="rounded-panel border border-hairline-strong bg-ink-900 p-6 sm:p-8">
+      <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div className="space-y-6">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-ink-400">
+            {t("marketing:roi_inputs_heading")}
+          </h3>
+
           <div>
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="team-size" className="text-sm font-semibold text-white">
+              <label htmlFor="team-size" className="text-sm font-medium text-ink-50">
                 {t("marketing:roi_team_size")}
               </label>
-              <span className="font-mono text-sm font-bold text-brand-300">
+              <span className="tabular font-mono text-sm font-semibold text-brand-300">
                 {tc("marketing:roi_team_value", teamSize)}
               </span>
             </div>
@@ -65,10 +80,10 @@ export function RoiCalculator() {
 
           <div>
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="weekly-prs" className="text-sm font-semibold text-white">
+              <label htmlFor="weekly-prs" className="text-sm font-medium text-ink-50">
                 {t("marketing:roi_weekly_prs")}
               </label>
-              <span className="font-mono text-sm font-bold text-brand-300">
+              <span className="tabular font-mono text-sm font-semibold text-brand-300">
                 {tc("marketing:roi_weekly_value", prsPerWeek)}
               </span>
             </div>
@@ -90,10 +105,10 @@ export function RoiCalculator() {
 
           <div>
             <div className="flex items-center justify-between gap-3">
-              <label htmlFor="avg-wait" className="text-sm font-semibold text-white">
+              <label htmlFor="avg-wait" className="text-sm font-medium text-ink-50">
                 {t("marketing:roi_avg_wait")}
               </label>
-              <span className="font-mono text-sm font-bold text-warn-300">
+              <span className="tabular font-mono text-sm font-semibold text-warn-300">
                 {tc("marketing:roi_days_value", avgWaitDays, {
                   count: avgWaitDays,
                   hours: formatNumber(avgWaitDays * 24),
@@ -116,52 +131,76 @@ export function RoiCalculator() {
               <span>7</span>
             </div>
           </div>
+
+          <div className="rounded-control border border-hairline bg-ink-950/60 p-4">
+            <h4 className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+              {t("marketing:roi_formula_heading")}
+            </h4>
+            <p className="mt-1.5 text-xs leading-reading text-ink-300">
+              {t("marketing:roi_formula_text")}
+            </p>
+            <p className="tabular mt-2 font-mono text-xs text-brand-300">
+              {formatNumber(totalPrsMonth)} x {formatNumber(savedPerPr)} ={" "}
+              {formatNumber(savedStallHours)} hours
+            </p>
+            <p className="mt-1.5 text-[11px] leading-reading text-ink-500">
+              {t("marketing:roi_formula_note")}
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-xl border border-brand-500/30 bg-ink-950/70 p-6 sm:p-7">
-          <span className="block font-mono text-[11px] uppercase tracking-wider text-brand-300">
+        <div className="rounded-panel border border-brand-500/30 bg-ink-950/70 p-6 sm:p-7">
+          <h3 className="font-mono text-[11px] uppercase tracking-wide text-brand-300">
             {t("marketing:roi_impact_eyebrow")}
-          </span>
+          </h3>
 
-          <div className="mt-4 border-b border-white/[0.08] pb-5">
-            <div className="font-mono text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
+          <div className="mt-4 border-b border-hairline pb-5">
+            <p className="tabular font-mono text-4xl font-semibold tracking-tight text-ink-50 sm:text-5xl">
               {formatNumber(savedStallHours)}{" "}
               <span className="text-xl font-normal text-brand-300">
                 {tc("marketing:roi_saved_hours_unit", savedStallHours)}
               </span>
-            </div>
+            </p>
             <p className="mt-1.5 text-xs text-ink-400">
-              {tc("marketing:roi_saved_hours_caption", totalPrsMonth, { count: formatNumber(totalPrsMonth) })}
+              {tc("marketing:roi_saved_hours_caption", totalPrsMonth, {
+                count: formatNumber(totalPrsMonth),
+              })}
+            </p>
+            <p className="tabular mt-2 font-mono text-[11px] text-ink-500">
+              {t("marketing:roi_range_label")}: {formatNumber(rangeLow)} to{" "}
+              {formatNumber(savedStallHours)} {tc("marketing:roi_saved_hours_unit", savedStallHours)}
             </p>
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-4">
             <div>
               <div className="flex items-center gap-1.5 text-xs text-ink-400">
-                <IconZap className="h-3.5 w-3.5 text-signal-400" />
+                <IconZap className="h-3.5 w-3.5 text-signal-400" aria-hidden="true" />
                 <span>{t("marketing:roi_turnaround")}</span>
               </div>
-              <p className="mt-1 font-mono text-lg font-bold text-signal-400">
+              <p className="tabular mt-1 font-mono text-lg font-semibold text-signal-400">
                 {t("marketing:roi_turnaround_value", { hours: formatNumber(BATON_TARGET_WAIT_HOURS) })}
               </p>
               <p className="text-[11px] text-ink-500">
-                {tc("marketing:roi_turnaround_from", avgWaitDays, { count: formatNumber(avgWaitDays) })}
+                {tc("marketing:roi_turnaround_from", avgWaitDays, {
+                  count: formatNumber(avgWaitDays),
+                })}
               </p>
             </div>
 
             <div>
               <div className="flex items-center gap-1.5 text-xs text-ink-400">
-                <IconCheckCircle className="h-3.5 w-3.5 text-brand-300" />
+                <IconCheckCircle className="h-3.5 w-3.5 text-brand-300" aria-hidden="true" />
                 <span>{t("marketing:roi_slack_saved")}</span>
               </div>
-              <p className="mt-1 font-mono text-lg font-bold text-white">
-                ~{formatNumber(chaseMessagesAvoided)}/mo
+              <p className="tabular mt-1 font-mono text-lg font-semibold text-ink-50">
+                {formatNumber(chaseMessagesAvoided)}
               </p>
               <p className="text-[11px] text-ink-500">{t("marketing:roi_slack_quote")}</p>
             </div>
           </div>
 
-          <p className="mt-5 border-t border-white/[0.06] pt-4 text-[11px] leading-relaxed text-ink-500">
+          <p className="mt-5 border-t border-hairline pt-4 text-[11px] leading-reading text-ink-500">
             {t("marketing:roi_notice")}
           </p>
         </div>

@@ -91,7 +91,7 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
 
   if (view.status === "verifying") {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-white/[0.1] bg-ink-900/60 p-10 text-center">
+      <div className="flex flex-col items-center gap-3 rounded-feature border border-hairline bg-ink-900/60 p-10 text-center">
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">
           <IconRefresh className="h-6 w-6 animate-spin" />
         </span>
@@ -105,7 +105,7 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
 
   if (view.status === "error") {
     return (
-      <div className="flex items-start gap-4 rounded-2xl border border-warn-500/30 bg-warn-500/[0.06] p-6">
+      <div className="flex items-start gap-4 rounded-feature border border-warn-500/30 bg-warn-500/[0.06] p-6">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-warn-500/20 text-warn-300">
           <IconClock className="h-6 w-6" />
         </span>
@@ -126,7 +126,7 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
   return (
     <div>
       <div
-        className={`flex items-start gap-4 rounded-2xl border p-6 ${
+        className={`flex items-start gap-4 rounded-feature border p-6 ${
           copy?.tone === "good"
             ? "border-signal-500/30 bg-signal-500/[0.06]"
             : copy?.tone === "warn"
@@ -155,7 +155,7 @@ export function PaymentResultClient({ paymentId, autoVerify = true }: PaymentRes
           <h2 className="text-lg font-bold text-white">{copy?.title ?? t("billing:status_generic")}</h2>
           <p className="mt-1.5 text-xs leading-relaxed text-ink-300">{copy?.body}</p>
           {copy?.extra ? (
-            <p className="mt-3 rounded-lg bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-200">
+            <p className="mt-3 rounded-control bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-200">
               {copy.extra}
             </p>
           ) : null}

@@ -124,7 +124,7 @@ describe("install callback CSRF (state)", () => {
    * The state is now an opaque nonce hashed into a cookie rather than
    * `uid:<userId>`. Two things change: the internal id stops travelling through
    * GitHub's query string, and a *missing* state is now a failure rather than a
-   * skipped check — the old `if (stateParam) { ... }` meant an attacker could
+   * skipped check, the old `if (stateParam) { ... }` meant an attacker could
    * omit it entirely and the attribution write ran anyway.
    */
   it("rejects a state that does not match this browser's cookie", async () => {
@@ -258,7 +258,7 @@ describe("install callback ownership", () => {
  * A second ownership proof that works with no App user token: GitHub reports
  * which account the installation lives on, and a *user* installation lives on
  * exactly one person's account. If it is not the caller's, the caller is trying
- * to claim somebody else's installation — the state cookie only proves the
+ * to claim somebody else's installation, the state cookie only proves the
  * browser started an install flow, not which installation it may attribute.
  */
 describe("install callback account proof", () => {

@@ -20,8 +20,8 @@ const SEED_TIMESTAMP = "2026-01-01T00:00:00.000Z";
  *
  * These must not collapse into the same fallback. The seed catalog is only
  * authoritative when the `plans` table genuinely holds no row (local/dev
- * mirror). If the query *errors* — Supabase unreachable, permission denied,
- * timeout — quietly serving the seed row lets checkout price a real customer
+ * mirror). If the query *errors*, Supabase unreachable, permission denied,
+ * timeout, quietly serving the seed row lets checkout price a real customer
  * from a stale hardcoded amount while the admin-edited row says something
  * else. A failed read therefore yields `error`, and the caller returns null so
  * the purchase fails closed instead of charging the wrong number.

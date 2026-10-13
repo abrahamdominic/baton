@@ -79,7 +79,7 @@ See [`ENVIRONMENT.md`](./ENVIRONMENT.md) for every variable.
 ## Commands
 
 | Command | What it does |
-| --- | --- |
+|  |  |
 | `npm run dev` | Next.js dev server |
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run worker` | Job worker (poll queue, process PR refreshes) |
@@ -97,7 +97,7 @@ See [`ENVIRONMENT.md`](./ENVIRONMENT.md) for every variable.
 ```
 GitHub ──webhooks──▶ /api/webhooks ──▶ WebhookEvent (dedupe) ──▶ Job queue
                             │
-GitHub ◀──REST/GraphQL──── GitHub App ──▶ runner: fetch → classify → persist
+GitHub ◀──REST/GraphQL──── GitHub App ──▶ runner: fetch to classify to persist
                             │                     │
                             │                     ├─ status comment (upsert)
                             │                     ├─ state label (sync)

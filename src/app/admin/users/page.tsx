@@ -96,8 +96,8 @@ export default async function AdminUsersPage() {
       </section>
 
       {/* User Table List */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {users.length} User Records
           </span>
@@ -115,7 +115,7 @@ export default async function AdminUsersPage() {
             hint={t("admin:users_empty_hint")}
           />
         ) : (
-        <ul className="divide-y divide-white/[0.05]">
+        <ul className="divide-y divide-hairline">
           {users.map((u) => {
             const isAdmin = u.role === "admin";
             const isSuspended = Boolean(u.suspendedAt);
@@ -123,7 +123,7 @@ export default async function AdminUsersPage() {
             return (
               <li
                 key={u.id}
-                className="p-5 transition-colors hover:bg-white/[0.015]"
+                className="p-5 transition-colors hover:bg-surface-1"
               >
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   {/* User Profile Info */}
@@ -138,7 +138,7 @@ export default async function AdminUsersPage() {
                         className="h-10 w-10 shrink-0 rounded-full ring-1 ring-white/15"
                       />
                     ) : (
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-sm font-bold text-ink-200">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-sm font-bold text-ink-200">
                         {u.login.slice(0, 1).toUpperCase()}
                       </span>
                     )}
@@ -170,8 +170,8 @@ export default async function AdminUsersPage() {
                       </div>
 
                       <p className="mt-1 font-mono text-[11px] text-ink-400">
-                        GitHub ID: {u.githubId} &middot; {u._count.installations} install{suffix(u._count.installations)} &middot;{" "}
-                        {u._count.sessions} active session{suffix(u._count.sessions)} &middot; joined{" "}
+                        GitHub ID: {u.githubId}, {u._count.installations} install{suffix(u._count.installations)}, {" "}
+                        {u._count.sessions} active session{suffix(u._count.sessions)}, joined{" "}
                         {new Date(u.createdAt).toISOString().slice(0, 10)}
                       </p>
                     </div>

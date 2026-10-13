@@ -18,7 +18,7 @@ way they are.
                                     │ claim
                                     ▼
    GitHub  ◀──REST── ┌────────────────────────────────────────┐
-   (GraphQL)  ──────▶│ engine/runner: fetch → classify → write │
+   (GraphQL)  ──────▶│ engine/runner: fetch to classify to write │
                     └───────────────┬────────────────────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
@@ -36,12 +36,12 @@ way they are.
 ## Layers
 
 | Path | Responsibility |
-| --- | --- |
+|  |  |
 | `src/app/api/webhooks` | Raw-body webhook intake: HMAC verify, rate limit, dedupe, dispatch. |
 | `src/lib/webhooks/dispatcher.ts` | Pure mapping of a GitHub event to queued work. |
 | `src/lib/engine/jobs.ts` | Job payload definitions + dedupe-aware enqueue. |
 | `src/lib/engine/job-runner.ts` | Atomic job claim, retry/backoff, watchdog. |
-| `src/lib/engine/runner.ts` | The product loop for one PR: snapshot → classify → persist → act. |
+| `src/lib/engine/runner.ts` | The product loop for one PR: snapshot to classify to persist to act. |
 | `src/lib/engine/classification.ts` | Pure, deterministic state machine. |
 | `src/lib/engine/nudges.ts` | Threshold + nudge decision logic and message copy. |
 | `src/lib/engine/message.ts` | The live status-comment body. |
@@ -78,17 +78,17 @@ are used, so both providers stay in sync.
 
 Evaluation order (first match wins):
 
-1. `MERGED` → **merged**; `CLOSED` → **closed**.
-2. `isDraft` → **draft**.
-3. `mergeable === CONFLICTING` → **conflicts** (author).
-4. Any check failing/cancelled/timed-out → **ci_failing** (author).
+1. `MERGED` to **merged**; `CLOSED` to **closed**.
+2. `isDraft` to **draft**.
+3. `mergeable === CONFLICTING` to **conflicts** (author).
+4. Any check failing/cancelled/timed-out to **ci_failing** (author).
    *AI review bots are filtered out upstream in the runner.*
-5. Approved but checks still pending → **blocked_on_checks** (not nudgable).
-6. A pending change request (and no overriding approval) → **changes_required**
+5. Approved but checks still pending to **blocked_on_checks** (not nudgable).
+6. A pending change request (and no overriding approval) to **changes_required**
    (author), or **awaiting_review_after_fix** (reviewers) if the author has
    pushed since the change request.
-7. Approved + green + mergeable → **ready_to_merge** (author/maintainer).
-8. Otherwise → **awaiting_review** (reviewers).
+7. Approved + green + mergeable to **ready_to_merge** (author/maintainer).
+8. Otherwise to **awaiting_review** (reviewers).
 
 `prevState` is recorded so transitions are observable; `stateEnteredAt` is only
 reset when the state actually changes, which makes stall durations accurate.

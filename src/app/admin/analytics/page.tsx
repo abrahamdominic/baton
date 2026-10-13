@@ -90,8 +90,8 @@ export default async function AdminAnalyticsPage() {
       {/* Funnels & Status Breakdowns */}
       <section className="grid gap-6 lg:grid-cols-2">
         {/* Subscriptions by Status */}
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               Subscriptions by Status
             </span>
@@ -100,7 +100,7 @@ export default async function AdminAnalyticsPage() {
             </span>
           </div>
 
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {SUBSCRIPTION_STATUSES.map((s) => {
               const count = counts[s] ?? 0;
               const pct = totalSubscriptions > 0 ? Math.round((count / totalSubscriptions) * 100) : 0;
@@ -111,7 +111,7 @@ export default async function AdminAnalyticsPage() {
               return (
                 <li
                   key={s}
-                  className="flex items-center justify-between gap-4 px-5 py-4 text-xs transition-colors hover:bg-white/[0.02]"
+                  className="flex items-center justify-between gap-4 px-5 py-4 text-xs transition-colors hover:bg-surface-1"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export default async function AdminAnalyticsPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="h-1.5 w-28 sm:w-36 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-1.5 w-28 sm:w-36 overflow-hidden rounded-full bg-surface-3">
                       <div
                         className={`h-full rounded-full ${
                           isGood ? "bg-signal-400" : isWarn ? "bg-brand-400" : isBad ? "bg-danger-400" : "bg-ink-600"
@@ -147,8 +147,8 @@ export default async function AdminAnalyticsPage() {
         </div>
 
         {/* Payments by Status */}
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               Payments by Status
             </span>
@@ -157,7 +157,7 @@ export default async function AdminAnalyticsPage() {
             </span>
           </div>
 
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {Object.entries(metrics.payments.byStatus).map(([status, count]) => {
               const pct = totalPayments > 0 ? Math.round((count / totalPayments) * 100) : 0;
               const isConfirmed = status === "confirmed";
@@ -167,7 +167,7 @@ export default async function AdminAnalyticsPage() {
               return (
                 <li
                   key={status}
-                  className="flex items-center justify-between gap-4 px-5 py-4 text-xs transition-colors hover:bg-white/[0.02]"
+                  className="flex items-center justify-between gap-4 px-5 py-4 text-xs transition-colors hover:bg-surface-1"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -183,7 +183,7 @@ export default async function AdminAnalyticsPage() {
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <div className="h-1.5 w-28 sm:w-36 overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-1.5 w-28 sm:w-36 overflow-hidden rounded-full bg-surface-3">
                       <div
                         className={`h-full rounded-full ${
                           isConfirmed ? "bg-signal-400" : isPending ? "bg-brand-400" : isFailed ? "bg-danger-400" : "bg-ink-600"

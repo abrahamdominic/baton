@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconMonitor, IconMoon, IconSun } from "@/components/icons";
+import { IconMonitor, IconMoon, IconSun } from "@/components/marketing/icons";
 import { useI18n } from "@/lib/i18n/provider";
 import {
   DEFAULT_THEME_PREF,
@@ -34,7 +34,7 @@ function applyTheme(pref: ThemePref) {
   try {
     localStorage.setItem(THEME_KEY, pref);
   } catch {
-    /* storage unavailable — theme still applies for the session */
+    /* storage unavailable, theme still applies for the session */
   }
   return resolved;
 }
@@ -86,7 +86,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     return (
       <div
         aria-hidden="true"
-        className={`inline-flex h-9 items-center rounded-lg border border-white/[0.1] bg-ink-900 p-0.5 ${className}`}
+        className={`inline-flex h-9 items-center rounded-control border border-hairline bg-ink-900 p-0.5 ${className}`}
       />
     );
   }
@@ -95,7 +95,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <div
       role="radiogroup"
       aria-label={t("common:theme_label")}
-      className={`inline-flex h-9 items-center gap-0.5 rounded-lg border border-white/[0.1] bg-ink-900 p-0.5 ${className}`}
+      className={`inline-flex h-9 items-center gap-0.5 rounded-control border border-hairline bg-ink-900 p-0.5 ${className}`}
     >
       {OPTIONS.map(({ value, labelKey, titleKey, Icon }) => {
         const active = pref === value;
@@ -117,7 +117,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
             className={`inline-flex h-full items-center gap-1.5 rounded-[0.4rem] px-2 text-[11px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-brand-400 ${
               active
                 ? "bg-brand-500/20 text-on-brand ring-1 ring-brand-500/40"
-                : "text-ink-400 hover:bg-white/[0.05] hover:text-white"
+                : "text-ink-400 hover:bg-surface-3 hover:text-white"
             }`}
           >
             <Icon className="h-3.5 w-3.5" />

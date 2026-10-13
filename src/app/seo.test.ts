@@ -5,7 +5,7 @@ import { default as robots } from "./robots";
 /**
  * Tests for the indexing surface.
  *
- * `robots.txt` is advisory — a crawler that ignores it still gets a URL — so the
+ * `robots.txt` is advisory, a crawler that ignores it still gets a URL, so the
  * load-bearing protection is the `X-Robots-Tag` header in `next.config.ts`. These
  * tests exist mainly to catch *drift*: a new private surface added to one list
  * and not the other. That failure is silent, it ships, and it publishes private

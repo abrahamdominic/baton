@@ -95,8 +95,8 @@ export default async function AdminGithubPage() {
       {/* Grid: Installations + Webhooks */}
       <section className="grid gap-6 lg:grid-cols-2">
         {/* Installations Table */}
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               Connected Installations ({installs.length})
             </span>
@@ -110,11 +110,11 @@ export default async function AdminGithubPage() {
               No GitHub installations recorded yet.
             </div>
           ) : (
-            <ul className="divide-y divide-white/[0.05]">
+            <ul className="divide-y divide-hairline">
               {installs.map((i) => (
                 <li
                   key={i.id}
-                  className="flex items-center justify-between gap-4 px-5 py-4 text-xs transition-colors hover:bg-white/[0.02]"
+                  className="flex items-center justify-between gap-4 px-5 py-4 text-xs transition-colors hover:bg-surface-1"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -132,14 +132,14 @@ export default async function AdminGithubPage() {
                         <span>@{i.accountLogin}</span>
                         <IconExternalLink className="h-3 w-3 text-ink-500" />
                       </a>
-                      <span className="rounded bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] uppercase text-ink-400">
+                      <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] uppercase text-ink-400">
                         {i.accountType}
                       </span>
                     </div>
 
                     <p className="mt-1 font-mono text-[11px] text-ink-400">
                       Installed {new Date(i.createdAt).toISOString().slice(0, 10)}
-                      {i.uninstalledAt ? " · uninstalled" : ""}
+                      {i.uninstalledAt ? ", uninstalled" : ""}
                     </p>
                   </div>
 
@@ -154,8 +154,8 @@ export default async function AdminGithubPage() {
         </div>
 
         {/* Webhook Events Ingestion Ledger */}
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               Recent Webhook Ingestion Events
             </span>
@@ -166,16 +166,16 @@ export default async function AdminGithubPage() {
               No webhook events ingested yet.
             </div>
           ) : (
-            <ul className="divide-y divide-white/[0.05]">
+            <ul className="divide-y divide-hairline">
               {webhooks.map((w) => (
                 <li
                   key={w.id}
-                  className="flex items-center justify-between gap-3 px-5 py-3.5 text-xs transition-colors hover:bg-white/[0.02]"
+                  className="flex items-center justify-between gap-3 px-5 py-3.5 text-xs transition-colors hover:bg-surface-1"
                 >
                   <div className="min-w-0">
                     <span className="font-mono font-medium text-ink-200">{w.eventType}</span>
                     <p className="mt-0.5 font-mono text-[10px] text-ink-500">
-                      {new Date(w.receivedAt).toLocaleTimeString()} &middot;{" "}
+                      {new Date(w.receivedAt).toLocaleTimeString()}, {" "}
                       {new Date(w.receivedAt).toISOString().slice(0, 10)}
                     </p>
                   </div>

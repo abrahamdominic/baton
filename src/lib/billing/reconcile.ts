@@ -234,7 +234,7 @@ async function applyRepair(
   if (repair.status !== undefined && repair.status !== local.status) {
     const error = validateTransition(local.status, repair.status);
     if (error) {
-      return `illegal transition ${error.from} → ${error.to}`;
+      return `illegal transition ${error.from} to ${error.to}`;
     }
     await transitionSubscription(local.id, {
       to: repair.status,
@@ -268,9 +268,9 @@ async function applyRepair(
   return null;
 }
 
-// ---------------------------------------------------------------------------
+// 
 // The pass
-// ---------------------------------------------------------------------------
+// 
 
 export interface ReconciliationResult {
   runId: string | null;

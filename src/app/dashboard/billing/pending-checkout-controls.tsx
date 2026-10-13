@@ -77,7 +77,7 @@ export function PendingCheckoutControls({
           }}
         >
           <div className="flex items-start gap-2.5">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-danger-500/25 bg-danger-500/10 text-danger-300">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-control border border-danger-500/25 bg-danger-500/10 text-danger-300">
               <IconAlertCircle className="h-4 w-4" />
             </span>
             <div className="min-w-0">
@@ -92,20 +92,20 @@ export function PendingCheckoutControls({
           </div>
 
           {paymentSummary ? (
-            <p className="mt-3 rounded-lg border border-white/[0.08] bg-ink-950/50 px-3 py-2 font-mono text-[11px] text-ink-400">
+            <p className="mt-3 rounded-control border border-hairline bg-ink-950/50 px-3 py-2 font-mono text-[11px] text-ink-400">
               {paymentSummary}
             </p>
           ) : null}
 
           {hasSubmittedCryptoTx ? (
-            <p className="mt-3 rounded-lg border border-warn-500/25 bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-300">
+            <p className="mt-3 rounded-control border border-warn-500/25 bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-300">
               {t("billing:cancel_checkout_usdc_warning")}
             </p>
           ) : null}
 
           <input type="hidden" name="subscriptionId" value={subscriptionId} />
 
-          <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-lg border border-white/[0.1] bg-ink-950/50 px-3 py-2 text-xs text-ink-300">
+          <label className="mt-4 flex cursor-pointer items-start gap-2 rounded-control border border-hairline bg-ink-950/50 px-3 py-2 text-xs text-ink-300">
             <input
               type="checkbox"
               name="confirm"
@@ -119,7 +119,7 @@ export function PendingCheckoutControls({
           {!state.ok && state.error ? (
             <p
               role="alert"
-              className="mt-3 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300"
+              className="mt-3 rounded-control border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300"
             >
               {state.error}
             </p>
@@ -137,7 +137,7 @@ export function PendingCheckoutControls({
             <button
               type="submit"
               disabled={pending || !confirmed}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-danger-500/40 bg-danger-500/15 px-3 py-1.5 text-xs font-semibold text-danger-200 transition-colors hover:bg-danger-500/25 focus-visible:ring-2 focus-visible:ring-danger-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-1.5 rounded-control border border-danger-500/40 bg-danger-500/15 px-3 py-1.5 text-xs font-semibold text-danger-200 transition-colors hover:bg-danger-500/25 focus-visible:ring-2 focus-visible:ring-danger-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? t("billing:cancelling") : t("billing:confirm_cancel_checkout")}
             </button>
@@ -152,7 +152,7 @@ export function PendingCheckoutControls({
 export function CheckoutCancelledBanner() {
   const { t } = useI18n();
   return (
-    <p className="flex items-center gap-1.5 rounded-lg border border-signal-500/25 bg-signal-500/10 px-3 py-1.5 text-xs font-medium text-signal-300">
+    <p className="flex items-center gap-1.5 rounded-control border border-signal-500/25 bg-signal-500/10 px-3 py-1.5 text-xs font-medium text-signal-300">
       <IconShield className="h-3.5 w-3.5" />
       {t("billing:checkout_cancelled_banner")}
     </p>

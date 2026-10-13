@@ -54,8 +54,8 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
   }
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-      <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+    <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+      <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
         <h2 className="text-sm font-semibold text-white">{t("intelligence:ask_title")}</h2>
         <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:ask_subtitle")}</p>
       </div>
@@ -77,7 +77,7 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
             onChange={(e) => setQuestion(e.target.value)}
             maxLength={300}
             placeholder={t("intelligence:ask_placeholder")}
-            className="flex-1 rounded-lg border border-white/[0.08] bg-ink-950/60 px-3 py-2 text-sm text-white placeholder:text-ink-500 focus:border-brand-400 focus:outline-none"
+            className="flex-1 rounded-control border border-hairline bg-ink-950/60 px-3 py-2 text-sm text-white placeholder:text-ink-500 focus:border-brand-400 focus:outline-none"
           />
           <button type="submit" disabled={pending || question.trim().length < 3} className="btn btn-ghost btn-sm">
             <IconSearch className="h-3.5 w-3.5" />
@@ -92,7 +92,7 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
               type="button"
               onClick={() => submit(s)}
               disabled={pending}
-              className="rounded-md border border-white/[0.08] bg-ink-950/40 px-2 py-1 text-[11px] text-ink-400 transition-colors hover:border-brand-400/40 hover:text-ink-200 disabled:opacity-50"
+              className="rounded-md border border-hairline bg-ink-950/40 px-2 py-1 text-[11px] text-ink-400 transition-colors hover:border-brand-400/40 hover:text-ink-200 disabled:opacity-50"
             >
               {s}
             </button>
@@ -110,7 +110,7 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
           answer.answered ? (
             <ul className="space-y-2.5">
               {answer.claims.map((c, i) => (
-                <li key={i} className="rounded-lg border border-white/[0.06] bg-ink-950/40 px-3.5 py-2.5">
+                <li key={i} className="rounded-control border border-hairline bg-ink-950/40 px-3.5 py-2.5">
                   <p className="text-sm text-ink-100">{c.text}</p>
                   {c.evidence.length > 0 ? (
                     <div className="mt-2">
@@ -125,7 +125,7 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
                               href={e.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex max-w-full items-center gap-1 rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 text-[10px] text-brand-300 transition-colors hover:border-brand-400/40 hover:text-brand-200"
+                              className="inline-flex max-w-full items-center gap-1 rounded border border-hairline bg-surface-2 px-1.5 py-0.5 text-[10px] text-brand-300 transition-colors hover:border-brand-400/40 hover:text-brand-200"
                               title={e.label}
                             >
                               <span className="truncate">{e.label}</span>
@@ -134,7 +134,7 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
                           ) : (
                             <span
                               key={e.id}
-                              className="inline-flex max-w-full items-center rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 text-[10px] text-ink-400"
+                              className="inline-flex max-w-full items-center rounded border border-hairline bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-400"
                               title={e.label}
                             >
                               <span className="truncate">{e.label}</span>
@@ -148,13 +148,12 @@ export function IntelligenceQuestionForm({ owner, repo }: { owner: string; repo:
               ))}
             </ul>
           ) : (
-            <div className="rounded-lg border border-white/[0.06] bg-ink-950/40 px-3.5 py-3">
+            <div className="rounded-control border border-hairline bg-ink-950/40 px-3.5 py-3">
               <p className="text-sm text-ink-300">
                 Nothing in this repository&rsquo;s collected evidence answers that question.
               </p>
               <p className="mt-1 text-xs text-ink-500">
-                No claims are shown because none could be cited. This is the intended behaviour
-                &mdash; an uncited answer would be a guess.
+                No claims are shown because none could be cited. This is the intended behaviour, an uncited answer would be a guess.
               </p>
             </div>
           )

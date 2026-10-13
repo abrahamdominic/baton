@@ -35,8 +35,8 @@ describe("CSP middleware", () => {
   /**
    * Next reads the policy off the *request* to stamp its own inline flight-data
    * scripts; only the response header is enforced by the browser. If the two
-   * drift apart — a fresh nonce minted for the response after the request was
-   * built — every framework script loses its permission and the app stops
+   * drift apart, a fresh nonce minted for the response after the request was
+   * built, every framework script loses its permission and the app stops
    * hydrating, so the same value has to appear in both.
    */
   it("forwards the same nonce to the request that it enforces on the response", () => {
@@ -53,7 +53,7 @@ describe("CSP middleware", () => {
   });
 
   it("does not disturb the request's own headers", () => {
-    // The forwarded headers are a copy with two additions, not a replacement —
+    // The forwarded headers are a copy with two additions, not a replacement, 
     // dropping a header here would change auth or locale behaviour, not just
     // security, and nothing else would notice.
     const request = req("https://baton.test/dashboard?a=1");

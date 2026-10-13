@@ -236,10 +236,10 @@ export default async function IntelligencePage({
       </div>
 
       {/* View Tabs */}
-      <div className="flex items-center gap-2 border-b border-white/[0.08] pb-3">
+      <div className="flex items-center gap-2 border-b border-hairline pb-3">
         <Link
           href={`/dashboard/repos/${owner}/${repo}/intelligence`}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`rounded-control px-3 py-1.5 text-xs font-semibold transition-colors ${
             currentTab === "profile"
               ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
               : "text-ink-400 hover:text-white"
@@ -249,7 +249,7 @@ export default async function IntelligencePage({
         </Link>
         <Link
           href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=onboarding`}
-          className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`rounded-control px-3 py-1.5 text-xs font-semibold transition-colors ${
             currentTab === "onboarding"
               ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
               : "text-ink-400 hover:text-white"
@@ -259,7 +259,7 @@ export default async function IntelligencePage({
         </Link>
         <Link
           href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=knowledge`}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-semibold transition-colors ${
             currentTab === "knowledge"
               ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
               : "text-ink-400 hover:text-white"
@@ -273,7 +273,7 @@ export default async function IntelligencePage({
         </Link>
         <Link
           href={`/dashboard/repos/${owner}/${repo}/intelligence?tab=automations`}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-control px-3 py-1.5 text-xs font-semibold transition-colors ${
             currentTab === "automations"
               ? "bg-brand-500/20 text-brand-300 border border-brand-500/30"
               : "text-ink-400 hover:text-white"
@@ -316,8 +316,8 @@ export default async function IntelligencePage({
           <ProjectProfilePanel profile={structureProfile} />
 
           {/* Tech Stack & System Summary */}
-          <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
+          <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 p-5 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-4">
               <div>
                 <h2 className="text-base font-bold text-white">{t("intelligence:architecture_title")}</h2>
                 <p className="mt-0.5 text-xs text-ink-400">{onboardingGuide.description}</p>
@@ -334,7 +334,7 @@ export default async function IntelligencePage({
                 </p>
               ) : (
               onboardingGuide.architectureMap.map((mod, i) => (
-                <div key={i} className="rounded-lg border border-white/[0.06] bg-ink-950/40 p-3.5 space-y-1.5">
+                <div key={i} className="rounded-control border border-hairline bg-ink-950/40 p-3.5 space-y-1.5">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-xs text-white">{mod.name}</span>
                     <Badge tone={mod.importance === "critical" ? "warn" : mod.importance === "high" ? "info" : "neutral"}>
@@ -350,12 +350,12 @@ export default async function IntelligencePage({
           </section>
 
           {/* Setup & Run Workflow */}
-          <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-            <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+          <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+            <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
               <h2 className="text-sm font-semibold text-white">{t("intelligence:setup_title")}</h2>
               <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:setup_description")}</p>
             </div>
-            <div className="divide-y divide-white/[0.05]">
+            <div className="divide-y divide-hairline">
               {onboardingGuide.setupWorkflow.map((step) => (
                 <div key={step.step} className="p-5 space-y-2">
                   <div className="flex items-center gap-2">
@@ -367,7 +367,7 @@ export default async function IntelligencePage({
                   <p className="text-xs text-ink-300 ml-7 leading-relaxed">{step.description}</p>
                   {step.command ? (
                     <div className="ml-7 mt-2">
-                      <pre className="rounded-lg border border-white/[0.06] bg-ink-950/80 px-3.5 py-2 font-mono text-xs text-brand-200 overflow-x-auto">
+                      <pre className="rounded-control border border-hairline bg-ink-950/80 px-3.5 py-2 font-mono text-xs text-brand-200 overflow-x-auto">
                         {step.command}
                       </pre>
                     </div>
@@ -379,22 +379,22 @@ export default async function IntelligencePage({
 
           {/* Testing & Verification Workflow */}
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
+            <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 p-5 space-y-3">
               <h3 className="text-sm font-semibold text-white">{t("intelligence:testing_title")}</h3>
               <p className="text-xs text-ink-300 leading-relaxed">{onboardingGuide.testingWorkflow.details}</p>
-              <div className="rounded-lg border border-white/[0.06] bg-ink-950/80 p-3">
+              <div className="rounded-control border border-hairline bg-ink-950/80 p-3">
                 <span className="text-[10px] font-mono text-ink-500 uppercase">{t("intelligence:framework_label")}</span>
                 <p className="text-xs font-bold text-white mt-0.5">{onboardingGuide.testingWorkflow.testFramework}</p>
-                <div className="mt-2 font-mono text-xs text-brand-300 bg-white/[0.03] p-2 rounded">
+                <div className="mt-2 font-mono text-xs text-brand-300 bg-surface-2 p-2 rounded">
                   {onboardingGuide.testingWorkflow.command}
                 </div>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
+            <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 p-5 space-y-3">
               <h3 className="text-sm font-semibold text-white">{t("intelligence:ci_title")}</h3>
               <p className="text-xs text-ink-300 leading-relaxed">{onboardingGuide.deployWorkflow.details}</p>
-              <div className="rounded-lg border border-white/[0.06] bg-ink-950/80 p-3 space-y-1.5">
+              <div className="rounded-control border border-hairline bg-ink-950/80 p-3 space-y-1.5">
                 <span className="text-[10px] font-mono text-ink-500 uppercase">{t("intelligence:provider_label")}</span>
                 <p className="text-xs font-bold text-white">{onboardingGuide.deployWorkflow.ciProvider}</p>
                 {onboardingGuide.deployWorkflow.workflows.length > 0 ? (
@@ -402,7 +402,7 @@ export default async function IntelligencePage({
                     <span className="text-[10px] font-mono text-ink-500">{t("intelligence:workflows_label")}</span>
                     <ul className="mt-1 space-y-1">
                       {onboardingGuide.deployWorkflow.workflows.map((w, i) => (
-                        <li key={i} className="text-xs font-mono text-ink-300">&bull; {w}</li>
+                        <li key={i} className="text-xs font-mono text-ink-300">, {w}</li>
                       ))}
                     </ul>
                   </div>
@@ -413,8 +413,8 @@ export default async function IntelligencePage({
 
           {/* Recommended Reading & Common Pitfalls */}
           <section className="grid gap-6 lg:grid-cols-2">
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-              <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+              <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
                 <h3 className="text-sm font-semibold text-white">{t("intelligence:reading_title")}</h3>
               </div>
               {onboardingGuide.readingList.length === 0 ? (
@@ -422,7 +422,7 @@ export default async function IntelligencePage({
                   {t("intelligence:reading_empty")}
                 </p>
               ) : (
-              <ul className="divide-y divide-white/[0.05]">
+              <ul className="divide-y divide-hairline">
                 {onboardingGuide.readingList.map((item, i) => (
                   <li key={i} className="p-4 space-y-1 text-xs">
                     <div className="flex items-center justify-between">
@@ -443,8 +443,8 @@ export default async function IntelligencePage({
               )}
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-              <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+              <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
                 <h3 className="text-sm font-semibold text-white">{t("intelligence:pitfalls_title")}</h3>
               </div>
               {onboardingGuide.pitfalls.length === 0 ? (
@@ -453,14 +453,14 @@ export default async function IntelligencePage({
                   {t("intelligence:pitfalls_empty")}
                 </p>
               ) : (
-              <ul className="divide-y divide-white/[0.05]">
+              <ul className="divide-y divide-hairline">
                 {onboardingGuide.pitfalls.map((pit, i) => (
                   <li key={i} className="p-4 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-warn-300">{pit.pitfall}</span>
                       <Badge tone="warn">{severityLabel(pit.severity, t)}</Badge>
                     </div>
-                    <p className="text-ink-300 text-[11px] leading-relaxed">&rarr; {pit.recommendation}</p>
+                    <p className="text-ink-300 text-[11px] leading-relaxed"> to {pit.recommendation}</p>
                   </li>
                 ))}
               </ul>
@@ -470,11 +470,11 @@ export default async function IntelligencePage({
 
           {/* Key Owners */}
           {onboardingGuide.keyOwners.length > 0 ? (
-            <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 space-y-3">
+            <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 p-5 space-y-3">
               <h3 className="text-sm font-semibold text-white">{t("intelligence:owners_title")}</h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 {onboardingGuide.keyOwners.map((ownerItem, i) => (
-                  <div key={i} className="rounded-lg border border-white/[0.06] bg-ink-950/40 p-3 flex items-center justify-between">
+                  <div key={i} className="rounded-control border border-hairline bg-ink-950/40 p-3 flex items-center justify-between">
                     <div>
                       <span className="text-xs font-semibold text-white">@{ownerItem.login}</span>
                       <p className="text-[10px] text-ink-500 font-mono">{t("intelligence:owners_commits", { count: ownerItem.commits })}</p>
@@ -496,13 +496,13 @@ export default async function IntelligencePage({
       ) : (
         <>
           {actions.length > 0 ? (
-            <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-              <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+              <div className="flex items-center gap-2.5 border-b border-hairline bg-ink-950/70 px-5 py-3">
                 <IconActivity className="h-4 w-4 text-brand-300" />
                 <h2 className="text-sm font-semibold text-white">{t("intelligence:waiting_on_you")}</h2>
                 <span className="font-mono text-xs text-ink-500">({actions.length})</span>
               </div>
-              <ul className="divide-y divide-white/[0.05]">
+              <ul className="divide-y divide-hairline">
                 {actions.map((a) => (
                   <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
@@ -520,8 +520,8 @@ export default async function IntelligencePage({
           ) : null}
 
       {briefing.bullets.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="flex items-center gap-2.5 border-b border-hairline bg-ink-950/70 px-5 py-3">
             <IconLayers className="h-4 w-4 text-brand-300" />
             <h2 className="text-sm font-semibold text-white">{briefing.title}</h2>
             <span className="ml-auto font-mono text-[10px] text-ink-500">
@@ -530,7 +530,7 @@ export default async function IntelligencePage({
                 : t("intelligence:briefing_rendered", { revision: briefing.revision })}
             </span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {briefing.bullets.map((b: DigestBullet, i: number) => (
               <li key={i} className="px-5 py-3.5">
                 <div className="flex items-start gap-2.5">
@@ -554,7 +554,7 @@ export default async function IntelligencePage({
                               href={ev.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 rounded border border-white/[0.08] bg-ink-950/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-brand-300"
+                              className="inline-flex items-center gap-1 rounded border border-hairline bg-ink-950/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-brand-300"
                             >
                               {ev.path ?? ev.kind}
                               <IconExternalLink className="h-2.5 w-2.5" />
@@ -562,7 +562,7 @@ export default async function IntelligencePage({
                           ) : (
                             <span
                               key={id}
-                              className="inline-flex items-center rounded border border-white/[0.06] bg-ink-950/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-500"
+                              className="inline-flex items-center rounded border border-hairline bg-ink-950/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-500"
                             >
                               {ev.kind}
                             </span>
@@ -585,11 +585,11 @@ export default async function IntelligencePage({
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <h2 className="text-sm font-semibold text-white">{t("intelligence:health_title")}</h2>
           </div>
-          <dl className="divide-y divide-white/[0.05]">
+          <dl className="divide-y divide-hairline">
             {FLAG_ROWS.map((row) => {
               const present = view.insight.flags[row.key];
               const ev = view.evidence.find((e) =>
@@ -635,11 +635,11 @@ export default async function IntelligencePage({
           </dl>
         </section>
 
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <h2 className="text-sm font-semibold text-white">{t("intelligence:activity_title")}</h2>
           </div>
-          <dl className="divide-y divide-white/[0.05]">
+          <dl className="divide-y divide-hairline">
             <Row label={t("intelligence:activity_open_prs")} value={String(view.insight.counts.openPullRequests)} />
             <Row label={t("intelligence:activity_open_issues")} value={String(view.insight.counts.openIssues)} />
             <Row
@@ -668,8 +668,8 @@ export default async function IntelligencePage({
       </div>
 
       {view.insight.languages.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <h2 className="text-sm font-semibold text-white">{t("intelligence:languages_title")}</h2>
             <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:languages_description")}</p>
           </div>
@@ -677,7 +677,7 @@ export default async function IntelligencePage({
             {view.insight.languages.map((l) => (
               <li key={l.name} className="flex items-center gap-3">
                 <span className="w-28 shrink-0 truncate font-mono text-xs text-ink-300">{l.name}</span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-3">
                   <span
                     className="block h-full rounded-full bg-brand-400/70"
                     style={{ width: `${Math.min(100, Math.max(2, l.percent))}%` }}
@@ -693,14 +693,14 @@ export default async function IntelligencePage({
       ) : null}
 
       {broken.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="flex items-center gap-2.5 border-b border-hairline bg-ink-950/70 px-5 py-3">
             <IconAlertCircle className="h-4 w-4 text-warn-300" />
             <h2 className="text-sm font-semibold text-white">{t("intelligence:what_broke_title")}</h2>
             <span className="font-mono text-xs text-ink-500">({broken.length})</span>
             <span className="ml-auto text-[10px] text-ink-500">{t("intelligence:what_broke_source")}</span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {broken.map((b) => (
               <li key={b.prNumber} className="px-5 py-3.5">
                 <div className="flex flex-wrap items-center gap-2">
@@ -745,8 +745,8 @@ export default async function IntelligencePage({
 
       <IntelligenceQuestionForm owner={owner} repo={repo} />
 
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
           <h2 className="text-sm font-semibold text-white">{t("intelligence:evidence_title", { count: view.evidence.length })}</h2>
           <p className="mt-0.5 text-xs text-ink-500">
             {t("intelligence:evidence_description")}
@@ -755,7 +755,7 @@ export default async function IntelligencePage({
         {view.evidence.length === 0 ? (
           <p className="px-5 py-4 text-sm text-ink-500">{t("intelligence:evidence_empty")}</p>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {view.evidence.map((e) => (
               <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-2.5">
                 <div className="flex min-w-0 items-center gap-2.5">

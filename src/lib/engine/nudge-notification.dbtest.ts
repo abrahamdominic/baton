@@ -163,7 +163,7 @@ describe("nudge delivery -> notification inbox (end to end)", () => {
     prSnapshot = snapshotAwaitingReviewLong();
 
     // First pass classifies the PR. `stateEnteredAt` is now, so activeHours = 0
-    // and no nudge fires yet — exactly what happens for a newly opened PR.
+    // and no nudge fires yet, exactly what happens for a newly opened PR.
     const first = await processPrRefresh({
       installationId: INSTALLATION_ID,
       owner: OWNER,

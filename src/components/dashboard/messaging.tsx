@@ -48,7 +48,7 @@ function MembersRow({
         {members.slice(0, 4).map((m) => (
           <span
             key={m.userId}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-white/[0.12] bg-ink-800 font-mono text-[10px] font-bold text-ink-200"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-hairline-strong bg-ink-800 font-mono text-[10px] font-bold text-ink-200"
           >
             {(m.name ?? m.login).slice(0, 1).toUpperCase()}
           </span>
@@ -97,8 +97,8 @@ export function ConversationList({
       </div>
 
       {conversations.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-ink-900/40 px-6 py-12 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.1] bg-ink-850/80 text-ink-300">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-panel border border-hairline bg-ink-900/40 px-6 py-12 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-panel border border-hairline bg-ink-850/80 text-ink-300">
             <IconUsers className="h-6 w-6" />
           </div>
           <p className="text-sm font-semibold text-white">
@@ -109,7 +109,7 @@ export function ConversationList({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
+        <ul className="divide-y divide-hairline overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
           {conversations.map((c) => {
             const unread = isConversationUnread(c);
             const href = teamId
@@ -286,7 +286,7 @@ function NewConversationDialog({
       bare
       label={t("messaging:new_conversation")}
     >
-      <div className="border-b border-white/[0.07] px-5 py-4">
+      <div className="border-b border-hairline px-5 py-4">
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
           <IconSend className="h-4 w-4 text-brand-400" />
           {t("messaging:new_conversation")}
@@ -317,12 +317,12 @@ function NewConversationDialog({
                     disabled={noDevice || locked}
                     aria-pressed={checked}
                     onClick={() => toggle(m.userId)}
-                    className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                    className={`flex w-full items-center justify-between gap-3 rounded-control border px-3 py-2.5 text-left transition-colors ${
                       checked
                         ? "border-brand-500/40 bg-brand-500/10"
                         : noDevice || locked
-                          ? "cursor-not-allowed border-white/[0.05] bg-ink-950/40 opacity-60"
-                          : "border-white/[0.06] bg-ink-950/50 hover:border-white/[0.14]"
+                          ? "cursor-not-allowed border-hairline bg-ink-950/40 opacity-60"
+                          : "border-hairline bg-ink-950/50 hover:border-hairline-strong"
                     }`}
                   >
                     <span className="min-w-0">
@@ -335,13 +335,13 @@ function NewConversationDialog({
                         ) : null}
                       </span>
                       <span className="block font-mono text-[10px] text-ink-500">
-                        @{m.login} ·{" "}
+                        @{m.login}, {" "}
                         {t("messaging:device_count", {
                           count: m.devices.length,
                         })}
                         {locked ? (
                           <span className="ml-1.5">
-                            · {t("messaging:always_included")}
+, {t("messaging:always_included")}
                           </span>
                         ) : null}
                       </span>
@@ -353,7 +353,7 @@ function NewConversationDialog({
                         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
                           checked
                             ? "border-brand-500 bg-brand-500 text-on-brand"
-                            : "border-white/[0.2]"
+                            : "border-hairline-strong"
                         }`}
                       >
                         {checked ? (
@@ -369,7 +369,7 @@ function NewConversationDialog({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-white/[0.07] px-5 py-4">
+      <div className="flex items-center justify-between gap-3 border-t border-hairline px-5 py-4">
         <p className="text-[11px] leading-relaxed text-ink-500">
           <IconLockHint />
         </p>

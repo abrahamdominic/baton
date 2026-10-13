@@ -104,10 +104,10 @@ function AdminNavLink({
         href={item.href}
         onClick={onNavigate}
         aria-current={active ? "page" : undefined}
-        className={`group relative flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-ink-950 ${
+        className={`group relative flex items-center justify-between rounded-control px-3 py-2 text-xs font-medium transition-all outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-1 focus-visible:ring-offset-ink-950 ${
           active
             ? "bg-brand-500/10 text-on-brand font-semibold shadow-sm"
-            : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
+            : "text-ink-400 hover:bg-surface-2 hover:text-ink-200"
         }`}
       >
         <div className="flex items-center gap-2.5 truncate">
@@ -137,24 +137,24 @@ function AdminSidebarContent({
   return (
     <div className="flex h-full flex-col">
       {/* Brand & Badge */}
-      <div className="flex h-16 items-center justify-between border-b border-white/[0.07] px-4">
+      <div className="flex h-16 items-center justify-between border-b border-hairline px-4">
         <div className="flex items-center gap-2.5">
           <BatonLogo href="/admin" size="sm" />
           <span className="rounded bg-brand-500/15 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
             Admin
           </span>
         </div>
-        <span className="inline-flex items-center gap-1 rounded border border-white/[0.08] bg-ink-900/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-400">
+        <span className="inline-flex items-center gap-1 rounded border border-hairline bg-ink-900/60 px-1.5 py-0.5 font-mono text-[10px] text-ink-400">
           Superuser
         </span>
       </div>
 
       {/* Switch to User App */}
-      <div className="border-b border-white/[0.06] p-3">
+      <div className="border-b border-hairline p-3">
         <Link
           href="/dashboard"
           onClick={onNavigate}
-          className="flex items-center justify-between rounded-lg border border-white/[0.08] bg-ink-900/60 px-3 py-2 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
+          className="flex items-center justify-between rounded-control border border-hairline bg-ink-900/60 px-3 py-2 text-xs font-medium text-ink-300 transition-colors hover:border-hairline-strong hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
         >
           <div className="flex items-center gap-2">
             <IconArrowLeft className="h-3.5 w-3.5 text-ink-400" />
@@ -181,8 +181,8 @@ function AdminSidebarContent({
       </nav>
 
       {/* Footer Admin Card */}
-      <div className="border-t border-white/[0.07] p-3">
-        <div className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-ink-900/60 p-2.5">
+      <div className="border-t border-hairline p-3">
+        <div className="flex items-center gap-3 rounded-control border border-hairline bg-ink-900/60 p-2.5">
           {admin.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -193,7 +193,7 @@ function AdminSidebarContent({
               className="h-8 w-8 shrink-0 rounded-full ring-1 ring-white/15"
             />
           ) : (
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-xs font-bold text-ink-200">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-xs font-bold text-ink-200">
               {admin.login.slice(0, 1).toUpperCase()}
             </span>
           )}
@@ -207,14 +207,14 @@ function AdminSidebarContent({
             rel="noopener noreferrer"
             aria-label={`View @${admin.login} on GitHub`}
             title={t("admin:view_github_profile")}
-            className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+            className="rounded-md p-1.5 text-ink-400 transition-colors hover:bg-surface-3 hover:text-white"
           >
             <IconExternalLink className="h-3.5 w-3.5" />
           </a>
         </div>
         <SignOutLink
           onNavigate={onNavigate}
-          className="mt-2 flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-ink-400 transition-colors hover:bg-danger-500/10 hover:text-danger-300"
+          className="mt-2 flex items-center gap-2 rounded-control px-2.5 py-2 text-xs font-medium text-ink-400 transition-colors hover:bg-danger-500/10 hover:text-danger-300"
         >
           <IconLogOut className="h-3.5 w-3.5 shrink-0" />
           <span>{t("common:sign_out")}</span>
@@ -256,12 +256,12 @@ export function AdminShell({
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100 antialiased">
       {/* Desktop Sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-white/[0.08] bg-ink-950 lg:block">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-hairline bg-ink-950 lg:block">
         <AdminSidebarContent admin={admin} />
       </aside>
 
       {/* Mobile & Tablet Header */}
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/90 px-4 backdrop-blur-md lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-hairline bg-ink-950/90 px-4 backdrop-blur-md lg:hidden">
         <div className="flex items-center gap-2">
           <BatonLogo href="/admin" size="sm" />
           <span className="rounded bg-brand-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300 ring-1 ring-brand-500/30">
@@ -280,7 +280,7 @@ export function AdminShell({
         <div className="flex items-center gap-2">
           <Link
             href="/dashboard"
-            className="rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:text-white"
+            className="rounded-md border border-hairline bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:text-white"
           >
             User App
           </Link>
@@ -289,7 +289,7 @@ export function AdminShell({
             onClick={() => setOpen(true)}
             aria-label={t("admin:open_admin_navigation_menu")}
             aria-expanded={open}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-200 transition-colors hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
+            className="flex h-9 w-9 items-center justify-center rounded-control border border-hairline bg-ink-900 text-ink-200 transition-colors hover:bg-ink-850 hover:text-white focus-visible:ring-2 focus-visible:ring-brand-400"
           >
             <IconMenu className="h-5 w-5" />
           </button>
@@ -308,9 +308,9 @@ export function AdminShell({
             role="dialog"
             aria-modal="true"
             aria-label={t("admin:admin_control_panel_navigation")}
-            className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-white/[0.1] bg-ink-950 shadow-2xl transition-transform"
+            className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-hairline bg-ink-950 shadow-2xl transition-transform"
           >
-            <div className="flex h-14 items-center justify-between border-b border-white/[0.07] px-4">
+            <div className="flex h-14 items-center justify-between border-b border-hairline px-4">
               <div className="flex items-center gap-2">
                 <BatonLogo href="/admin" size="sm" />
                 <span className="rounded bg-brand-500/15 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-300">
@@ -321,7 +321,7 @@ export function AdminShell({
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={t("admin:close_admin_menu")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.1] bg-ink-900 text-ink-300 transition-colors hover:bg-ink-850 hover:text-white"
+                className="flex h-8 w-8 items-center justify-center rounded-control border border-hairline bg-ink-900 text-ink-300 transition-colors hover:bg-ink-850 hover:text-white"
               >
                 <IconX className="h-4 w-4" />
               </button>
@@ -334,7 +334,7 @@ export function AdminShell({
       {/* Main Content Area */}
       <div className="lg:pl-64">
         {/* Desktop Topbar Breadcrumbs & Switcher */}
-        <div className="hidden h-14 items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-6 backdrop-blur-sm lg:flex">
+        <div className="hidden h-14 items-center justify-between border-b border-hairline bg-ink-950/70 px-6 backdrop-blur-sm lg:flex">
           <div className="flex items-center gap-2 text-xs">
             <span className="font-mono text-ink-500">{t("navigation:admin")}</span>
             {currentGroup ? (
@@ -350,14 +350,14 @@ export function AdminShell({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-white/[0.06] bg-ink-900/60 px-2.5 py-1">
+            <div className="flex items-center gap-2 rounded-full border border-hairline bg-ink-900/60 px-2.5 py-1">
               <span className="h-1.5 w-1.5 rounded-full bg-signal-400 ring-2 ring-signal-400/20" />
               <span className="font-mono text-[10px] font-medium text-signal-400">{t("admin:admin_mode_active")}</span>
             </div>
 
             <Link
               href="/dashboard"
-              className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:border-white/[0.16] hover:bg-ink-850 hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-ink-900/60 px-2.5 py-1 text-xs font-medium text-ink-300 transition-colors hover:border-hairline-strong hover:bg-ink-850 hover:text-white"
             >
               <IconArrowLeft className="h-3 w-3" />
               <span>{t("admin:exit_to_user_app")}</span>

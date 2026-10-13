@@ -13,7 +13,7 @@ export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <MarketingHeader />
-      <main className="container-text py-16 md:py-24">
+      <main id="main" className="container-text py-16 md:py-24">
         <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           Privacy Policy
         </h1>
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
         </p>
 
         <div className="mt-10 space-y-8 text-sm leading-relaxed text-ink-300">
-          <section className="rounded-xl border border-white/[0.08] bg-ink-900/50 p-6">
+          <section className="rounded-panel border border-hairline bg-ink-900/50 p-6">
             <h2 className="text-base font-bold text-white">1. What Baton Collects</h2>
             <p className="mt-2 text-xs leading-relaxed text-ink-300">
               Baton stores only the operational metadata required to do its job: pull request
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          <section className="rounded-xl border border-white/[0.08] bg-ink-900/50 p-6">
+          <section className="rounded-panel border border-hairline bg-ink-900/50 p-6">
             <h2 className="text-base font-bold text-white">2. What Baton Never Collects</h2>
             <p className="mt-2 text-xs leading-relaxed text-ink-300">
               Baton never requests Contents access from GitHub, so it is technically incapable of
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          <section className="rounded-xl border border-white/[0.08] bg-ink-900/50 p-6">
+          <section className="rounded-panel border border-hairline bg-ink-900/50 p-6">
             <h2 className="text-base font-bold text-white">3. Data Residency &amp; Storage</h2>
             <p className="mt-2 text-xs leading-relaxed text-ink-300">
               Managed service data is stored in secure, encrypted PostgreSQL databases located in
@@ -49,7 +49,7 @@ export default function PrivacyPage() {
             </p>
           </section>
 
-          <section className="rounded-xl border border-white/[0.08] bg-ink-900/50 p-6">
+          <section className="rounded-panel border border-hairline bg-ink-900/50 p-6">
             <h2 className="text-base font-bold text-white">4. Data Deletion on Uninstall</h2>
             <p className="mt-2 text-xs leading-relaxed text-ink-300">
               Uninstalling the Baton GitHub App immediately disables polling and permanently wipes

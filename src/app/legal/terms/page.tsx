@@ -41,7 +41,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <MarketingHeader />
-      <main className="container-text py-16 md:py-24">
+      <main id="main" className="container-text py-16 md:py-24">
         <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
           Terms of Service
         </h1>
@@ -51,7 +51,7 @@ export default function TermsPage() {
 
         <div className="mt-10 space-y-6 text-sm leading-relaxed text-ink-300">
           {SECTIONS.map((sec) => (
-            <section key={sec.title} className="rounded-xl border border-white/[0.08] bg-ink-900/50 p-6">
+            <section key={sec.title} className="rounded-panel border border-hairline bg-ink-900/50 p-6">
               <h2 className="text-base font-bold text-white">{sec.title}</h2>
               <p className="mt-2 text-xs leading-relaxed text-ink-300">{sec.content}</p>
             </section>

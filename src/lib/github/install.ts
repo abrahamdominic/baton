@@ -92,7 +92,7 @@ export async function fetchInstallationInfo(installationId: number): Promise<Ins
  * installation a user administers, and for an Organization account that is the
  * shared org installation. When a second admin of the same org signed in, the
  * stamp moved to them and the first admin lost visibility of their own
- * organization's repositories — last-writer-wins on a shared resource.
+ * organization's repositories, last-writer-wins on a shared resource.
  *
  * Organization installations must therefore never be personally owned at all.
  * They belong to the org and are surfaced through `OrganizationInstallation` /
@@ -134,7 +134,7 @@ export async function claimUnownedInstallations(
  * `myInstallations` grants repository visibility on
  * `OR: [{ userId }, { accountLogin: user.login }]`, so overwriting
  * `accountLogin` with a caller's login handed that caller read AND write access
- * to every repository of the victim installation — and simultaneously locked the
+ * to every repository of the victim installation, and simultaneously locked the
  * real owner out. The single source of truth for an account's identity is
  * GitHub's own answer, so the override is gone rather than merely unused.
  */

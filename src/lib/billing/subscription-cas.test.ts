@@ -8,7 +8,7 @@ vi.mock("server-only", () => ({}));
  * `transitionSubscription` used to read a row, validate the transition against
  * the status it read, and then write unconditionally. Two writers that read the
  * same status both validated and both wrote, so the last writer won and the row
- * could land in a state the machine would have rejected outright — a renewal and
+ * could land in a state the machine would have rejected outright, a renewal and
  * a cancellation interleaving in the same window being the ordinary case.
  *
  * The fix is the `.eq("status", observed)` predicate: the write only lands if
@@ -76,7 +76,7 @@ vi.mock("@/lib/supabase/client", () => ({
             maybeSingle: async () => {
               // A PostgREST `.update().eq(k, v)` returns a row only when every
               // predicate matches the row as it stands *now*, and the patch is
-              // applied only then — which is exactly the compare-and-set the
+              // applied only then, which is exactly the compare-and-set the
               // state machine depends on.
               const stored = rows["sub-1"] as unknown as Record<
                 string,
@@ -136,10 +136,10 @@ describe("transitionSubscription compare-and-set", () => {
    * Dunning moves a `past_due` row to `active_until_period_end` (the user
    * scheduled a cancellation) at the same moment the payment webhook is
    * recovering it to `active`. Both writers read `past_due`, both validate
-   * `past_due → active`, and without the status predicate both write — so the
+   * `past_due to active`, and without the status predicate both write, so the
    * subscription silently returns to `active` for a billing period the user had
    * already ended. Here the predicate matches nothing, the re-read shows
-   * `active_until_period_end`, and because `active_until_period_end → active` is
+   * `active_until_period_end`, and because `active_until_period_end to active` is
    * still legal the caller is told to retry rather than handed a decision
    * somebody else made.
    */
@@ -179,7 +179,7 @@ describe("transitionSubscription compare-and-set", () => {
   /**
    * The other branch: the winner moved the row somewhere the requested target is
    * not reachable from. Writing or returning here would resurrect a canceled or
-   * expired subscription, so the machine still refuses — naming the transition it
+   * expired subscription, so the machine still refuses, naming the transition it
    * rejected rather than a retry hint that could not have helped.
    */
   it("still refuses an illegal transition that was legal when first read", async () => {

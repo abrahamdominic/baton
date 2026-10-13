@@ -53,7 +53,7 @@ export async function requireActiveUser(): Promise<SessionUser> {
  * Removing someone from a team or organization deleted only the membership
  * row. The messaging actions authorize on `ConversationMember` alone, so a
  * removed member kept both read access to every message ever sent in those
- * threads and the ability to post into them — a page-level 404 is not an
+ * threads and the ability to post into them, a page-level 404 is not an
  * access-control boundary, since server actions are directly callable.
  *
  * Deleting their `ConversationMember` rows closes that door. The thread key
@@ -427,9 +427,9 @@ export async function pendingOrgInvites(login: string) {
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Shared board (team/org): PR queue across the workspace's shared installations
-// ---------------------------------------------------------------------------
+// 
 
 export interface WorkspaceBoardItem {
   prId: string;
@@ -525,9 +525,9 @@ export async function workspaceBoard(
   return { installAccounts, repos, items };
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Org-scoped audit trail (drives the audit export surface)
-// ---------------------------------------------------------------------------
+// 
 
 export async function recordOrgAudit(input: {
   organizationId: string;

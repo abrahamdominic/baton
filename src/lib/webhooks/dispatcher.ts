@@ -60,8 +60,8 @@ async function enqueuePrRefreshes(
 /**
  * Map a raw webhook event to Baton work and PERSIST that work.
  *
- * Every enqueue is awaited. This used to be `void enqueuePrRefresh(...)` —
- * fire-and-forget — which is unreliable by construction on a serverless host:
+ * Every enqueue is awaited. This used to be `void enqueuePrRefresh(...)`, 
+ * fire-and-forget, which is unreliable by construction on a serverless host:
  * the route responds, Vercel freezes the instance, and the in-flight `INSERT`
  * into `Job` is discarded. The webhook had already been recorded, so GitHub's
  * redelivery was deduplicated and could never recover the work, and the PR was

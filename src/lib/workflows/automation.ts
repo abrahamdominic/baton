@@ -14,7 +14,7 @@ import {
  * Automated developer workflows (§8).
  *
  * The distinction this module exists to enforce
- * ---------------------------------------------
+ * 
  * must.md asks for repetitive GitHub work to be "implemented as actual
  * workflows rather than generic AI chat". That distinction has a concrete
  * meaning here, and it is enforced by the type system rather than by
@@ -30,10 +30,10 @@ import {
  *    `confidence: "observed"` means GitHub told us; `"derived"` means we
  *    computed it from observed facts by a documented rule; `"speculative"`
  *    means we noticed a textual resemblance and are saying so. A workflow may
- *    never emit a finding with no basis at all — `assertFindings` enforces it.
+ *    never emit a finding with no basis at all, `assertFindings` enforces it.
  *
  * What this deliberately does not do
- * ---------------------------------
+ * 
  * It never acts. No finding closes an issue, comments on a PR, or reassigns a
  * reviewer. §17 and §18 require that developers keep control over what becomes
  * work, so a workflow's entire output is a proposal the user confirms. The one
@@ -196,9 +196,9 @@ function days(then: Date, now: Date): number {
   return Math.floor((now.getTime() - then.getTime()) / 86_400_000);
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 1: stale work
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Pull requests that have been sitting in the same actionable state for longer
@@ -239,9 +239,9 @@ function repoOf(prUrl: string): string {
   return m?.[1] ?? "unknown/unknown";
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 2: blocked work
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Work that is blocked on something structural rather than on a person.
@@ -309,15 +309,15 @@ export function blockedWork(prs: WorkflowPr[], now: Date): WorkflowFinding[] {
   return findings.sort((a, b) => b.severity - a.severity);
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 3: abandoned work
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Work that looks finished-in-progress: no reviewer ever engaged, no commit for
  * a while, and not in draft.
  *
- * The three signals are ANDed. Any one of them alone misfires constantly — an
+ * The three signals are ANDed. Any one of them alone misfires constantly, an
  * unreviewed PR with recent commits is just a new PR, and an old PR with a
  * reviewer is just a slow one.
  */
@@ -355,9 +355,9 @@ export function abandonedWork(
   return findings.sort((a, b) => b.severity - a.severity);
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 4: waiting on specific people
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Which person each pull request is actually waiting on.
@@ -412,9 +412,9 @@ export function waitingOnPeople(
   return findings.sort((a, b) => b.severity - a.severity);
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 5: duplicate issues
-// ---------------------------------------------------------------------------
+// 
 
 export interface IssueLike {
   number: number;
@@ -499,8 +499,8 @@ function tokenize(text: string): string[] {
 /**
  * Jaccard similarity over content tokens.
  *
- * Chosen over cosine/TF-IDF because it needs no corpus, is symmetric, and — most
- * importantly — is *explainable*. When a finding says "these two issues look
+ * Chosen over cosine/TF-IDF because it needs no corpus, is symmetric, and, most
+ * importantly, is *explainable*. When a finding says "these two issues look
  * 72% similar", the basis line can list the exact shared tokens, and a developer
  * can check the reasoning in two seconds. An opaque embedding similarity cannot
  * be argued with, and §12/§13 both require that an operator be able to disagree
@@ -547,7 +547,7 @@ export function duplicateIssues(
         id: `dup-${a.issue.number}-${b.issue.number}`,
         kind: "duplicate_issues",
         title: `#${a.issue.number} and #${b.issue.number} may be the same problem`,
-        basis: `Titles and bodies share ${Math.round(score * 100)}% of their content tokens (${shared.slice(0, 6).join(", ")}). Textual resemblance only — confirm before closing either.`,
+        basis: `Titles and bodies share ${Math.round(score * 100)}% of their content tokens (${shared.slice(0, 6).join(", ")}). Textual resemblance only, confirm before closing either.`,
         confidence: "speculative",
         href: `/dashboard/repos/${repoOf(a.issue.url)}/pulls/${b.issue.number}`,
         paths: [],
@@ -559,9 +559,9 @@ export function duplicateIssues(
   return findings.sort((a, b) => b.severity - a.severity);
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 6: related work
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Connect a pull request to the issues and pull requests it plausibly relates to.
@@ -637,9 +637,9 @@ export function relatedWork(
   return findings.sort((a, b) => b.severity - a.severity);
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 7 & 8: documentation implications and affected tests
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * File list from a PR snapshot, or `null` when it was never collected.
@@ -727,7 +727,7 @@ const TEST_PATH =
  *
  * Two tiers, reported with different confidence:
  *  - a test file changed alongside source, or a test path shares a directory
- *    prefix with a changed source file — `derived`, because the path relationship
+ *    prefix with a changed source file, `derived`, because the path relationship
  *    is computed but the causal claim is not;
  *  - nothing at all when the repository has no tests, which is a finding in
  *    itself rather than an empty result.
@@ -792,9 +792,9 @@ export function affectedTests(
   ];
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 9: unowned changes (CODEOWNERS)
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Changed paths that no CODEOWNERS rule covers.
@@ -840,9 +840,9 @@ export function unownedChanges(
   ];
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Workflow 10: dependency chains
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Pull requests whose branches are stacked on one another.
@@ -914,9 +914,9 @@ function dedupe(findings: WorkflowFinding[]): WorkflowFinding[] {
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Orchestration
-// ---------------------------------------------------------------------------
+// 
 
 export interface WorkflowRunInput {
   prs: WorkflowPr[];
@@ -1085,9 +1085,9 @@ export function allChangedPaths(prs: WorkflowPr[]): string[] {
   return [...set];
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Persistence: fetch the workflow inputs for a repository
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Load everything the workflows need for one repository.

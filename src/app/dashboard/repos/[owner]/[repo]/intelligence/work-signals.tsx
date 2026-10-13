@@ -54,20 +54,20 @@ export function WorkSignalList({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-      <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+    <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+      <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
         <h2 className="text-sm font-semibold text-white">{t("intelligence:work_title")}</h2>
         <p className="mt-0.5 text-xs text-ink-500">{t("intelligence:work_subtitle")}</p>
       </div>
 
       {error ? (
-        <p className="flex items-start gap-2 border-b border-white/[0.05] px-5 py-3 text-xs text-danger-300">
+        <p className="flex items-start gap-2 border-b border-hairline px-5 py-3 text-xs text-danger-300">
           <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           {error}
         </p>
       ) : null}
 
-      <ul className="divide-y divide-white/[0.05]">
+      <ul className="divide-y divide-hairline">
         {signals.map((s) => {
           const isSaved = saved.has(s.id);
           return (
@@ -94,7 +94,7 @@ export function WorkSignalList({
                     {s.evidence.map((e) => (
                       <li
                         key={e.label}
-                        className="rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 text-[10px] text-ink-400"
+                        className="rounded border border-hairline bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-400"
                       >
                         {e.label}
                       </li>

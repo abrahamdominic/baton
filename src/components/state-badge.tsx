@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui";
  * Server-rendered state badge and duration.
  *
  * Both need a translator, and `getTranslatorForRequest` is `server-only`, so
- * they live here rather than in `components/ui.tsx` — that module is also
+ * they live here rather than in `components/ui.tsx`, that module is also
  * imported from client components and must stay free of server-only imports.
  */
 export async function StateBadge({ state }: { state: string }) {

@@ -70,7 +70,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       </div>
 
       {/* Pricing in Cents */}
-      <div className="space-y-4 border-t border-white/[0.06] pt-5">
+      <div className="space-y-4 border-t border-hairline pt-5">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
           {t("admin:plan_section_pricing")}
         </h3>
@@ -128,7 +128,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       </div>
 
       {/* Stripe Metadata */}
-      <div className="space-y-4 border-t border-white/[0.06] pt-5">
+      <div className="space-y-4 border-t border-hairline pt-5">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
           {t("admin:plan_section_stripe")}
         </h3>
@@ -158,7 +158,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
           // element during parsing, which left this submit button with no form
           // owner. `formAction` points the same submission at the Stripe sync
           // action instead, and the plan id is already in the outer form.
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-white/[0.07] bg-ink-950/40 px-4 py-3">
+          <div className="flex flex-wrap items-center gap-3 rounded-control border border-hairline bg-ink-950/40 px-4 py-3">
             <div className="min-w-0 flex-1 text-xs text-ink-300">
               <p className="font-semibold text-ink-200">{t("admin:plan_stripe_sync_title")}</p>
               <p className="mt-0.5 text-[10px] text-ink-500">{t("admin:plan_stripe_sync_body")}</p>
@@ -179,7 +179,7 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
       </div>
 
       {/* Features & Limits */}
-      <div className="space-y-4 border-t border-white/[0.06] pt-5">
+      <div className="space-y-4 border-t border-hairline pt-5">
         <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-ink-400">
           {t("admin:plan_section_features")}
         </h3>
@@ -216,18 +216,18 @@ export function PlanForm({ plan }: { plan?: PlanRecord | null }) {
 
       {/* Feedback Messages */}
       {state?.error ? (
-        <p className="rounded-lg border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-xs font-medium text-danger-300">
+        <p className="rounded-control border border-danger-500/30 bg-danger-500/10 px-4 py-3 text-xs font-medium text-danger-300">
           {state.error}
         </p>
       ) : null}
       {state?.ok ? (
-        <p className="rounded-lg border border-signal-500/30 bg-signal-500/10 px-4 py-3 text-xs font-medium text-signal-300">
+        <p className="rounded-control border border-signal-500/30 bg-signal-500/10 px-4 py-3 text-xs font-medium text-signal-300">
           {t("admin:plan_saved")}
         </p>
       ) : null}
 
       {/* Form Action Buttons */}
-      <div className="flex items-center gap-3 border-t border-white/[0.06] pt-4">
+      <div className="flex items-center gap-3 border-t border-hairline pt-4">
         <button type="submit" className="btn btn-primary btn-sm">
           {plan ? t("admin:plan_save_changes") : t("admin:plan_create")}
         </button>

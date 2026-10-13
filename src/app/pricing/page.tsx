@@ -111,7 +111,7 @@ export default async function PricingPage() {
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <MarketingHeader />
-      <main className="container-page py-16 md:py-24">
+      <main id="main" className="container-page py-16 md:py-24">
         <div className="max-w-2xl mx-auto text-center mb-14">
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
             Simple, honest pricing. No seat games.

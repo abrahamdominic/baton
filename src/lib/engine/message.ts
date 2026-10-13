@@ -42,7 +42,7 @@ export function statusCommentBody(ctx: StatusCommentContext): string {
     ``,
     `**${c.action}**`,
     ``,
-    `<sub>Status by [Baton](${config.SITE_URL}) · [Repo board](${ctx.repoBoardUrl}) · #${ctx.number}</sub>`,
+    `<sub>Status by [Baton](${config.SITE_URL}), [Repo board](${ctx.repoBoardUrl}), #${ctx.number}</sub>`,
   ];
   return lines.join("\n");
 }

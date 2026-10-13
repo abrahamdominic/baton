@@ -41,7 +41,7 @@ const kinds = (signals: WorkSignal[]) => signals.map((s) => s.kind).sort();
  * would silently drop a whole signal class with no test failure, so the values
  * are asserted against the same source the query uses.
  */
-describe("classifyWorkSignals — state values", () => {
+describe("classifyWorkSignals, state values", () => {
   it("uses only real Baton PR states", () => {
     expect([...LIVE_PR_STATES].sort()).toEqual(
       [
@@ -80,7 +80,7 @@ describe("classifyWorkSignals — state values", () => {
   });
 });
 
-describe("classifyWorkSignals — signals proven by stored state", () => {
+describe("classifyWorkSignals, signals proven by stored state", () => {
   it("flags a review the developer was personally requested for", () => {
     const s = classifyWorkSignals(
       [pr({ authorLogin: "someone-else", requestedReviewersJson: '["Dev"]', stateEnteredAt: daysAgo(3) })],
@@ -178,7 +178,7 @@ describe("classifyWorkSignals — signals proven by stored state", () => {
   });
 });
 
-describe("classifyWorkSignals — signals inferred from inactivity", () => {
+describe("classifyWorkSignals, signals inferred from inactivity", () => {
   it("marks time-based signals as medium confidence", () => {
     const s = classifyWorkSignals([pr({ githubUpdatedAt: daysAgo(12) })], "dev", REPO, NOW);
     const stalled = s.find((x) => x.kind === "stalled_author");

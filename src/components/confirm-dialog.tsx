@@ -91,7 +91,7 @@ export function Dialog({
   const toneRing =
     tone === "danger" ? "border-danger-500/30" : tone === "warn" ? "border-warn-500/30" : "border-brand-500/30";
   const width = size === "lg" ? "max-w-lg" : "max-w-md";
-  const surface = bare ? "overflow-hidden rounded-2xl" : "rounded-xl p-5";
+  const surface = bare ? "overflow-hidden rounded-feature" : "rounded-panel p-5";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -107,7 +107,7 @@ export function Dialog({
         aria-label={labelledBy ? undefined : label}
         ref={dialogRef}
         tabIndex={-1}
-        className={`relative w-full ${width} border border-white/[0.1] ${toneRing} ${surface} bg-ink-900 shadow-2xl`}
+        className={`relative w-full ${width} border border-hairline ${toneRing} ${surface} bg-ink-900 shadow-2xl`}
       >
         {children}
       </div>

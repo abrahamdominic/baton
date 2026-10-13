@@ -227,7 +227,7 @@ export async function findOpenPaymentForSubscription(
  * Create (or reuse) the open checkout payment for a subscription. Retries and
  * manual USDC renewals reuse the SAME subscription row, and the unique partial
  * index `payments_one_open_per_subscription` only allows one open payment per
- * subscription — so a second insert would fail. This looks for an existing open
+ * subscription, so a second insert would fail. This looks for an existing open
  * payment on the subscription first and patches it to the new amount/interval
  * instead of inserting a duplicate.
  */
@@ -433,9 +433,9 @@ export async function listPaymentsForSubscription(
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Status mutations (server-only, never exposed to the client)
-// ---------------------------------------------------------------------------
+// 
 
 export async function patchPayment(
   paymentId: string,
@@ -474,7 +474,7 @@ async function setPaymentStatus(
  * double-confirm and a double-delivered webhook can never double-confirm.
  *
  * `claimed` is true only for the caller whose update actually moved the row out
- * of the open states. Callers MUST gate subscription side effects on it —
+ * of the open states. Callers MUST gate subscription side effects on it, 
  * otherwise two concurrent verifications both apply the same renewal.
  *
  * When zero rows match, the payment was already moved out of the open states
@@ -500,7 +500,7 @@ export async function confirmPayment(
   if (error) throw new Error(`payments.confirm failed: ${error.message}`);
   if (data) return { payment: paymentFromRow(data as Row), claimed: true };
   // Someone moved the payment first. Return its current state so callers can
-  // decide (idempotent re-delivery → re-read confirmed; user cancellation →
+  // decide (idempotent re-delivery to re-read confirmed; user cancellation to 
   // re-read cancelled; a failed/rejected attempt never confirms).
   const current = await getPaymentById(paymentId);
   if (!current) throw new Error("payments.confirm missing row");
@@ -510,9 +510,9 @@ export async function confirmPayment(
 /**
  * Atomically cancel a checkout payment (only from the open states). Returns the
  * cancelled row when the cancel won the race, otherwise the current row:
- *  - confirmed  → the customer paid; the checkout can NOT be cancelled.
- *  - already cancelled → no-op (returns the cancelled row after no matching).
- *  - failed/rejected/refunded → already closed, cancel is a no-op (returns row).
+ *  - confirmed to the customer paid; the checkout can NOT be cancelled.
+ *  - already cancelled to no-op (returns the cancelled row after no matching).
+ *  - failed/rejected/refunded to already closed, cancel is a no-op (returns row).
  */
 export async function cancelCheckoutPayment(
   paymentId: string,
@@ -564,9 +564,9 @@ export async function recordPaymentVerification(opts: {
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // USDC: transaction-hash submission + verification
-// ---------------------------------------------------------------------------
+// 
 
 export interface SubmitTxHashResult {
   payment: PaymentRecord;
@@ -709,9 +709,9 @@ export type UsdcVerifyOutcome =
 
 /**
  * Auto-verify a pending_verification USDC payment on-chain (Base JSON-RPC).
- * - Hard mismatches (wrong token/net/recipient/amount/reverted) → payment
+ * - Hard mismatches (wrong token/net/recipient/amount/reverted) to payment
  *   rejected + subscription payment_failed.
- * - Soft conditions (RPC unavailable, not yet mined, low finality) → stays
+ * - Soft conditions (RPC unavailable, not yet mined, low finality) to stays
  *   pending_verification for an administrator to review manually.
  * Returns a code the UI/admin can present safely.
  */
@@ -904,9 +904,9 @@ export function periodForInterval(
   return { start, end: end.toISOString() };
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Admin list with pagination + filters
-// ---------------------------------------------------------------------------
+// 
 
 export interface AdminPaymentQuery {
   limit?: number;
@@ -921,7 +921,7 @@ export interface AdminPaymentQuery {
  *
  * `.or()` takes a mini-language where `,` separates predicates and `.`/`:` are
  * operators, so a raw value containing them can close the intended predicate
- * and append its own — an operator-supplied search string could otherwise
+ * and append its own, an operator-supplied search string could otherwise
  * rewrite the filter (e.g. match rows it should not, or reach columns the
  * query never intended to expose). Backslash-escaping the grammar characters
  * and dropping the quote/paren delimiters keeps the value a single literal.

@@ -7,7 +7,7 @@ to `.env` to get started.
 ## Core
 
 | Variable | Required | Default | Description |
-| --- | --- | --- | --- |
+|  |  |  |  |
 | `NODE_ENV` | no | `development` | `development` \| `test` \| `production`. |
 | `SITE_URL` | no | `https://baton-xi.vercel.app` | Canonical public URL. Used for sitemap, robots, canonical links, OG metadata, and in-product links. No trailing slash. |
 | `APP_URL` | no | `https://baton-xi.vercel.app` | Where the app actually runs. Used for OAuth redirects and absolute links. Point at `http://localhost:3000` for local dev. |
@@ -34,7 +34,7 @@ client secret in a form-encoded POST body (the secret never appears in any
 URL), upserts the user, and sets the `baton_session` httpOnly cookie.
 
 | Variable | Required | Description |
-| --- | --- | --- |
+|  |  |  |
 | `GITHUB_OAUTH_CLIENT_ID` | yes | OAuth App client ID. |
 | `GITHUB_OAUTH_CLIENT_SECRET` | yes | OAuth App client secret. |
 
@@ -63,7 +63,7 @@ if "Request user authorization (OAuth) during installation" is enabled, its
 - enqueues installation registration, and redirects to `/dashboard?installed=1`.
 
 | Variable | Required | Description |
-| --- | --- | --- |
+|  |  |  |
 | `GITHUB_APP_ID` | yes | Numeric App ID. |
 | `GITHUB_APP_SLUG` | no (default `abrahamdominic`) | App URL slug, used for install links. Must match the real app (`https://github.com/apps/<slug>` returns 200). This is the live GitHub App slug; keep it. |
 | `GITHUB_APP_CLIENT_ID` | only if "Request user authorization during installation" is enabled | The GitHub App's **own** Client ID, never the OAuth App's. |
@@ -78,20 +78,20 @@ if "Request user authorization (OAuth) during installation" is enabled, its
 Baton is a Vercel (serverless) deployment, so **no long-running worker process
 runs there.** Vercel functions are request-scoped and frozen between requests,
 so the original `setInterval` poll loop could never make progress past its first
-tick. Queued work is now executed by *bounded drains* — a drain runs a capped
+tick. Queued work is now executed by *bounded drains*, a drain runs a capped
 number of jobs within a capped time budget and then returns.
 
 Three things trigger drains, together covering both latency and durability:
 
 | Trigger | Endpoint / process | Purpose |
-| --- | --- | --- |
+|  |  |  |
 | Inline, after a webhook enqueues | `POST /api/webhooks` (via `after()`) | Near-real-time classification. Small batch only; GitHub expects a fast response. |
 | Scheduled catch-up | `GET /api/cron/drain` (Vercel Cron) | Recovers anything left after downtime or a failed delivery. |
 | Scheduled repository sweep | `GET /api/cron/sweep` (Vercel Cron) | Re-scans every enabled repo so state converges; also runs billing housekeeping. |
 
 `vercel.json` declares both crons. **`CRON_SECRET` is required**: Vercel sends
 `Authorization: Bearer $CRON_SECRET`, and both endpoints reject anything else.
-They **fail closed** — if `CRON_SECRET` is unset they return 401 for every
+They **fail closed**, if `CRON_SECRET` is unset they return 401 for every
 request, because an unauthenticated sweep or drain is a free amplification vector
 against both our database and every connected installation's GitHub API quota.
 
@@ -100,8 +100,8 @@ If you would rather run a real long-lived process (Fly.io, Railway, Render, ECS)
 is safe to run alongside a Vercel deployment: each job is processed once.
 
 | Variable | Default | Description |
-| --- | --- | --- |
-| `CRON_SECRET` | `""` | Bearer token for `/api/cron/*`. Unset ⇒ scheduled endpoints reject everything. Use 16+ random characters. |
+|  |  |  |
+| `CRON_SECRET` | `""` | Bearer token for `/api/cron/*`. Unset to scheduled endpoints reject everything. Use 16+ random characters. |
 | `BATON_DRAIN_MAX_JOBS` | `40` | Job cap for a single scheduled drain. |
 | `BATON_DRAIN_BUDGET_MS` | `50000` | Wall-clock budget for a scheduled drain. A drain stops claiming before this is spent so it always responds in time. |
 | `BATON_DRAIN_CONCURRENCY` | `4` | Parallel executors inside a drain (hard-capped at 16). |
@@ -114,7 +114,7 @@ is safe to run alongside a Vercel deployment: each job is processed once.
 ### Vercel plan limits
 
 Vercel Hobby allows only **one cron invocation per day**. That is acceptable
-here because the inline post-webhook drain — not the scheduler — provides
+here because the inline post-webhook drain, not the scheduler, provides
 low latency; the scheduled drain is a durability net. On a plan with a coarser
 cron limit, PR classification still happens within seconds of the webhook.
 
@@ -139,7 +139,7 @@ Baton runs on Vercel with zero build-specific env in the repository. All secrets
 must be set in the hosting provider's environment settings:
 
 | Variable | Required in prod | Failure mode when missing |
-| --- | --- | --- |
+|  |  |  |
 | `SITE_URL` | yes | Fallback is `https://baton-xi.vercel.app` (see config). |
 | `APP_URL` | yes | Fallback is `https://baton-xi.vercel.app`. |
 | `DATABASE_URL` | yes (Postgres) | First Prisma query throws; sign-in shows "service database is currently unavailable" (`/?oauth_error=1&reason=server_error`). See **Fix the database below**. |
@@ -198,7 +198,7 @@ env vars in production (Postgres + production OAuth redirects). Never commit
 
 - **Private key formats.** Prefer `BASE64` in production secrets managers; `PATH`
   for local files; raw `KEY` for quick local testing (watch out for `\n`). The
-  base64-decoded value MUST be the `-----BEGIN RSA PRIVATE KEY-----` PEM text.
+  base64-decoded value MUST be the `BEGIN RSA PRIVATE KEY` PEM text.
   A value such as `SHA256:…` is not a private key; installation-token calls
   (`src/lib/github/app.ts`) will fail until a real PEM is provided.
 - **Install token vs sign-in.** Sign-in (OAuth exchange + `/user`) needs only

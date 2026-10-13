@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { IconCheck, IconX, IconArrowRight } from "@/components/icons";
+import { IconCheck, IconX } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import type { PlanRecord } from "@/lib/billing/types";
 import {
   planBillingNote,
@@ -38,7 +39,7 @@ export interface Tier {
 /**
  * The copy-only tier definition. Paid prices and billing notes are deliberately
  * absent here: they are always derived from plan data by `priceFields` below.
- * Only the free tier declares a price inline, because it has no plan row — it
+ * Only the free tier declares a price inline, because it has no plan row, it
  * is genuinely $0 rather than a value that could drift.
  */
 type StaticTier = Omit<Tier, "monthlyPrice" | "annualPrice"> & {
@@ -394,7 +395,7 @@ export function PricingView({
         <div
           role="tablist"
           aria-label={t("billing:frequency_toggle_label")}
-          className="inline-flex items-center rounded-full border border-white/[0.1] bg-ink-900/90 p-1"
+          className="inline-flex items-center rounded-full border border-hairline bg-ink-900/90 p-1"
         >
           <button
             type="button"
@@ -447,10 +448,10 @@ export function PricingView({
           return (
             <div
               key={t.name}
-              className={`relative flex flex-col rounded-2xl border p-8 transition-all ${
+              className={`relative flex flex-col rounded-feature border p-8 transition-all ${
                 t.featured
                   ? "border-brand-500/50 bg-ink-900"
-                  : "border-white/[0.08] bg-ink-900/70 hover:border-white/[0.14]"
+                  : "border-hairline bg-ink-900/70 hover:border-hairline-strong"
               }`}
             >
               {t.highlightBadge ? (
@@ -465,7 +466,7 @@ export function PricingView({
                   {t.blurb}
                 </p>
 
-                <div className="mt-6 border-b border-white/[0.08] pb-6">
+                <div className="mt-6 border-b border-hairline pb-6">
                   <div className="flex items-baseline gap-2">
                     <span className="text-4xl font-extrabold tracking-tight text-white font-mono">
                       {price}
@@ -506,7 +507,7 @@ export function PricingView({
                     } btn-lg flex items-center justify-center gap-2 text-center`}
                   >
                     <span>{cta}</span>
-                    <IconArrowRight className="h-4 w-4 shrink-0" />
+                    <LinkArrow className="h-4 w-4 shrink-0" />
                   </a>
                 ) : (
                   <Link
@@ -516,7 +517,7 @@ export function PricingView({
                     } btn-lg flex items-center justify-center gap-2 text-center`}
                   >
                     <span>{cta}</span>
-                    <IconArrowRight className="h-4 w-4 shrink-0" />
+                    <LinkArrow className="h-4 w-4 shrink-0" />
                   </Link>
                 )}
               </div>
@@ -536,10 +537,10 @@ export function PricingView({
           </p>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60">
+        <div className="overflow-x-auto rounded-panel border border-hairline bg-ink-900/60">
           <table className="w-full min-w-[680px] text-left text-xs">
             <thead>
-              <tr className="border-b border-white/[0.08] bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
+              <tr className="border-b border-hairline bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
                 <th scope="col" className="py-4 ps-6 pe-4 font-semibold">
                   {t("billing:th_capability")}
                 </th>
@@ -561,7 +562,7 @@ export function PricingView({
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.06]">
+            <tbody className="divide-y divide-hairline">
               {MATRIX_SECTIONS.map((sec) => (
                 <React.Fragment key={sec.category}>
                   <tr className="bg-ink-950/90">
@@ -583,7 +584,7 @@ export function PricingView({
                     </tr>
                   ) : null}
                   {sec.rows.map((r) => (
-                    <tr key={r.feature} className="hover:bg-white/[0.02]">
+                    <tr key={r.feature} className="hover:bg-surface-1">
                       <td className="sticky left-0 bg-ink-900 py-3.5 pl-6 pr-4 font-medium text-ink-200 shadow-[1px_0_0_0_rgba(255,255,255,0.04)]">
                         {r.feature}
                       </td>

@@ -30,7 +30,7 @@
   "board_by_author": "por @{{login}}",
   "board_waiting": "esperando",
   "board_stalled": "(detenido)",
-  "board_approved": "✓ Aprobada",
+  "board_approved": "yes Aprobada",
   "list_title": "Repositorios rastreados",
   "list_free_plan_one": "Plan gratuito: {{active}} de {{max}} repositorios activos rastreados",
   "list_free_plan_other": "Plan gratuito: {{active}} de {{max}} repositorios activos rastreados",

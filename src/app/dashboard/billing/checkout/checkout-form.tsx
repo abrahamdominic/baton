@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
-import { IconArrowRight, IconCopy, IconShield, IconAlertCircle, IconCreditCard, IconCoins } from "@/components/icons";
+import { IconCopy, IconShield, IconAlertCircle, IconCreditCard, IconCoins } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import { useI18n } from "@/lib/i18n/provider";
 
 interface CheckoutFormProps {
@@ -44,7 +45,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
   // Always start on the provider chooser. The USDC order screen is only
   // meaningful once a server-issued order exists (`order` is null until
   // `startUsdc` returns), so auto-entering it when Stripe is unavailable left
-  // the form rendering neither the chooser nor the order — a dead end with no
+  // the form rendering neither the chooser nor the order, a dead end with no
   // way to pay. `startUsdc` moves us here as soon as the order is created.
   const [step, setStep] = useState<Step>("choose");
   const [state, setState] = useState<CheckoutState>("idle");
@@ -55,7 +56,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
 
   if (props.alreadySubscribed) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-signal-500/25 bg-signal-500/[0.05] px-5 py-4 text-xs text-signal-300">
+      <div className="flex items-start gap-3 rounded-panel border border-signal-500/25 bg-signal-500/[0.05] px-5 py-4 text-xs text-signal-300">
         <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
         <div>
           {t("billing:checkout_already_active", { plan: props.plan.name })}{" "}
@@ -157,15 +158,15 @@ export function CheckoutForm(props: CheckoutFormProps) {
           than as an early return, so an active USDC subscriber still reaches
           the payment options the copy points them at. */}
       {props.canRenewUsdc ? (
-        <div className="flex items-start gap-3 rounded-xl border border-brand-500/25 bg-brand-500/[0.06] px-5 py-4 text-xs text-ink-300">
+        <div className="flex items-start gap-3 rounded-panel border border-brand-500/25 bg-brand-500/[0.06] px-5 py-4 text-xs text-ink-300">
           <IconShield className="mt-0.5 h-4 w-4 shrink-0 text-brand-300" />
           <div>{t("billing:checkout_renewal_notice", { plan: props.plan.name })}</div>
         </div>
       ) : null}
 
       {/* Order summary */}
-      <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-ink-900/60">
-        <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
+      <section className="overflow-hidden rounded-feature border border-hairline bg-ink-900/60">
+        <div className="border-b border-hairline bg-ink-950/70 px-6 py-4">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
             {t("billing:order_summary")}
           </span>
@@ -189,7 +190,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
             <p className="font-mono text-[11px] text-ink-500">{t("billing:billed_monthly")}</p>
           )}
           {props.plan.priceCustom ? (
-            <div className="flex items-start gap-2 rounded-lg bg-warn-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-warn-200">
+            <div className="flex items-start gap-2 rounded-control bg-warn-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-warn-200">
               <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {t("billing:custom_priced_notice")}
             </div>
@@ -242,7 +243,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
               </p>
             ) : null
           ) : (
-            <div className="rounded-lg border border-warn-500/25 bg-warn-500/[0.07] p-3 text-center text-xs leading-relaxed text-warn-200">
+            <div className="rounded-control border border-warn-500/25 bg-warn-500/[0.07] p-3 text-center text-xs leading-relaxed text-warn-200">
               {t("billing:no_payment_method")}
             </div>
           )}
@@ -253,7 +254,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
       ) : null}
 
       {step === "usdc_order" && order ? (
-        <section data-testid="usdc-order" className="overflow-hidden rounded-2xl border border-brand-500/25 bg-ink-900/60">
+        <section data-testid="usdc-order" className="overflow-hidden rounded-feature border border-brand-500/25 bg-ink-900/60">
           <div className="border-b border-brand-500/20 bg-brand-500/[0.06] px-6 py-3.5">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
               {order.renewal
@@ -284,7 +285,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
                 <IconShield className="h-3 w-3 text-signal-400" />
                 {t("billing:send_to_address", { network: order.network })}
               </p>
-              <div className="flex items-center gap-2 rounded-lg border border-white/[0.1] bg-ink-950 px-3 py-2.5">
+              <div className="flex items-center gap-2 rounded-control border border-hairline bg-ink-950 px-3 py-2.5">
                 <code className="min-w-0 flex-1 break-all font-mono text-xs text-white">{order.walletAddress}</code>
                 <button
                   type="button"
@@ -336,7 +337,7 @@ export function CheckoutForm(props: CheckoutFormProps) {
               ) : (
                 <>
                   {t("billing:sent_verify")}
-                  <IconArrowRight className="h-4 w-4" />
+                  <LinkArrow className="h-4 w-4" />
                 </>
               )}
             </button>
@@ -346,14 +347,14 @@ export function CheckoutForm(props: CheckoutFormProps) {
               disabled={state === "submitting_tx"}
               className="w-full text-center text-[11px] font-medium text-ink-400 transition-colors hover:text-white"
             >
-              ← {t("billing:back_to_payment_options")}
+ from {t("billing:back_to_payment_options")}
             </button>
           </div>
         </section>
       ) : null}
 
       {state === "error" && error ? (
-        <div className="flex items-start gap-2.5 rounded-xl border border-danger-500/30 bg-danger-500/[0.06] px-4 py-3 text-xs text-danger-200" role="alert">
+        <div className="flex items-start gap-2.5 rounded-panel border border-danger-500/30 bg-danger-500/[0.06] px-4 py-3 text-xs text-danger-200" role="alert">
           <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>

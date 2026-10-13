@@ -11,11 +11,11 @@ import {
   IconActivity,
   IconShield,
   IconAlertCircle,
-  IconArrowRight,
   IconClock,
   IconLayers,
   IconGitHub,
 } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ function statusTone(status: string): string {
     case "past_due":
       return "border-danger-500/30 bg-danger-500/10 text-danger-300";
     default:
-      return "border-white/[0.08] bg-white/[0.04] text-ink-400";
+      return "border-hairline bg-surface-2 text-ink-400";
   }
 }
 
@@ -66,7 +66,7 @@ export default async function AdminOverviewPage() {
             <Link href="/admin/analytics" className="btn btn-ghost btn-sm">
               <IconActivity className="h-3.5 w-3.5" />
               <span>{t("admin:overview_deep_analytics")}</span>
-              <IconArrowRight className="h-3 w-3" />
+              <LinkArrow className="h-3 w-3" />
             </Link>
           </div>
         }
@@ -106,8 +106,8 @@ export default async function AdminOverviewPage() {
       {/* Revenue & Payments Breakdown */}
       <section className="grid gap-6 lg:grid-cols-2">
         {/* Confirmed Volume */}
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("admin:payment_volume")}
             </span>
@@ -116,7 +116,7 @@ export default async function AdminOverviewPage() {
               className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
             >
               <span>{t("admin:manage_payments")}</span>
-              <IconArrowRight className="h-3 w-3" />
+              <LinkArrow className="h-3 w-3" />
             </Link>
           </div>
 
@@ -124,9 +124,7 @@ export default async function AdminOverviewPage() {
             <div>
               <span className="text-xs text-ink-400">{t("admin:total_confirmed_revenue")}</span>
               {revenueByCurrency.length === 0 ? (
-                <div className="mt-1 font-mono text-3xl font-extrabold tabular-nums tracking-tight text-ink-500">
-                  &mdash;
-                </div>
+                <div className="mt-1 font-mono text-3xl font-extrabold tabular-nums tracking-tight text-ink-500">, </div>
               ) : (
                 <div className="mt-1 space-y-1">
                   {revenueByCurrency.map(([currency, total]) => (
@@ -148,7 +146,7 @@ export default async function AdminOverviewPage() {
               )}
             </div>
 
-            <div className="space-y-3.5 border-t border-white/[0.06] pt-4">
+            <div className="space-y-3.5 border-t border-hairline pt-4">
               <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-ink-500">
                 {t("admin:revenue_by_provider")}
               </span>
@@ -159,7 +157,7 @@ export default async function AdminOverviewPage() {
                   above nothing, so it gets the same em-dash treatment as the
                   revenue total above. */}
               {Object.keys(metrics.payments.byProvider).length === 0 ? (
-                <div className="font-mono text-sm text-ink-500">&mdash;</div>
+                <div className="font-mono text-sm text-ink-500">, </div>
               ) : (
               Object.entries(metrics.payments.byProvider).map(([provider, details]) => {
                 // Each provider settles in exactly one currency, so the share
@@ -186,7 +184,7 @@ export default async function AdminOverviewPage() {
                         </span>
                       </span>
                     </div>
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.06]">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">
                       <div
                         className={`h-full rounded-full ${
                           provider === "usdc" ? "bg-brand-400" : "bg-signal-400"
@@ -203,8 +201,8 @@ export default async function AdminOverviewPage() {
         </div>
 
         {/* Latest Payments */}
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("admin:latest_payments")}
             </span>
@@ -213,7 +211,7 @@ export default async function AdminOverviewPage() {
               className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
             >
               <span>{t("admin:view_all")}</span>
-              <IconArrowRight className="h-3 w-3" />
+              <LinkArrow className="h-3 w-3" />
             </Link>
           </div>
 
@@ -222,11 +220,11 @@ export default async function AdminOverviewPage() {
               {t("admin:no_payments")}
             </div>
           ) : (
-            <ul className="divide-y divide-white/[0.05]">
+            <ul className="divide-y divide-hairline">
               {latestPayments.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between gap-3 px-5 py-3.5 text-xs transition-colors hover:bg-white/[0.02]"
+                  className="flex items-center justify-between gap-3 px-5 py-3.5 text-xs transition-colors hover:bg-surface-1"
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -267,8 +265,8 @@ export default async function AdminOverviewPage() {
       </section>
 
       {/* System Events & Health Pulse */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("admin:system_events_pulse")}
@@ -284,7 +282,7 @@ export default async function AdminOverviewPage() {
             className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
           >
             <span>{t("admin:system_health")}</span>
-            <IconArrowRight className="h-3 w-3" />
+            <LinkArrow className="h-3 w-3" />
           </Link>
         </div>
 
@@ -293,11 +291,11 @@ export default async function AdminOverviewPage() {
             {t("admin:no_system_events")}
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {latestEvents.map((e) => (
               <li
                 key={e.id}
-                className="flex items-center gap-3 px-5 py-3 text-xs transition-colors hover:bg-white/[0.02]"
+                className="flex items-center gap-3 px-5 py-3 text-xs transition-colors hover:bg-surface-1"
               >
                 <span
                   className={`h-2 w-2 shrink-0 rounded-full ${
@@ -352,11 +350,11 @@ export default async function AdminOverviewPage() {
           <Link
             key={c.href}
             href={c.href}
-            className="group rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 transition-all hover:border-white/[0.14] hover:bg-ink-850"
+            className="group rounded-panel border border-hairline bg-ink-900/60 p-4 transition-all hover:border-hairline-strong hover:bg-ink-850"
           >
             <div className="flex items-center justify-between">
               <c.icon className="h-4 w-4 text-ink-400 group-hover:text-brand-300 transition-colors" />
-              <IconArrowRight className="h-3.5 w-3.5 text-ink-600 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
+              <LinkArrow className="h-3.5 w-3.5 text-ink-600 transition-transform group-hover:translate-x-0.5 group-hover:text-brand-300" />
             </div>
             <p className="mt-3 text-xs font-bold text-white group-hover:text-brand-200">
               {c.title}

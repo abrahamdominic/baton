@@ -5,7 +5,7 @@ import { FEATURE_KEYS, type Entitlement, type FeatureKey } from "../billing/type
  * Plan gating for repository intelligence.
  *
  * The intelligence surface is a paid capability, so the gate lives on the server
- * next to the work it protects — a page that merely *hides* the link still lets
+ * next to the work it protects, a page that merely *hides* the link still lets
  * anyone who knows the URL render the whole thing, and server actions can be
  * invoked directly from the browser without going through the UI at all.
  *

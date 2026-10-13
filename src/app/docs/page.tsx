@@ -134,7 +134,7 @@ export default async function DocsPage() {
     <div className="min-h-screen bg-ink-950 text-ink-100">
       <MarketingHeader />
 
-      <main className="container-page py-16 md:py-24">
+      <main id="main" className="container-page py-16 md:py-24">
         <div className="max-w-2xl">
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
             {t("docs:h1")}
@@ -147,13 +147,13 @@ export default async function DocsPage() {
             <a
               key={sec.id}
               href={`#${sec.id}`}
-              className="group rounded-xl border border-white/[0.08] bg-ink-900/60 p-4 transition-all hover:border-brand-500/40 hover:bg-ink-850"
+              className="group rounded-panel border border-hairline bg-ink-900/60 p-4 transition-all hover:border-brand-500/40 hover:bg-ink-850"
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-white transition-colors group-hover:text-brand-300">
                   {t(sec.titleKey)}
                 </span>
-                <span className="shrink-0 rounded border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-ink-400">
+                <span className="shrink-0 rounded border border-white/10 bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-400">
                   {t(sec.badgeKey)}
                 </span>
               </div>
@@ -162,7 +162,7 @@ export default async function DocsPage() {
           ))}
         </div>
 
-        <section id="installation" className="mt-20 scroll-mt-24 border-t border-white/[0.08] pt-16">
+        <section id="installation" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
           <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
             <IconTerminal className="h-4 w-4" />
             <span>{t("docs:s1_eyebrow")}</span>
@@ -172,15 +172,15 @@ export default async function DocsPage() {
 
           <div className="mt-8 grid gap-6 md:grid-cols-3">
             {INSTALL_STEPS.map((s) => (
-              <div key={s.key} className="rounded-xl border border-white/[0.08] bg-ink-900/70 p-5">
+              <div key={s.key} className="rounded-panel border border-hairline bg-ink-900/70 p-5">
                 <h3 className="text-sm font-bold text-white">{t(`docs:${s.key}`)}</h3>
                 <p className="mt-2 text-xs leading-relaxed text-ink-400">{t(s.descKey)}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-ink-900/90 p-5 font-mono text-xs">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3 text-ink-400">
+          <div className="mt-6 rounded-panel border border-hairline bg-ink-900/90 p-5 font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-hairline pb-3 text-ink-400">
               <span>{t("docs:s1_link_heading")}</span>
               <span className="text-[11px] text-brand-300">{t("docs:s1_link_host")}</span>
             </div>
@@ -198,7 +198,7 @@ export default async function DocsPage() {
           </div>
         </section>
 
-        <section id="states" className="mt-20 scroll-mt-24 border-t border-white/[0.08] pt-16">
+        <section id="states" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
           <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
             <IconActivity className="h-4 w-4" />
             <span>{t("docs:s2_eyebrow")}</span>
@@ -206,10 +206,10 @@ export default async function DocsPage() {
           <h2 className="mt-2 text-2xl font-bold text-white">{t("docs:s2_h2")}</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300">{t("docs:s2_body")}</p>
 
-          <div className="mt-8 overflow-x-auto rounded-xl border border-white/[0.08] bg-ink-900/60">
+          <div className="mt-8 overflow-x-auto rounded-panel border border-hairline bg-ink-900/60">
             <table className="w-full min-w-[640px] text-left text-xs">
               <thead>
-                <tr className="border-b border-white/[0.08] bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
+                <tr className="border-b border-hairline bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
                   <th scope="col" className="py-3.5 ps-6 pe-4 font-semibold">
                     {t("docs:s2_th_state")}
                   </th>
@@ -224,11 +224,11 @@ export default async function DocsPage() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/[0.05]">
+              <tbody className="divide-y divide-hairline">
                 {STATES_TABLE.map(({ state, turnKey }) => {
                   const labelName = STATE_META[state].labelName;
                   return (
-                    <tr key={state} className="hover:bg-white/[0.02]">
+                    <tr key={state} className="hover:bg-surface-1">
                       <th
                         scope="row"
                         className="py-3.5 ps-6 pe-4 text-start font-bold text-white"
@@ -258,7 +258,7 @@ export default async function DocsPage() {
           </div>
         </section>
 
-        <section id="thresholds" className="mt-20 scroll-mt-24 border-t border-white/[0.08] pt-16">
+        <section id="thresholds" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
           <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
             <IconBell className="h-4 w-4" />
             <span>{t("docs:s3_eyebrow")}</span>
@@ -268,7 +268,7 @@ export default async function DocsPage() {
 
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {POLICY_CARDS.map((card) => (
-              <div key={card.titleKey} className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5">
+              <div key={card.titleKey} className="rounded-panel border border-hairline bg-ink-900/60 p-5">
                 <div className="flex items-center gap-2 text-xs font-bold text-brand-300">
                   <IconCheckCircle className="h-4 w-4" />
                   <span>{t(card.titleKey)}</span>
@@ -279,7 +279,7 @@ export default async function DocsPage() {
           </div>
         </section>
 
-        <section id="architecture" className="mt-20 scroll-mt-24 border-t border-white/[0.08] pt-16">
+        <section id="architecture" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
           <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
             <IconShield className="h-4 w-4" />
             <span>{t("docs:s4_eyebrow")}</span>
@@ -287,7 +287,7 @@ export default async function DocsPage() {
           <h2 className="mt-2 text-2xl font-bold text-white">{t("docs:s4_h2")}</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300">{t("docs:s4_body")}</p>
 
-          <div className="mt-8 space-y-3 rounded-xl border border-white/[0.08] bg-ink-950 p-6 font-mono text-xs text-ink-300">
+          <div className="mt-8 space-y-3 rounded-panel border border-hairline bg-ink-950 p-6 font-mono text-xs text-ink-300">
             <p className="font-bold text-brand-300">{t("docs:s4_order_heading")}</p>
             <ol className="list-decimal space-y-2 ps-5 text-ink-400">
               {PIPELINE_STEPS.map((key) => (
@@ -299,7 +299,7 @@ export default async function DocsPage() {
           </div>
         </section>
 
-        <section id="self-host" className="mt-20 scroll-mt-24 border-t border-white/[0.08] pt-16">
+        <section id="self-host" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
           <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
             <IconGitHub className="h-4 w-4" />
             <span>{t("docs:s5_eyebrow")}</span>
@@ -307,7 +307,7 @@ export default async function DocsPage() {
           <h2 className="mt-2 text-2xl font-bold text-white">{t("docs:s5_h2")}</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300">{t("docs:s5_body")}</p>
 
-          <div className="mt-6 rounded-xl border border-white/[0.08] bg-ink-900/90 p-5 font-mono text-xs text-ink-200">
+          <div className="mt-6 rounded-panel border border-hairline bg-ink-900/90 p-5 font-mono text-xs text-ink-200">
             <div className="pb-2 text-ink-500">{t("docs:s5_command_comment")}</div>
             <pre className="overflow-x-auto text-brand-300">
 {`git clone ${GITHUB_CLONE_URL}

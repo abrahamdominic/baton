@@ -1,26 +1,29 @@
-import { jsonLdScriptContent } from "@/lib/json-ld";
 import Link from "next/link";
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
+import { jsonLdScriptContent } from "@/lib/json-ld";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
 import { config } from "@/lib/env-boot";
-import {
-  IconActivity,
-  IconArrowRight,
-  IconBell,
-  IconBranch,
-  IconCheck,
-  IconGauge,
-  IconLayers,
-  IconShield,
-  IconGitHub,
-  IconZap,
-  IconLock,
-  IconAlertCircle,
-} from "@/components/icons";
+import { IconAlertCircle } from "@/components/icons";
 import { PrSimulator } from "@/components/pr-simulator";
-import { StateMatrix } from "@/components/state-matrix";
-import { RoiCalculator } from "@/components/roi-calculator";
+import { StatusCard, type StatusCardModel } from "@/components/marketing/status-card";
+import { Section, SectionHeader, Button, LinkWithArrow } from "@/components/marketing/section";
+import { Table, Th, Td } from "@/components/marketing/table";
+import { Metric } from "@/components/marketing/metric";
+import { Tile } from "@/components/marketing/tile";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
+import { REPO_SETTING_DEFAULTS } from "@/lib/engine/thresholds";
+
+/**
+ * The state explorer and the calculator sit well below the fold and are the two
+ * heaviest interactive islands, so they are split into their own chunks. Server
+ * rendering is kept, so the first paint and the layout are identical and there
+ * is no shift when the chunk arrives.
+ */
+const StateMatrix = dynamic(() => import("@/components/state-matrix").then((m) => m.StateMatrix));
+const RoiCalculator = dynamic(() =>
+  import("@/components/roi-calculator").then((m) => m.RoiCalculator),
+);
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getTranslatorForRequest();
@@ -65,60 +68,60 @@ function siteJsonLd(t: (key: string) => string) {
   };
 }
 
-/** Numeric headline + two lines of copy. The number itself is data, not copy. */
-const STATS = [
-  { value: "89%", labelKey: "marketing:stat_waiting_label", detailKey: "marketing:stat_waiting_detail" },
+/**
+ * The proof strip. Each figure ships with the place it came from, so no number
+ * appears without a source or an explicit "directional" framing.
+ */
+const STATS: ReadonlyArray<{
+  value: string;
+  labelKey: string;
+  detailKey: string;
+  sourceKey: string;
+}> = [
   {
-    value: "2-6 days",
+    value: "89%",
+    labelKey: "marketing:stat_waiting_label",
+    detailKey: "marketing:stat_waiting_detail",
+    sourceKey: "marketing:stat_waiting_source",
+  },
+  {
+    value: "2 to 6 days",
     labelKey: "marketing:stat_first_review_label",
     detailKey: "marketing:stat_first_review_detail",
+    sourceKey: "marketing:stat_first_review_source",
   },
-  { value: "0", labelKey: "marketing:stat_stored_label", detailKey: "marketing:stat_stored_detail" },
   {
-    value: "100%",
+    value: "0",
+    labelKey: "marketing:stat_stored_label",
+    detailKey: "marketing:stat_stored_detail",
+    sourceKey: "marketing:stat_stored_source",
+  },
+  {
+    value: "8 states",
     labelKey: "marketing:stat_engine_label",
     detailKey: "marketing:stat_engine_detail",
+    sourceKey: "marketing:stat_engine_source",
   },
 ];
 
 /** `marketing:feature_*` pairs, in the order the grid renders them. */
-const FEATURES = [
-  { icon: IconBranch, titleKey: "marketing:feature_status_card_title", bodyKey: "marketing:feature_status_card_body" },
-  { icon: IconLayers, titleKey: "marketing:feature_labels_title", bodyKey: "marketing:feature_labels_body" },
-  { icon: IconBell, titleKey: "marketing:feature_nudges_title", bodyKey: "marketing:feature_nudges_body" },
-  { icon: IconActivity, titleKey: "marketing:feature_engine_title", bodyKey: "marketing:feature_engine_body" },
-  { icon: IconGauge, titleKey: "marketing:feature_move_title", bodyKey: "marketing:feature_move_body" },
-  { icon: IconLayers, titleKey: "marketing:feature_intelligence_title", bodyKey: "marketing:feature_intelligence_body" },
-  { icon: IconShield, titleKey: "marketing:feature_permissions_title", bodyKey: "marketing:feature_permissions_body" },
+const FEATURES: ReadonlyArray<{ titleKey: string; bodyKey: string; span: "default" | "wide" }> = [
+  { titleKey: "marketing:feature_status_card_title", bodyKey: "marketing:feature_status_card_body", span: "wide" },
+  { titleKey: "marketing:feature_labels_title", bodyKey: "marketing:feature_labels_body", span: "default" },
+  { titleKey: "marketing:feature_nudges_title", bodyKey: "marketing:feature_nudges_body", span: "default" },
+  { titleKey: "marketing:feature_engine_title", bodyKey: "marketing:feature_engine_body", span: "default" },
+  { titleKey: "marketing:feature_move_title", bodyKey: "marketing:feature_move_body", span: "default" },
+  { titleKey: "marketing:feature_intelligence_title", bodyKey: "marketing:feature_intelligence_body", span: "wide" },
+  { titleKey: "marketing:feature_permissions_title", bodyKey: "marketing:feature_permissions_body", span: "default" },
 ];
 
 /** Comparison rows: a dimension plus one cell per competing approach. */
-const COMPARISONS = [
-  {
-    dimensionKey: "marketing:compare_row_1",
-    batonKey: "marketing:compare_row_1_baton",
-    botsKey: "marketing:compare_row_1_bots",
-    slackKey: "marketing:compare_row_1_slack",
-  },
-  {
-    dimensionKey: "marketing:compare_row_2",
-    batonKey: "marketing:compare_row_2_baton",
-    botsKey: "marketing:compare_row_2_bots",
-    slackKey: "marketing:compare_row_2_slack",
-  },
-  {
-    dimensionKey: "marketing:compare_row_3",
-    batonKey: "marketing:compare_row_3_baton",
-    botsKey: "marketing:compare_row_3_bots",
-    slackKey: "marketing:compare_row_3_slack",
-  },
-  {
-    dimensionKey: "marketing:compare_row_4",
-    batonKey: "marketing:compare_row_4_baton",
-    botsKey: "marketing:compare_row_4_bots",
-    slackKey: "marketing:compare_row_4_slack",
-  },
-];
+const COMPARISONS = [1, 2, 3, 4, 5].map((n) => ({
+  dimensionKey: `marketing:compare_row_${n}`,
+  batonKey: `marketing:compare_row_${n}_baton`,
+  botsKey: `marketing:compare_row_${n}_bots`,
+  slackKey: `marketing:compare_row_${n}_slack`,
+}));
 
 const STEPS = [
   { step: "01", titleKey: "marketing:how_step_1_title", descKey: "marketing:how_step_1_body", badgeKey: "marketing:how_step_1_badge" },
@@ -126,15 +129,20 @@ const STEPS = [
   { step: "03", titleKey: "marketing:how_step_3_title", descKey: "marketing:how_step_3_body", badgeKey: "marketing:how_step_3_badge" },
 ];
 
-const PERMISSIONS = [
-  "marketing:security_perm_1",
-  "marketing:security_perm_2",
-  "marketing:security_perm_3",
-  "marketing:security_perm_4",
-  "marketing:security_perm_5",
-  "marketing:security_perm_6",
-  "marketing:security_perm_7",
-];
+const PROBLEM_ROWS = [1, 2, 3, 4].map((n) => ({
+  titleKey: `marketing:without_item_${n}_title`,
+  bodyKey: `marketing:without_item_${n}_body`,
+}));
+
+const RELAY_ROWS = [1, 2, 3, 4].map((n) => ({
+  titleKey: `marketing:with_item_${n}_title`,
+  bodyKey: `marketing:with_item_${n}_body`,
+}));
+
+const SECURITY_ROWS = [1, 2, 3, 4, 5, 6].map((n) => ({
+  key: `row_${n}`,
+  denied: n === 6,
+}));
 
 /**
  * The reasons `/auth/callback` can set, each with its own copy.
@@ -154,6 +162,14 @@ const OAUTH_REASONS = [
   "marketing:oauth_error_db_unreachable",
 ] as const;
 
+/** Demo data for the hero proof card, matching the simulator's first scenario. */
+const HERO_PR = {
+  repo: "baton/core",
+  number: "247",
+  title: "feat(billing): idempotent webhook processor",
+  branchLine: "feature/idempotent-webhooks into main",
+};
+
 export default async function LandingPage({
   searchParams,
 }: {
@@ -165,15 +181,13 @@ export default async function LandingPage({
   }>;
 }) {
   const sp = searchParams ? await searchParams : undefined;
-  const { t } = await getTranslatorForRequest();
+  const { t, tc } = await getTranslatorForRequest();
 
   // The `reason` value is an enum produced by the auth callback, mapped onto a
   // stable `marketing:oauth_error_*` key. An unknown reason degrades to the
   // generic failure banner instead of rendering a raw identifier.
   const requestedReason = sp?.reason ? `marketing:oauth_error_${sp.reason}` : null;
-  const knownReason = (OAUTH_REASONS as readonly string[]).find(
-    (k) => k === requestedReason,
-  );
+  const knownReason = (OAUTH_REASONS as readonly string[]).find((k) => k === requestedReason);
   const reasonMessage = knownReason ? t(knownReason) : null;
 
   const oauthBanner = sp?.oauth_config
@@ -184,8 +198,34 @@ export default async function LandingPage({
         ? t("marketing:oauth_banner_denied")
         : null;
 
+  const heroModel: StatusCardModel = {
+    repo: HERO_PR.repo,
+    prNumber: HERO_PR.number,
+    title: HERO_PR.title,
+    branchLine: HERO_PR.branchLine,
+    openedLine: t("marketing:sim_opened_line"),
+    stateLabel: t("marketing:matrix_awaiting_review_label"),
+    tone: "info",
+    ownerLabel: t("marketing:states_owner_reviewers"),
+    owner: "@sarah-chen",
+    blockedFor: "48h 12m",
+    threshold: tc("marketing:sim_threshold_value", REPO_SETTING_DEFAULTS.firstResponseHours),
+    checks: t("marketing:sim_1_checks"),
+    nextAction: t("marketing:sim_1_next"),
+    labelName: "baton:awaiting-review",
+    nextHeading: t("marketing:sim_unblocking_label"),
+    turnPrefix: t("marketing:turn_prefix"),
+    botBadge: t("marketing:sim_bot_badge"),
+    pinnedLabel: t("marketing:sim_pinned_status"),
+    whoseTurnHeading: t("marketing:sim_whose_turn_heading"),
+    checksHeading: t("marketing:sim_ci_checks_heading"),
+    thresholdHeading: t("marketing:sim_threshold_heading"),
+    footerLeft: t("marketing:sim_footer_left"),
+    footerRight: t("marketing:sim_footer_right"),
+  };
+
   return (
-    <div className="min-h-screen bg-ink-950 text-ink-100">
+    <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: jsonLdScriptContent(siteJsonLd(t)) }}
@@ -195,338 +235,270 @@ export default async function LandingPage({
       {oauthBanner ? (
         <div
           role="alert"
-          className="container-page flex items-start justify-between gap-4 rounded-b-xl border border-warn-500/30 border-t-0 bg-warn-500/10 px-4 py-3 text-xs text-warn-200"
+          className="container-content flex items-start justify-between gap-4 border-b border-warn-500/30 bg-warn-500/10 px-4 py-3 text-sm text-warn-200"
         >
           <span>{oauthBanner}</span>
           <IconAlertCircle className="h-4 w-4 shrink-0 text-warn-300" aria-hidden="true" />
         </div>
       ) : null}
 
-      {/* Hero Section */}
-      <section className="border-b border-white/[0.06] pt-12 pb-20 md:pt-20 md:pb-28">
-        <div className="container-wide">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-brand-400/30 bg-brand-500/10 px-3.5 py-1 text-xs font-medium text-brand-300">
-              <span className="flex h-2 w-2 rounded-full bg-signal-500" />
-              <span>{t("marketing:hero_badge_app")}</span>
-              <span className="text-brand-400/50">·</span>
-              <span className="text-ink-300">{t("marketing:hero_badge_license")}</span>
-            </div>
-
-            <h1 className="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl sm:leading-[1.1]">
-              {t("marketing:hero_title_lead")}{" "}
-              <span className="text-brand-300">{t("marketing:hero_title_accent")}</span>
-            </h1>
-
-            <p className="mt-6 text-base text-ink-300 sm:text-lg leading-relaxed max-w-2xl mx-auto">
-              {t("marketing:hero_subtitle")}
-            </p>
-
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/install" className="btn btn-primary btn-lg">
-                <IconGitHub className="h-4 w-4" />
-                {t("marketing:hero_cta_install")}
-                <IconArrowRight className="h-4 w-4" />
-              </Link>
-              <a href="#simulator" className="btn btn-ghost btn-lg">
-                <IconZap className="h-4 w-4 text-brand-400" />
-                {t("marketing:hero_cta_simulator")}
-              </a>
-              <Link href="/docs" className="btn btn-secondary btn-lg">
-                {t("marketing:hero_cta_docs")}
-              </Link>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-ink-400">
-              {[
-                "marketing:hero_trust_no_code",
-                "marketing:hero_trust_install",
-                "marketing:hero_trust_free",
-              ].map((key) => (
-                <span key={key} className="flex items-center gap-1.5">
-                  <IconCheck className="h-3.5 w-3.5 text-signal-400" />
-                  {t(key)}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div id="simulator" className="mt-14 max-w-4xl mx-auto">
-            <div className="mb-3 flex items-center justify-between gap-3 px-2 text-xs text-ink-400">
-              <span className="font-mono uppercase tracking-wider text-[11px] text-brand-300">
-                {t("marketing:simulator_label")}
-              </span>
-              <span>{t("marketing:simulator_hint")}</span>
-            </div>
-            <PrSimulator />
-          </div>
-        </div>
-      </section>
-
-      {/* Key Numbers */}
-      <section className="border-b border-white/[0.06] bg-ink-900/40">
-        <div className="container-page py-12">
-          <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-            {STATS.map((s) => (
-              <div key={s.value} className="space-y-1">
-                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white font-mono">
-                  {s.value}
-                </div>
-                <div className="text-xs font-semibold text-ink-200">{t(s.labelKey)}</div>
-                <div className="text-[11px] text-ink-500 leading-snug">{t(s.detailKey)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* The PR Problem: The Stalled Loop vs The Baton Relay */}
-      <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            {t("marketing:problem_title")}
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:problem_subtitle")}</p>
-        </div>
-
-        <div className="mt-12 grid gap-8 lg:grid-cols-2">
-          <div className="rounded-xl border border-danger-500/20 bg-danger-500/[0.03] p-6 sm:p-7">
-            <div className="flex items-center justify-between gap-3 border-b border-danger-500/20 pb-4">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-danger-400">
-                {t("marketing:without_title")}
-              </span>
-              <span className="rounded bg-danger-500/10 px-2 py-0.5 text-xs text-danger-300 font-mono">
-                {t("marketing:without_cycle")}
-              </span>
-            </div>
-            <ul className="mt-6 space-y-4 text-xs text-ink-300">
-              {[1, 2, 3, 4].map((n) => (
-                <li key={n} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400 font-mono text-[10px]">
-                    &times;
-                  </span>
-                  <div>
-                    <strong className="text-white block font-medium">
-                      {t(`marketing:without_item_${n}_title`)}
-                    </strong>
-                    {t(`marketing:without_item_${n}_body`)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="rounded-xl border border-signal-500/30 bg-signal-500/[0.03] p-6 sm:p-7">
-            <div className="flex items-center justify-between gap-3 border-b border-signal-500/20 pb-4">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-signal-400">
-                {t("marketing:with_title")}
-              </span>
-              <span className="rounded bg-signal-500/15 px-2 py-0.5 text-xs text-signal-300 font-mono">
-                {t("marketing:with_cycle")}
-              </span>
-            </div>
-            <ul className="mt-6 space-y-4 text-xs text-ink-200">
-              {[1, 2, 3, 4].map((n) => (
-                <li key={n} className="flex items-start gap-3">
-                  <IconCheck className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
-                  <div>
-                    <strong className="text-white block font-medium">
-                      {t(`marketing:with_item_${n}_title`)}
-                    </strong>
-                    {t(`marketing:with_item_${n}_body`)}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* How it Works: 3 Deterministic Steps */}
-      <section id="how-it-works" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            {t("marketing:how_title")}
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:how_subtitle")}</p>
-        </div>
-
-        <div className="mt-14 grid gap-8 md:grid-cols-3">
-          {STEPS.map((item) => (
-            <div
-              key={item.step}
-              className="relative rounded-xl border border-white/[0.08] bg-ink-900/60 p-6"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-xs font-bold text-brand-400">{item.step}</span>
-                <span className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-ink-400">
-                  {t(item.badgeKey)}
-                </span>
-              </div>
-              <h3 className="mt-4 text-base font-bold text-white">{t(item.titleKey)}</h3>
-              <p className="mt-2 text-xs leading-relaxed text-ink-400">{t(item.descKey)}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* State Engine Interactive Matrix */}
-      <section id="states" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
-        <div className="max-w-2xl mb-12">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            {t("marketing:states_title")}
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:states_subtitle")}</p>
-        </div>
-
-        <StateMatrix />
-      </section>
-
-      {/* Feature Grid */}
-      <section id="features" className="container-page py-20 md:py-28 border-b border-white/[0.06]">
-        <div className="max-w-2xl">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            {t("marketing:features_title")}
-          </h2>
-          <p className="mt-4 text-sm text-ink-300">{t("marketing:features_subtitle")}</p>
-        </div>
-
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((f) => (
-            <div
-              key={f.titleKey}
-              className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-6 transition-all hover:border-white/[0.14] hover:bg-ink-850/70"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-brand-500/30 bg-brand-500/10 text-brand-300">
-                <f.icon className="h-4 w-4" />
-              </div>
-              <h3 className="mt-4 text-sm font-bold text-white">{t(f.titleKey)}</h3>
-              <p className="mt-2 text-xs leading-relaxed text-ink-400">{t(f.bodyKey)}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Interactive Wait Calculator */}
-      <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
-        <div className="max-w-2xl mb-12">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            {t("marketing:roi_title")}
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:roi_subtitle")}</p>
-        </div>
-
-        <RoiCalculator />
-      </section>
-
-      {/* Comparison Grid */}
-      <section className="container-page py-20 md:py-28 border-b border-white/[0.06]">
-        <div className="max-w-2xl mb-12">
-          <h2 className="text-3xl font-bold tracking-tight text-white md:text-4xl">
-            {t("marketing:compare_title")}
-          </h2>
-          <p className="mt-4 text-sm leading-relaxed text-ink-300">{t("marketing:compare_subtitle")}</p>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
-          <table className="w-full min-w-[600px] text-left text-xs">
-            <thead>
-              <tr className="border-b border-white/[0.08] bg-ink-900/80 font-mono uppercase text-[11px] text-ink-400">
-                <th scope="col" className="py-4 ps-6 pe-4 font-semibold">
-                  {t("marketing:compare_capability")}
-                </th>
-                <th scope="col" className="py-4 px-4 font-semibold text-brand-300">
-                  {t("marketing:compare_baton")}
-                </th>
-                <th scope="col" className="py-4 px-4 font-semibold">
-                  {t("marketing:compare_bots")}
-                </th>
-                <th scope="col" className="py-4 pe-6 ps-4 font-semibold">
-                  {t("marketing:compare_slack")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.05] bg-ink-950/40">
-              {COMPARISONS.map((row) => (
-                <tr key={row.dimensionKey}>
-                  <th scope="row" className="py-4 ps-6 pe-4 text-start font-semibold text-white">
-                    {t(row.dimensionKey)}
-                  </th>
-                  <td className="py-4 px-4 font-medium text-brand-200 bg-brand-500/[0.03]">
-                    {t(row.batonKey)}
-                  </td>
-                  <td className="py-4 px-4 text-ink-400">{t(row.botsKey)}</td>
-                  <td className="py-4 pe-6 ps-4 text-ink-400">{t(row.slackKey)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* Security Guarantee Strip */}
-      <section className="container-page py-20 md:py-24">
-        <div className="rounded-2xl border border-white/[0.1] bg-ink-900 p-8 sm:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1.4fr_auto] items-center">
+      <main id="main">
+        {/* Hero */}
+        <section className="container-content pt-14 pb-section-sm md:pt-20">
+          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
-              <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-signal-400">
-                <IconLock className="h-4 w-4" />
-                {t("marketing:security_eyebrow")}
-              </div>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight text-white">
-                {t("marketing:security_title")}
-              </h2>
-              <p className="mt-3 text-xs leading-relaxed text-ink-300 max-w-2xl">
-                {t("marketing:security_body")}
+              <p className="inline-flex items-center gap-2 rounded-full border border-hairline-strong bg-ink-900/60 px-3 py-1 font-mono text-xs text-ink-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
+                {t("marketing:hero_badge_app")}
+              </p>
+              <h1 className="mt-6 text-display-1 text-ink-50">
+                {t("marketing:hero_title_lead")}{" "}
+                <span className="text-brand-300">{t("marketing:hero_title_accent")}</span>
+              </h1>
+              <p className="mt-6 max-w-measure text-base leading-reading text-ink-300 sm:text-lg">
+                {t("marketing:hero_subtitle")}
               </p>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                {PERMISSIONS.map((key) => (
-                  <span
-                    key={key}
-                    className="rounded-md border border-white/[0.08] bg-ink-950 px-2.5 py-1 font-mono text-[11px] text-ink-300"
-                  >
-                    {t(key)}
-                  </span>
-                ))}
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <Button href="/install" size="lg" arrow>
+                  {t("marketing:hero_cta_install")}
+                </Button>
+                <Button href="#simulator" variant="secondary" size="lg">
+                  {t("marketing:hero_cta_simulator")}
+                </Button>
               </div>
+
+              <ul className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-ink-400">
+                {["marketing:hero_trust_no_code", "marketing:hero_trust_install", "marketing:hero_trust_free"].map(
+                  (key) => (
+                    <li key={key} className="flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
+                      {t(key)}
+                    </li>
+                  ),
+                )}
+              </ul>
             </div>
 
             <div>
-              <Link href="/security" className="btn btn-ghost">
-                {t("marketing:security_cta")}
-                <IconArrowRight className="h-4 w-4" />
-              </Link>
+              <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-ink-500">
+                {t("marketing:hero_proof_label")}
+              </p>
+              <StatusCard model={heroModel} className="animate-rise-in" />
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Final Call to Action */}
-      <section className="border-t border-white/[0.06] bg-ink-900 py-24">
-        <div className="container-page text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
-            {t("marketing:final_title")}
-          </h2>
-          <p className="mt-4 max-w-xl mx-auto text-sm text-ink-300 leading-relaxed">
-            {t("marketing:final_subtitle")}
-          </p>
-
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/install" className="btn btn-primary btn-lg">
-              <IconGitHub className="h-4 w-4" />
-              {t("marketing:hero_cta_install")}
-              <IconArrowRight className="h-4 w-4" />
-            </Link>
-            <Link href="/pricing" className="btn btn-ghost btn-lg">
-              {t("marketing:final_cta_pricing")}
-            </Link>
+        {/* Simulator */}
+        <Section id="simulator">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <SectionHeader label={t("marketing:simulator_label")} title={t("marketing:sim_section_title")} />
+            <p className="max-w-measure text-sm text-ink-400">{t("marketing:simulator_hint")}</p>
           </div>
-          <p className="mt-4 font-mono text-[11px] text-ink-500">{t("marketing:final_fine_print")}</p>
-        </div>
-      </section>
+          <div className="mt-8">
+            <PrSimulator />
+          </div>
+        </Section>
+
+        {/* Proof strip */}
+        <Section tone="panel">
+          <dl className="grid grid-cols-1 divide-y divide-hairline sm:grid-cols-2 sm:divide-y-0 sm:divide-x lg:grid-cols-4">
+            {STATS.map((s) => (
+              <Metric
+                key={s.labelKey}
+                value={s.value}
+                label={t(s.labelKey)}
+                source={`${t(s.detailKey)} ${t(s.sourceKey)}`}
+              />
+            ))}
+          </dl>
+        </Section>
+
+        {/* The problem */}
+        <Section>
+          <SectionHeader label={t("marketing:problem_eyebrow")} title={t("marketing:problem_title")} lede={t("marketing:problem_subtitle")} />
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-feature border border-danger-500/20 bg-danger-500/[0.03] p-6 sm:p-7">
+              <div className="flex items-center justify-between gap-3 border-b border-danger-500/20 pb-4">
+                <h3 className="font-mono text-xs font-semibold uppercase tracking-wide text-danger-400">
+                  {t("marketing:without_title")}
+                </h3>
+                <span className="rounded bg-danger-500/10 px-2 py-0.5 font-mono text-xs text-danger-300">
+                  {t("marketing:without_cycle")}
+                </span>
+              </div>
+              <ul className="mt-6 space-y-4 text-sm text-ink-300">
+                {PROBLEM_ROWS.map((row) => (
+                  <li key={row.titleKey}>
+                    <p className="font-medium text-ink-50">{t(row.titleKey)}</p>
+                    <p className="mt-0.5">{t(row.bodyKey)}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="rounded-feature border border-signal-500/30 bg-signal-500/[0.03] p-6 sm:p-7">
+              <div className="flex items-center justify-between gap-3 border-b border-signal-500/20 pb-4">
+                <h3 className="font-mono text-xs font-semibold uppercase tracking-wide text-signal-400">
+                  {t("marketing:with_title")}
+                </h3>
+                <span className="rounded bg-signal-500/15 px-2 py-0.5 font-mono text-xs text-signal-300">
+                  {t("marketing:with_cycle")}
+                </span>
+              </div>
+              <ul className="mt-6 space-y-4 text-sm text-ink-200">
+                {RELAY_ROWS.map((row) => (
+                  <li key={row.titleKey}>
+                    <p className="font-medium text-ink-50">{t(row.titleKey)}</p>
+                    <p className="mt-0.5">{t(row.bodyKey)}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Section>
+
+        {/* How it works */}
+        <Section id="how-it-works">
+          <SectionHeader label={t("marketing:nav_how_it_works")} title={t("marketing:how_title")} lede={t("marketing:how_subtitle")} />
+          <ol className="mt-10 grid gap-6 md:grid-cols-3">
+            {STEPS.map((item) => (
+              <li key={item.step} className="rounded-feature border border-hairline bg-ink-900/60 p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="tabular font-mono text-xs font-semibold text-brand-400">{item.step}</span>
+                  <span className="rounded border border-hairline bg-ink-950 px-2 py-0.5 font-mono text-[10px] text-ink-400">
+                    {t(item.badgeKey)}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-base font-semibold text-ink-50">{t(item.titleKey)}</h3>
+                <p className="mt-2 text-sm leading-reading text-ink-300">{t(item.descKey)}</p>
+              </li>
+            ))}
+          </ol>
+          <p className="mt-6 rounded-control border border-hairline bg-ink-900/40 p-4 font-mono text-xs leading-reading text-ink-400">
+            {t("marketing:how_note")}
+          </p>
+        </Section>
+
+        {/* States */}
+        <Section id="states">
+          <SectionHeader label={t("marketing:nav_state_engine")} title={t("marketing:states_title")} lede={t("marketing:states_subtitle")} />
+          <div className="mt-10">
+            <StateMatrix />
+          </div>
+        </Section>
+
+        {/* Features */}
+        <Section id="features">
+          <SectionHeader label={t("marketing:nav_product")} title={t("marketing:features_title")} lede={t("marketing:features_subtitle")} />
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((f) => (
+              <Tile
+                key={f.titleKey}
+                title={t(f.titleKey)}
+                body={t(f.bodyKey)}
+                span={f.span}
+              />
+            ))}
+          </div>
+        </Section>
+
+        {/* Calculator */}
+        <Section>
+          <SectionHeader label={t("marketing:roi_inputs_heading")} title={t("marketing:roi_title")} lede={t("marketing:roi_subtitle")} />
+          <div className="mt-10">
+            <RoiCalculator />
+          </div>
+        </Section>
+
+        {/* Comparison */}
+        <Section>
+          <SectionHeader label={t("marketing:compare_eyebrow")} title={t("marketing:compare_title")} lede={t("marketing:compare_subtitle")} />
+          <div className="mt-10">
+            <Table
+              caption={t("marketing:compare_title")}
+              head={
+                <tr>
+                  <Th>{t("marketing:compare_capability")}</Th>
+                  <Th className="text-brand-300">{t("marketing:compare_baton")}</Th>
+                  <Th>{t("marketing:compare_bots")}</Th>
+                  <Th>{t("marketing:compare_slack")}</Th>
+                </tr>
+              }
+            >
+              {COMPARISONS.map((row) => (
+                <tr key={row.dimensionKey} className="transition-colors duration-fast hover:bg-ink-900/60">
+                  <Th scope="row">{t(row.dimensionKey)}</Th>
+                  <Td highlight>{t(row.batonKey)}</Td>
+                  <Td>{t(row.botsKey)}</Td>
+                  <Td>{t(row.slackKey)}</Td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        </Section>
+
+        {/* Security */}
+        <Section>
+          <SectionHeader label={t("marketing:security_eyebrow")} title={t("marketing:security_title")} lede={t("marketing:security_body")} />
+          <div className="mt-10">
+            <Table
+              caption={t("marketing:security_matrix_caption")}
+              head={
+                <tr>
+                  <Th>{t("marketing:security_col_scope")}</Th>
+                  <Th>{t("marketing:security_col_access")}</Th>
+                  <Th>{t("marketing:security_col_why")}</Th>
+                  <Th>{t("marketing:security_col_stored")}</Th>
+                </tr>
+              }
+            >
+              {SECURITY_ROWS.map((row) => (
+                <tr key={row.key} className="transition-colors duration-fast hover:bg-ink-900/60">
+                  <Th scope="row">{t(`marketing:security_${row.key}_scope`)}</Th>
+                  <Td>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
+                        row.denied
+                          ? "border-signal-500/30 bg-signal-500/10 text-signal-400"
+                          : "border-brand-400/30 bg-brand-500/10 text-brand-300"
+                      }`}
+                    >
+                      {t(`marketing:security_${row.key}_access`)}
+                    </span>
+                  </Td>
+                  <Td>{t(`marketing:security_${row.key}_why`)}</Td>
+                  <Td>{t(`marketing:security_${row.key}_stored`)}</Td>
+                </tr>
+              ))}
+            </Table>
+            <div className="mt-6">
+              <LinkWithArrow href="/security">{t("marketing:security_cta")}</LinkWithArrow>
+            </div>
+          </div>
+        </Section>
+
+        {/* Final CTA */}
+        <Section tone="panel">
+          <div className="mx-auto max-w-measure text-center">
+            <h2 className="text-display-2 text-ink-50">{t("marketing:final_title")}</h2>
+            <p className="mx-auto mt-4 max-w-measure text-base leading-reading text-ink-300">
+              {t("marketing:final_subtitle")}
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+              <Button href="/install" size="lg" arrow>
+                {t("marketing:hero_cta_install")}
+              </Button>
+              <Link href="/pricing" className="inline-flex h-11 items-center justify-center rounded-control px-5 text-sm font-medium text-ink-200 transition-colors duration-fast hover:bg-ink-900/70 hover:text-ink-50">
+                {t("marketing:final_cta_pricing")}
+              </Link>
+            </div>
+            <p className="mt-4 font-mono text-[11px] text-ink-500">{t("marketing:final_fine_print")}</p>
+          </div>
+        </Section>
+      </main>
 
       <MarketingFooter />
-    </div>
+    </>
   );
 }

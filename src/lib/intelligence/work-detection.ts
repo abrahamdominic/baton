@@ -10,8 +10,8 @@ import type { SessionUser } from "../auth/session";
  *
  * So this module never writes anything. It reads activity Baton has already
  * recorded and proposes *candidates*; the developer confirms one and only then
- * is a `WorkContext` created. The alternative — writing a task per detected
- * signal — is exactly what the requirement rules out, and it is also the
+ * is a `WorkContext` created. The alternative, writing a task per detected
+ * signal, is exactly what the requirement rules out, and it is also the
  * behaviour that makes a tool like this untrustworthy: nobody wants an inbox
  * they did not consent to.
  *
@@ -128,7 +128,7 @@ export function classifyWorkSignals(
     const title = `#${pr.number} ${pr.title}`;
     const base = { prNumber: pr.number, branch: pr.headRef, baseRef: pr.baseRef, state: pr.state };
 
-    // --- Work the developer is personally blocking -----------------------
+    //  Work the developer is personally blocking 
     if (!isAuthor && awaitingViewer && (pr.state === "awaiting_review" || pr.state === "awaiting_review_after_fix")) {
       signals.push({
         id: `pr-${pr.number}-review`,
@@ -231,7 +231,7 @@ export function classifyWorkSignals(
       });
     }
 
-    // --- Inactivity: explicitly an inference ------------------------------
+    //  Inactivity: explicitly an inference 
     // Time alone does not prove abandonment, so these are `medium` confidence
     // and the copy says "no recorded activity" rather than "abandoned".
     const stallAfter = pr.isDraft ? DRAFT_STALL_DAYS : STALL_DAYS;

@@ -35,7 +35,7 @@ import { getPlanById, getPlanBySlug, getPurchasablePlanById, DEFAULT_PLANS } fro
  */
 /**
  * `is_public` / `is_active` are the storefront switch. `getPlanById` answers
- * "does this plan row exist" — correct for admin screens and entitlement
+ * "does this plan row exist", correct for admin screens and entitlement
  * lookups, wrong as a checkout authorization check, because a hidden or
  * retired plan that a client names by id would otherwise be purchasable.
  */

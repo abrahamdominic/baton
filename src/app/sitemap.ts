@@ -19,7 +19,7 @@ export const PUBLIC_ROUTES = [
  * fact about the page: it tells a crawler that `/pricing` was rewritten every
  * time the app was deployed, which trains crawlers to ignore the field and makes
  * a real change indistinguishable from a no-op redeploy. Search engines treat a
- * missing `lastModified` as "unknown", which is the truth here — Baton has no
+ * missing `lastModified` as "unknown", which is the truth here, Baton has no
  * content store to ask when a marketing page last really changed.
  */
 export default function sitemap(): MetadataRoute.Sitemap {

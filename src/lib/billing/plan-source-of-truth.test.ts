@@ -10,7 +10,7 @@ import { planPriceCents, planPriceLabel, planBillingNote } from "./pricing";
  * Guards the "one source of truth for prices" rule.
  *
  * A plan price is only ever written down in `plan-catalog.ts`. Everything else
- * — pricing cards, compare matrix, checkout, USDC verification — must derive
+ *, pricing cards, compare matrix, checkout, USDC verification, must derive
  * from the `plans` row or the catalog. If a second module ever hardcodes the
  * canonical amounts again, these tests fail.
  */

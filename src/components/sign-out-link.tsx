@@ -7,7 +7,7 @@ import { forgetDevice } from "@/lib/messaging/client";
  *
  * The device ECDH private key that unwraps this browser's message thread keys
  * lives only in `localStorage` and is never sent to the server, so the server
- * cannot clear it — a plain `<a href="/auth/logout">` leaves it behind. On a
+ * cannot clear it, a plain `<a href="/auth/logout">` leaves it behind. On a
  * shared machine the next person could pair that surviving private key with
  * its still-registered public key and read every conversation the device was
  * ever issued a key wrap for.

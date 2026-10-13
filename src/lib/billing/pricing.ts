@@ -73,8 +73,8 @@ export function planIntervalLabel(interval: BillingInterval): string {
 /**
  * Plan pricing rules (annual billing).
  *
- * Annual plans grant two months free: annual = monthly × 10
- * (Team $15 → $150, Organization $49 → $490). Integer cents
+ * Annual plans grant two months free: annual = monthly x 10
+ * (Team $15 to $150, Organization $49 to $490). Integer cents
  * throughout; never float math.
  */
 

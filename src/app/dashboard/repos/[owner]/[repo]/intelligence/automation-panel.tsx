@@ -16,16 +16,16 @@ import { formatRelative } from "@/lib/i18n/format";
  * The automations surface: every workflow's findings for one repository.
  *
  * Why findings are rendered from the stored run rather than recomputed here
- * ---------------------------------------------------------------------
+ * 
  * The suite runs in the background (§25: expensive analysis must not block a
  * user request), so the page reads `RepoAutomationRun`. A repository whose run
  * has not happened yet gets an explicit "not analysed yet" state rather than an
- * empty list — "we found nothing" and "we have not looked" are different claims,
+ * empty list, "we found nothing" and "we have not looked" are different claims,
  * and showing the second as the first is how a monitoring surface becomes
  * actively misleading.
  *
  * Why FACT and INFERENCE are rendered as distinct badges
- * -------------------------------------------------------
+ * 
  * §11 forbids presenting AI-derived assumptions as confirmed facts. Each finding
  * carries the confidence its workflow assigned, so the badge is a property of the
  * finding rather than a styling choice. `speculative` findings additionally show
@@ -124,15 +124,15 @@ export async function AutomationPanel({ owner, repo }: AutomationPanelProps) {
       )}
 
       {quiet.length > 0 && (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="border-b border-white/[0.06] px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="border-b border-hairline px-5 py-3">
             <h3 className="text-xs font-semibold text-ink-300">Ran clean ({quiet.length})</h3>
             <p className="mt-0.5 text-[11px] text-ink-500">
               These workflows executed and matched nothing. Listed so a missing section is never mistaken for
               a workflow that did not run.
             </p>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {quiet.map(({ kind, run }) => (
               <li key={kind} className="flex items-center justify-between gap-3 px-5 py-2.5 text-xs">
                 <span className="text-ink-400">{WORKFLOW_LABELS[kind]}</span>
@@ -150,12 +150,12 @@ export async function AutomationPanel({ owner, repo }: AutomationPanelProps) {
 
 function WorkflowSection({ kind, run }: { kind: WorkflowKind; run: WorkflowRun }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-      <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] px-5 py-3">
+    <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+      <div className="flex items-center justify-between gap-3 border-b border-hairline px-5 py-3">
         <h3 className="text-xs font-semibold text-white">{WORKFLOW_LABELS[kind]}</h3>
         <span className="font-mono text-[10px] text-ink-500">{run.findings.length}</span>
       </div>
-      <ul className="divide-y divide-white/[0.05]">
+      <ul className="divide-y divide-hairline">
         {run.findings.map((f) => (
           <FindingRow key={f.id} finding={f} />
         ))}
@@ -202,14 +202,14 @@ function FindingRow({ finding }: { finding: WorkflowFinding }) {
 
 function ReleasePanel({ readiness }: { readiness: ReleaseReadiness }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-      <div className="border-b border-white/[0.06] px-5 py-4">
+    <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+      <div className="border-b border-hairline px-5 py-4">
         <h3 className="text-sm font-semibold text-white">Release preparation</h3>
         <p className="mt-0.5 text-xs text-ink-400">{readiness.headline}</p>
       </div>
 
       {readiness.blockers.length > 0 && (
-        <div className="border-b border-white/[0.06] bg-danger-500/[0.04] px-5 py-3">
+        <div className="border-b border-hairline bg-danger-500/[0.04] px-5 py-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wide text-danger-300">
             Check before shipping ({readiness.blockers.length})
           </h4>
@@ -224,7 +224,7 @@ function ReleasePanel({ readiness }: { readiness: ReleaseReadiness }) {
         </div>
       )}
 
-      <div className="divide-y divide-white/[0.05]">
+      <div className="divide-y divide-hairline">
         {readiness.sections.map((s) => (
           <div key={s.key} className="px-5 py-3">
             <div className="flex items-baseline justify-between gap-3">

@@ -136,8 +136,8 @@ describe("verifyUsdcTransaction", () => {
   });
 
   /**
-   * The payment-theft regression. A plain $10.00 transfer — a different order's
-   * nonce, or no nonce at all — must not satisfy this order, no matter who
+   * The payment-theft regression. A plain $10.00 transfer, a different order's
+   * nonce, or no nonce at all, must not satisfy this order, no matter who
    * submits its hash. Accepting it lets an observer point somebody else's
    * transfer at their own pending order.
    */
@@ -176,11 +176,11 @@ describe("verifyUsdcTransaction", () => {
    * attacker who opens two open orders whose figures fall inside that window
    * pays once and submits the same transfer to both: each order's check passes
    * because the transfer is >= its own expected amount. Two paid subscriptions,
-   * one payment. Exact matching removes the window — a transfer satisfies an
+   * one payment. Exact matching removes the window, a transfer satisfies an
    * order only if it carries that order's nonce and no other order's.
    */
   it("rejects an overpayment that would let one transfer satisfy two orders", async () => {
-    const cheapOrder = EXPECTED + 90_000n; // $10.0090 — 9 cents less
+    const cheapOrder = EXPECTED + 90_000n; // $10.0090 to 9 cents less
     const attackerTransfer = EXPECTED + 1_000_000n; // one full dollar over
 
     vi.stubGlobal(

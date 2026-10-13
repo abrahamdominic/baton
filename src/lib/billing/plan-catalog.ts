@@ -1,7 +1,7 @@
 import type { PlanLimits } from "./types";
 
 /**
- * Canonical plan catalog — the single place a plan's price and capabilities are
+ * Canonical plan catalog, the single place a plan's price and capabilities are
  * written down in code.
  *
  * Deliberately free of `server-only` so both sides of the render boundary can

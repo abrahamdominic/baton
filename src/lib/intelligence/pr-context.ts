@@ -130,7 +130,7 @@ export async function getSmartPrContext(
       id: "f-branch",
       category: "Git Metadata",
       label: "Branches",
-      value: `${pr.headRef} → ${pr.baseRef} @ ${pr.headSha.slice(0, 7)}`,
+      value: `${pr.headRef} to ${pr.baseRef} @ ${pr.headSha.slice(0, 7)}`,
       evidenceUrl: `${pr.url}/commits`,
     },
     {

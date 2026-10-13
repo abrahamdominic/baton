@@ -61,9 +61,9 @@ export function getAppId(): number | null {
   return config.GITHUB_APP_ID ?? null;
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Installation access tokens (cached until they're close to expiry).
-// ---------------------------------------------------------------------------
+// 
 const tokenCache = new Map<number, { token: string; expiresAt: number }>();
 
 export async function getInstallationToken(installationId: number): Promise<string> {
@@ -113,7 +113,7 @@ export async function installationClients(installationId: number) {
  * Count every REST call and failure without changing behaviour.
  *
  * `request.hook` wraps the round trip rather than the response handler, so a
- * rejected promise still increments the failure counter — the failure signal is
+ * rejected promise still increments the failure counter, the failure signal is
  * exactly the case that a `response.hook` misses. The hook is intentionally
  * allowed to throw: it must not swallow a transport error.
  *

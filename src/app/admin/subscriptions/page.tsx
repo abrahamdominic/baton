@@ -33,9 +33,9 @@ function statusTone(status: string): string {
       return "border-danger-500/30 bg-danger-500/10 text-danger-300";
     case "canceled":
     case "expired":
-      return "border-white/[0.08] bg-white/[0.04] text-ink-400";
+      return "border-hairline bg-surface-2 text-ink-400";
     default:
-      return "border-white/[0.08] bg-white/[0.04] text-ink-300";
+      return "border-hairline bg-surface-2 text-ink-300";
   }
 }
 
@@ -92,14 +92,14 @@ export default async function AdminSubscriptionsPage({
       />
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Link
             href="/admin/subscriptions"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
               !filterStatus
                 ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                : "text-ink-400 hover:bg-surface-2 hover:text-white"
             }`}
           >
             {t("admin:subs_filter_all")}
@@ -108,10 +108,10 @@ export default async function AdminSubscriptionsPage({
             <Link
               key={s}
               href={`/admin/subscriptions?status=${s}`}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
                 filterStatus === s
                   ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                  : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                  : "text-ink-400 hover:bg-surface-2 hover:text-white"
               }`}
             >
               {subscriptionStatusLabel(s, t)}
@@ -125,8 +125,8 @@ export default async function AdminSubscriptionsPage({
       </div>
 
       {/* Subscription List */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("admin:subs_on_record", { count: subscriptions.length })}
           </span>
@@ -148,7 +148,7 @@ export default async function AdminSubscriptionsPage({
             />
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {subscriptions.map((s) => (
               <SubscriptionRow key={s.id} subscription={s} plans={plans} user={usersById.get(s.user_id) ?? null} />
             ))}
@@ -188,7 +188,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
       : null;
 
   return (
-    <li className="p-5 sm:p-6 transition-colors hover:bg-white/[0.015]">
+    <li className="p-5 sm:p-6 transition-colors hover:bg-surface-1">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         {/* Subscription Info */}
         <div className="min-w-0 flex-1">
@@ -203,7 +203,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
             <span className="text-base font-bold text-white">
               {sub.plan?.name ?? sub.plan_id.slice(0, 8)}
             </span>
-            <span className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
+            <span className="rounded bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
               {sub.payment_provider ?? t("admin:subs_provider_manual")}
             </span>
           </div>
@@ -219,7 +219,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
               </p>
               <p className="truncate font-mono text-[11px] text-ink-400">
                 {user
-                  ? `@${user.login}${user.email ? ` · ${user.email}` : ""}`
+                  ? `@${user.login}${user.email ? `, ${user.email}` : ""}`
                   : t("admin:subs_user_id", { id: sub.user_id })}
               </p>
             </div>
@@ -229,7 +229,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
             {sub.started_at
               ? formatDate(sub.started_at, { year: "numeric", month: "short", day: "numeric" })
               : formatDate(sub.created_at, { year: "numeric", month: "short", day: "numeric" })}
-            {" · "}
+            {", "}
             {t("admin:subs_subscription_id")} <span className="text-ink-400">{sub.id}</span>
           </p>
 
@@ -253,7 +253,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
                   from: formatDate(sub.current_period_start, { year: "numeric", month: "short", day: "numeric" }),
                   to: sub.current_period_end
                     ? formatDate(sub.current_period_end, { year: "numeric", month: "short", day: "numeric" })
-                    : "—",
+                    : ", ",
                 })}
               </span>
             ) : null}
@@ -276,11 +276,11 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
               {payments.map((p) => (
                 <span
                   key={p.id}
-                  className="inline-flex items-center gap-1.5 rounded border border-white/[0.06] bg-ink-950/60 px-2 py-0.5 font-mono text-[10px] text-ink-300"
+                  className="inline-flex items-center gap-1.5 rounded border border-hairline bg-ink-950/60 px-2 py-0.5 font-mono text-[10px] text-ink-300"
                 >
                   <span className="uppercase text-ink-500">{p.payment_provider}</span>
                   <span>${(p.amount / 100).toFixed(2)}</span>
-                  <span className="capitalize text-ink-500">{(p.metadata as { interval?: string } | null)?.interval ?? "—"}</span>
+                  <span className="capitalize text-ink-500">{(p.metadata as { interval?: string } | null)?.interval ?? ", "}</span>
                   <span className="text-ink-500">({paymentStatusLabel(p.status, t)})</span>
                   {p.crypto_transaction_hash ? (
                     <a
@@ -289,8 +289,7 @@ async function SubscriptionRow({ subscription: sub, plans, user }: RowProps) {
                       rel="noreferrer"
                       className="text-brand-300 hover:text-brand-200"
                     >
-                      {t("admin:subs_tx_link")} &rarr;
-                    </a>
+                      {t("admin:subs_tx_link")} to </a>
                   ) : null}
                 </span>
               ))}

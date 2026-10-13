@@ -113,7 +113,7 @@ export interface SessionUser {
  *
  * `lastSeenAt` is what the settings page renders as "last active" and what an
  * admin uses to spot a session that should be revoked. It is declared
- * `@updatedAt`, which only advances when the row is written — and nothing wrote
+ * `@updatedAt`, which only advances when the row is written, and nothing wrote
  * it after creation, so every session reported the sign-in time forever and a
  * long-lived session was indistinguishable from an abandoned one.
  *
@@ -167,7 +167,7 @@ export async function getUserFromToken(token: string | undefined | null): Promis
  * `secure` is derived from NODE_ENV, never from a request header. Two copies of
  * these options existed and one of them derived `secure` from the request's
  * scheme, so a spoofable `x-forwarded-proto` could produce a session cookie
- * without the Secure attribute — readable by anything on the path.
+ * without the Secure attribute, readable by anything on the path.
  */
 export const SESSION_COOKIE_BASE_OPTS = {
   httpOnly: true,

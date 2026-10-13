@@ -14,7 +14,7 @@ responsibility for the next action is implicit:
 The data is unambiguous:
 
 - Around **89% of PR cycle time** is spent waiting, not working.
-- The average PR waits **2–6 days** for its first review.
+- The average PR waits **2 to 6 days** for its first review.
 - Some repos have **160+ of 167** PRs with zero review engagement; the longest
   waits stretch to hundreds of days.
 - GitHub's own documentation includes a section titled *"Who am I blocking?"*, 
@@ -62,7 +62,7 @@ and **polite** (a bounded, configurable number of nudges, never spam).
 ## Positioning
 
 | Alternative | Gap Baton fills |
-| --- | --- |
+|  |  |
 | GitHub's native review requests | Only tells you about *new* requests, not stalls or follow-ups. |
 | Stale-PR bots | Blunt time rules; blames the wrong party; no state awareness. |
 | AI code-review tools | Review code quality, not workflow state; can be noisy. |

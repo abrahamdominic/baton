@@ -104,7 +104,7 @@ export default async function MessagesPage() {
           hint={t("messaging:empty_hint")}
         />
       ) : (
-        <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
+        <ul className="divide-y divide-hairline overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
           {rows.map((r) => (
             <li key={r.id}>
               <Link
@@ -113,10 +113,10 @@ export default async function MessagesPage() {
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-mono text-xs font-bold ${
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-panel font-mono text-xs font-bold ${
                       r.unread
                         ? "bg-brand-500/15 text-brand-300"
-                        : "border border-white/[0.1] bg-ink-850/80 text-ink-300"
+                        : "border border-hairline bg-ink-850/80 text-ink-300"
                     }`}
                   >
                     {r.title.slice(0, 1).toUpperCase()}
@@ -132,7 +132,7 @@ export default async function MessagesPage() {
                       {r.title}
                     </p>
                     <p className="mt-0.5 truncate font-mono text-[10px] text-ink-500">
-                      {r.workspaceName} · {r.messageCount} message
+                      {r.workspaceName}, {r.messageCount} message
                       {r.messageCount === 1 ? "" : "s"}
                     </p>
                   </div>

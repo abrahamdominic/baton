@@ -9,7 +9,7 @@ export const contentType = "image/png";
  * translated. Everything a reader actually sees on the card below is localized,
  * which is what the social preview renders.
  */
-export const alt = "Baton: Know whose turn it is on every pull request";
+export const alt = "Baton: know whose turn it is on every pull request";
 
 const INK_950 = "#08090C";
 const INK_300 = "#98A7C4";

@@ -80,7 +80,7 @@ function parseJson<T>(raw: string, fallback: T): T {
  * Map free text to the facet the question is about.
  *
  * Keyword based on purpose. When nothing matches, `null` is returned and the
- * caller answers with the profile as a whole rather than guessing a facet —
+ * caller answers with the profile as a whole rather than guessing a facet, 
  * guessing would risk answering an ownership question with a language fact.
  *
  * Matching is on **word boundaries**, not substrings. Substring matching is

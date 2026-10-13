@@ -135,9 +135,9 @@ export async function rescanRepo(fullName: string): Promise<void> {
   revalidatePath("/dashboard/repos");
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Account admin: session revocation (settings page)
-// ---------------------------------------------------------------------------
+// 
 
 /** Revoke one of the user's own sessions. The current session is handled by
  * regular sign-out; revoking it here would just log the user out mid-action. */

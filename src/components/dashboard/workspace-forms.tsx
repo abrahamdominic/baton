@@ -99,9 +99,9 @@ function SuccessLine({ message }: { message: string | null }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // AsyncActionButton: one-shot server action with pending + error feedback.
-// ---------------------------------------------------------------------------
+// 
 
 export function AsyncActionButton({
   run,
@@ -234,9 +234,9 @@ export function AsyncActionButton({
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Invite form (works for teams and organizations)
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Map an invite outcome to copy the user can act on.
@@ -399,9 +399,9 @@ export function InviteForm({
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Role dropdown (admin/member)
-// ---------------------------------------------------------------------------
+// 
 
 export function RoleSelectForm({
   kind,
@@ -457,9 +457,9 @@ export function RoleSelectForm({
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Share a GitHub installation with the workspace
-// ---------------------------------------------------------------------------
+// 
 
 export function ShareInstallForm({
   kind,
@@ -519,9 +519,9 @@ export function ShareInstallForm({
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Org-wide review stall policy form
-// ---------------------------------------------------------------------------
+// 
 
 export function PolicyForm({
   organizationId,
@@ -570,7 +570,7 @@ export function PolicyForm({
         {FIELDS.map((f) => (
           <div
             key={f.key}
-            className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 px-3 py-2.5"
+            className="flex items-center justify-between gap-3 rounded-control border border-hairline bg-ink-950/60 px-3 py-2.5"
           >
             <div className="min-w-0 flex-1">
               <label
@@ -599,7 +599,7 @@ export function PolicyForm({
             </div>
           </div>
         ))}
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 px-3 py-2.5">
+        <div className="flex items-center justify-between gap-3 rounded-control border border-hairline bg-ink-950/60 px-3 py-2.5">
           <div className="min-w-0 flex-1">
             <label
               htmlFor={`${organizationId}-maxNudgesPerState`}
@@ -625,7 +625,7 @@ export function PolicyForm({
           </div>
         </div>
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-white/[0.06] pt-3">
+      <div className="flex items-center justify-between gap-3 border-t border-hairline pt-3">
         <p className="font-mono text-[11px] text-ink-500">
           {t("workspace:policy_scope")}
         </p>
@@ -644,9 +644,9 @@ export function PolicyForm({
   );
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Re-exported convenience wrappers so server pages stay declarative
-// ---------------------------------------------------------------------------
+// 
 
 export const AcceptInviteButton = ({
   kind,
@@ -883,9 +883,9 @@ export const TransferOwnerButton = ({
             onKeyDown={(e) => {
               if (e.key === "Escape" && !pending) setOpen(false);
             }}
-            className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/[0.1] bg-ink-900 shadow-2xl"
+            className="relative w-full max-w-md overflow-hidden rounded-feature border border-hairline bg-ink-900 shadow-2xl"
           >
-            <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
+            <div className="border-b border-hairline bg-ink-950/70 px-6 py-4">
               <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
                 {t("workspace:transfer_heading", {
                   kind: t(`workspace:kind_${kind}`),
@@ -905,7 +905,7 @@ export const TransferOwnerButton = ({
                     className="h-10 w-10 shrink-0 rounded-full ring-1 ring-white/15"
                   />
                 ) : (
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-sm font-bold text-ink-100">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-sm font-bold text-ink-100">
                     {login.slice(0, 1).toUpperCase()}
                   </span>
                 )}
@@ -922,7 +922,7 @@ export const TransferOwnerButton = ({
                 </span>
               </div>
 
-              <div className="flex items-start gap-2.5 rounded-lg border border-warn-500/20 bg-warn-500/[0.05] px-3.5 py-3 text-[11px] leading-relaxed text-ink-300">
+              <div className="flex items-start gap-2.5 rounded-control border border-warn-500/20 bg-warn-500/[0.05] px-3.5 py-3 text-[11px] leading-relaxed text-ink-300">
                 <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-300" />
                 <span>{t("workspace:transfer_warning", { login })}</span>
               </div>

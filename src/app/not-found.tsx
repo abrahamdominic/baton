@@ -23,7 +23,7 @@ export default async function NotFound() {
 
   return (
     <div className="flex min-h-screen flex-col bg-ink-950 text-ink-100">
-      <header className="border-b border-white/[0.06]">
+      <header className="border-b border-hairline">
         <div className="container-page flex h-16 items-center">
           <Link
             href="/"

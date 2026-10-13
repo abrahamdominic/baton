@@ -278,7 +278,7 @@ describe("processRepoAutomations", () => {
     });
 
     // No insight row, so the structure-derived workflows have nothing to read. A
-    // run is still stored — PR-derived findings stay valid — but it must not
+    // run is still stored, PR-derived findings stay valid, but it must not
     // claim anything about a structure nobody looked at.
     const result = await processRepoAutomations({
       installationId: freshInstallationId,

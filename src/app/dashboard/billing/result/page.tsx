@@ -5,7 +5,8 @@ import { currentUser } from "@/lib/auth/session";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { getPaymentById } from "@/lib/billing/payments";
 import { friendlyPaymentFailure } from "@/lib/billing/errors";
-import { IconCheckCircle, IconClock, IconAlertCircle, IconShield, IconArrowRight, IconExternalLink } from "@/components/icons";
+import { IconCheckCircle, IconClock, IconAlertCircle, IconShield, IconExternalLink } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import { PaymentResultClient } from "./payment-result";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ export default async function PaymentResultPage({
     return (
       <div className="mx-auto max-w-2xl">
         {header}
-        <div className="flex items-start gap-4 rounded-2xl border border-signal-500/30 bg-signal-500/[0.06] p-6">
+        <div className="flex items-start gap-4 rounded-feature border border-signal-500/30 bg-signal-500/[0.06] p-6">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-signal-500/20 text-signal-400">
             <IconCheckCircle className="h-6 w-6" />
           </span>
@@ -70,7 +71,7 @@ export default async function PaymentResultPage({
             ) : null}
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/dashboard" className="btn btn-primary btn-sm">
-                {t("billing:go_to_dashboard")} <IconArrowRight className="h-3 w-3" />
+                {t("billing:go_to_dashboard")} <LinkArrow className="h-3 w-3" />
               </Link>
               <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
                 {t("billing:view_billing")}
@@ -87,7 +88,7 @@ export default async function PaymentResultPage({
     return (
       <div className="mx-auto max-w-2xl">
         {header}
-        <div className="flex items-start gap-4 rounded-2xl border border-danger-500/30 bg-danger-500/[0.06] p-6">
+        <div className="flex items-start gap-4 rounded-feature border border-danger-500/30 bg-danger-500/[0.06] p-6">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-danger-500/20 text-danger-400">
             <IconAlertCircle className="h-6 w-6" />
           </span>
@@ -101,13 +102,13 @@ export default async function PaymentResultPage({
               {friendlyPaymentFailure(payment.failure_reason)}
             </p>
             {isRejected && payment.payment_provider === "usdc" ? (
-              <p className="mt-3 rounded-lg bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-200">
+              <p className="mt-3 rounded-control bg-warn-500/10 px-3 py-2 text-[11px] leading-relaxed text-warn-200">
                 {t("billing:result_rejected_warning")}
               </p>
             ) : null}
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/pricing" className="btn btn-primary btn-sm">
-                {t("billing:choose_another_plan")} <IconArrowRight className="h-3 w-3" />
+                {t("billing:choose_another_plan")} <LinkArrow className="h-3 w-3" />
               </Link>
               <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
                 {t("billing:view_billing_history")}
@@ -123,8 +124,8 @@ export default async function PaymentResultPage({
     return (
       <div className="mx-auto max-w-2xl">
         {header}
-        <div className="flex items-start gap-4 rounded-2xl border border-white/[0.1] bg-ink-900/60 p-6">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-ink-300">
+        <div className="flex items-start gap-4 rounded-feature border border-hairline bg-ink-900/60 p-6">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-3 text-ink-300">
             <IconClock className="h-6 w-6" />
           </span>
           <div className="flex-1">
@@ -134,7 +135,7 @@ export default async function PaymentResultPage({
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href={`/dashboard/billing/checkout?plan=${payment.plan_id}`} className="btn btn-primary btn-sm">
-                {t("billing:return_to_checkout")} <IconArrowRight className="h-3 w-3" />
+                {t("billing:return_to_checkout")} <LinkArrow className="h-3 w-3" />
               </Link>
               <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">{t("billing:view_billing")}</Link>
             </div>
@@ -148,8 +149,8 @@ export default async function PaymentResultPage({
     return (
       <div className="mx-auto max-w-2xl">
         {header}
-        <div className="flex items-start gap-4 rounded-2xl border border-white/[0.1] bg-ink-900/60 p-6">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-ink-300">
+        <div className="flex items-start gap-4 rounded-feature border border-hairline bg-ink-900/60 p-6">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-3 text-ink-300">
             <IconShield className="h-6 w-6" />
           </span>
           <div className="flex-1">
@@ -159,7 +160,7 @@ export default async function PaymentResultPage({
               <span className="font-mono font-bold text-white">{amountLabel}</span>{" "}
               {t("billing:result_usdc_body_suffix")}
             </p>
-            <div className="mt-4 rounded-lg border border-white/[0.1] bg-ink-950 px-3.5 py-3">
+            <div className="mt-4 rounded-control border border-hairline bg-ink-950 px-3.5 py-3">
               <p className="font-mono text-[11px] uppercase tracking-wider text-ink-500">
                 {t("billing:receiving_wallet", { network: payment.crypto_network ?? "" })}
               </p>
@@ -167,7 +168,7 @@ export default async function PaymentResultPage({
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href={`/dashboard/billing/checkout?plan=${payment.plan_id}`} className="btn btn-primary btn-sm">
-                {t("billing:continue_checkout")} <IconArrowRight className="h-3 w-3" />
+                {t("billing:continue_checkout")} <LinkArrow className="h-3 w-3" />
               </Link>
               <Link href="/dashboard/billing" className="btn btn-ghost btn-sm">
                 {t("billing:view_billing")}

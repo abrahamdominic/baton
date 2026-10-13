@@ -9,8 +9,8 @@ import {
   IconGitPullRequest,
   IconBranch,
   IconClock,
-  IconArrowRight,
 } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +34,12 @@ async function ActivityRow({ item }: { item: ActivityItem }) {
   const isNudge = item.type === "nudge";
 
   return (
-    <li className="flex items-start gap-3.5 px-5 py-4 transition-colors hover:bg-white/[0.02]">
+    <li className="flex items-start gap-3.5 px-5 py-4 transition-colors hover:bg-surface-1">
       <span
-        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs ${
+        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control border text-xs ${
           isNudge
             ? "border-brand-500/30 bg-brand-500/10 text-brand-300"
-            : "border-white/[0.08] bg-ink-850 text-ink-300"
+            : "border-hairline bg-ink-850 text-ink-300"
         }`}
       >
         {isNudge ? <IconActivity className="h-4 w-4" /> : <IconGitPullRequest className="h-4 w-4" />}
@@ -48,7 +48,7 @@ async function ActivityRow({ item }: { item: ActivityItem }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-2">
           <p className="text-xs font-semibold text-ink-100">{item.description}</p>
-          <span className="rounded bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-ink-500">
+          <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-500">
             {t(isNudge ? "activity:badge_nudge" : "activity:badge_state_change")}
           </span>
         </div>
@@ -60,7 +60,7 @@ async function ActivityRow({ item }: { item: ActivityItem }) {
           >
             {item.owner}/{item.repo}
           </Link>
-          <span className="text-ink-600">&middot;</span>
+          <span className="text-ink-600">, </span>
           <span className="text-ink-400">{t("activity:pr_number", { number: item.prNumber })}</span>
         </div>
       </div>
@@ -159,34 +159,34 @@ export default async function ActivityPage({
       </section>
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Link
             href="/dashboard/activity"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
               activeFilter === "all"
                 ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                : "text-ink-400 hover:bg-surface-2 hover:text-white"
             }`}
           >
             {t("activity:filter_all", { count: activity.length })}
           </Link>
           <Link
             href="/dashboard/activity?filter=nudges"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
               activeFilter === "nudges"
                 ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                : "text-ink-400 hover:bg-surface-2 hover:text-white"
             }`}
           >
             {t("activity:filter_nudges", { count: nudgeCount })}
           </Link>
           <Link
             href="/dashboard/activity?filter=states"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
               activeFilter === "states"
                 ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                : "text-ink-400 hover:bg-surface-2 hover:text-white"
             }`}
           >
             {t("activity:filter_transitions", { count: stateChangeCount })}
@@ -216,28 +216,28 @@ export default async function ActivityPage({
             activity.length > 0 ? (
               <Link href="/dashboard/activity" className="btn btn-ghost btn-sm">
                 <span>{t("activity:view_all")}</span>
-                <IconArrowRight className="h-3 w-3" />
+                <LinkArrow className="h-3 w-3" />
               </Link>
             ) : (
               <Link href="/dashboard/repos" className="btn btn-primary btn-sm">
                 <span>{t("activity:view_repos")}</span>
-                <IconArrowRight className="h-3 w-3" />
+                <LinkArrow className="h-3 w-3" />
               </Link>
             )
           }
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="divide-y divide-white/[0.06]">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="divide-y divide-hairline">
             {[...grouped.entries()].map(([day, items]) => (
               <section key={day}>
-                <div className="border-b border-white/[0.05] bg-ink-950/70 px-5 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
-                  {day} &middot;{" "}
+                <div className="border-b border-hairline bg-ink-950/70 px-5 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+                  {day}, {" "}
                   <span className="font-normal text-ink-500">
                     {t("activity:event_count", { count: items.length })}
                   </span>
                 </div>
-                <ul className="divide-y divide-white/[0.04]">
+                <ul className="divide-y divide-hairline">
                   {items.map((item) => (
                     <ActivityRow key={item.id} item={item} />
                   ))}

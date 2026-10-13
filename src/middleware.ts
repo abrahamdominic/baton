@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
  *
  * A CSP is only worth having for `script-src`. `frame-ancestors`, `object-src`
  * and `base-uri` are worth setting, but the reason a policy exists is to stop an
- * injected `<script>` from running — and `'unsafe-inline'` in `script-src` gives
+ * injected `<script>` from running, and `'unsafe-inline'` in `script-src` gives
  * that permission back, which is why the nonce is the mechanism rather than an
  * inline-allowlist escape hatch.
  *

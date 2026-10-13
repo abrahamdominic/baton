@@ -12,7 +12,7 @@ describe("subscription-machine transitions", () => {
   it("allows every declared transition", () => {
     for (const [from, tos] of Object.entries(SUBSCRIPTION_TRANSITIONS)) {
       for (const to of tos) {
-        expect(canTransition(from as never, to as never), `${from} → ${to}`).toBe(true);
+        expect(canTransition(from as never, to as never), `${from} to ${to}`).toBe(true);
         expect(validateTransition(from as never, to as never)).toBeNull();
       }
     }
@@ -46,7 +46,7 @@ describe("subscription-machine transitions", () => {
     expect(canTransition("expired", "active")).toBe(false);
   });
 
-  it("allows abandoning a checkout (pending/payment_failed → canceled)", () => {
+  it("allows abandoning a checkout (pending/payment_failed to canceled)", () => {
     // A user can cancel their own checkout before payment succeeds. The
     // terminal `canceled` row is reopened as `pending` for a fresh attempt.
     expect(canTransition("pending", "canceled")).toBe(true);
@@ -95,7 +95,7 @@ describe("nk.md §25 lifecycle journeys", () => {
     for (let i = 0; i + 1 < steps.length; i++) {
       expect(
         canTransition(steps[i] as never, steps[i + 1] as never),
-        `${steps[i]} → ${steps[i + 1]}`,
+        `${steps[i]} to ${steps[i + 1]}`,
       ).toBe(true);
     }
   };
@@ -105,47 +105,47 @@ describe("nk.md §25 lifecycle journeys", () => {
     expect(validateTransition("none", "pending")).toBeNull();
   });
 
-  it("successful Stripe purchase: none → pending → active", () => {
+  it("successful Stripe purchase: none to pending to active", () => {
     walk(["none", "pending", "active"]);
   });
 
-  it("failed Stripe purchase: none → pending → payment_failed", () => {
+  it("failed Stripe purchase: none to pending to payment_failed", () => {
     expect(canTransition("none", "pending")).toBe(true);
     expect(canTransition("pending", "payment_failed")).toBe(true);
     expect(subscriptionCountsAsPaid("payment_failed")).toBe(false);
   });
 
-  it("successful USDC purchase only after verification: none → pending → active", () => {
+  it("successful USDC purchase only after verification: none to pending to active", () => {
     walk(["none", "pending", "active"]);
     expect(subscriptionCountsAsPaid("active")).toBe(true);
     // A supplied tx hash must never skip verification to active directly.
     expect(canTransition("none", "active")).toBe(false);
   });
 
-  it("invalid USDC transaction: pending → payment_failed", () => {
+  it("invalid USDC transaction: pending to payment_failed", () => {
     expect(canTransition("pending", "payment_failed")).toBe(true);
     expect(canTransition("pending", "active")).toBe(true);
   });
 
-  it("cancellation: active → active_until_period_end → canceled", () => {
+  it("cancellation: active to active_until_period_end to canceled", () => {
     walk(["active", "active_until_period_end", "canceled"]);
   });
 
-  it("reactivation: active_until_period_end → active", () => {
+  it("reactivation: active_until_period_end to active", () => {
     expect(canTransition("active_until_period_end", "active")).toBe(true);
     expect(canTransition("active_until_period_end", "canceled")).toBe(true);
   });
 
-  it("failed renewal: active → past_due", () => {
+  it("failed renewal: active to past_due", () => {
     expect(canTransition("active", "past_due")).toBe(true);
     expect(subscriptionCountsAsPaid("past_due")).toBe(true);
   });
 
-  it("recovered payment: past_due → active", () => {
+  it("recovered payment: past_due to active", () => {
     expect(canTransition("past_due", "active")).toBe(true);
   });
 
-  it("expired subscription: past_due → expired", () => {
+  it("expired subscription: past_due to expired", () => {
     expect(canTransition("past_due", "expired")).toBe(true);
     expect(subscriptionCountsAsPaid("expired")).toBe(false);
   });

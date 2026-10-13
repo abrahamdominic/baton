@@ -15,7 +15,7 @@ function commit(files: string[], days: number): CommitTouch {
   return { files, date: daysAgo(days), author: "someone" };
 }
 
-describe("deriveRepositoryProfile — package manager and manifests", () => {
+describe("deriveRepositoryProfile, package manager and manifests", () => {
   it("detects the package manager from the lockfile, not from a guess", () => {
     expect(deriveRepositoryProfile(["pnpm-lock.yaml", "package.json"], [], null).packageManager).toBe("pnpm");
     expect(deriveRepositoryProfile(["yarn.lock"], [], null).packageManager).toBe("yarn");
@@ -41,7 +41,7 @@ describe("deriveRepositoryProfile — package manager and manifests", () => {
   });
 });
 
-describe("deriveRepositoryProfile — dependencies and frameworks", () => {
+describe("deriveRepositoryProfile, dependencies and frameworks", () => {
   it("names frameworks from the declared dependencies", () => {
     const raw = JSON.stringify({ dependencies: { next: "1", react: "1" }, devDependencies: { vitest: "1" } });
     const p = deriveRepositoryProfile(["package.json"], [], raw);
@@ -63,7 +63,7 @@ describe("deriveRepositoryProfile — dependencies and frameworks", () => {
   });
 });
 
-describe("deriveRepositoryProfile — quality tooling", () => {
+describe("deriveRepositoryProfile, quality tooling", () => {
   it("detects TypeScript, the test runner, the linter and the formatter", () => {
     const raw = JSON.stringify({ dependencies: { next: "1" }, devDependencies: { vitest: "1" } });
     const p = deriveRepositoryProfile(
@@ -99,7 +99,7 @@ describe("deriveRepositoryProfile — quality tooling", () => {
   });
 });
 
-describe("deriveRepositoryProfile — infrastructure", () => {
+describe("deriveRepositoryProfile, infrastructure", () => {
   it("detects the ORM, migrations and deployment target", () => {
     const p = deriveRepositoryProfile(
       ["prisma/schema.prisma", "prisma/migrations/0001_init/migration.sql", "vercel.json", "Dockerfile"],
@@ -142,7 +142,7 @@ describe("deriveRepositoryProfile — infrastructure", () => {
   });
 });
 
-describe("deriveRepositoryProfile — churn and staleness", () => {
+describe("deriveRepositoryProfile, churn and staleness", () => {
   it("ranks areas by how often the sampled commits touched them", () => {
     const commits = [
       commit(["src/a.ts", "src/b.ts"], 1),

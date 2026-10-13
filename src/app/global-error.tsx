@@ -5,7 +5,7 @@ import { useEffect } from "react";
 /**
  * Last-resort boundary for failures in the root layout itself.
  *
- * This file replaces `<html>` and `<body>`, so it cannot use `useI18n` — the
+ * This file replaces `<html>` and `<body>`, so it cannot use `useI18n`, the
  * provider lives in the layout that just failed, and the document is being
  * rebuilt from scratch here. That is why the copy below is English-only: the
  * alternative is a boundary that cannot render at all. Everything above this

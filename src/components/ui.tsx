@@ -39,7 +39,7 @@ export function AccountHeader({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-ink-900/80 px-2.5 py-1">
+      <div className="flex items-center gap-2 rounded-full border border-hairline bg-ink-900/80 px-2.5 py-1">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -52,7 +52,7 @@ export function AccountHeader({
         ) : null}
         <span className="text-xs font-semibold text-white">{name ?? login}</span>
       </div>
-      <SignOutLink className="rounded-md border border-white/[0.08] bg-ink-900/60 px-2.5 py-1 text-xs text-ink-400 transition-colors hover:border-white/[0.14] hover:text-white">
+      <SignOutLink className="rounded-md border border-hairline bg-ink-900/60 px-2.5 py-1 text-xs text-ink-400 transition-colors hover:border-hairline-strong hover:text-white">
         Sign out
       </SignOutLink>
     </div>
@@ -81,7 +81,7 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4 border-b border-white/[0.07] pb-6 sm:flex-row sm:items-start sm:justify-between">
+    <section className="flex flex-col gap-4 border-b border-hairline pb-6 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
         {badge && !eyebrow ? (
           <div className="mb-2 flex items-center gap-2">{badge}</div>
@@ -121,8 +121,8 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3.5 rounded-xl border border-white/[0.08] bg-ink-900/40 px-6 py-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.1] bg-ink-850/80 text-ink-300 shadow-sm">
+    <div className="flex flex-col items-center justify-center gap-3.5 rounded-panel border border-hairline bg-ink-900/40 px-6 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-panel border border-hairline bg-ink-850/80 text-ink-300 shadow-sm">
         <Icon className="h-6 w-6" />
       </div>
       <div className="max-w-md space-y-1.5">
@@ -167,14 +167,14 @@ export function StatCard({
       ? "border-danger-500/20 bg-danger-500/10 text-danger-400"
       : tone === "brand"
       ? "border-brand-500/20 bg-brand-500/10 text-brand-300"
-      : "border-white/[0.08] bg-ink-850/80 text-ink-400";
+      : "border-hairline bg-ink-850/80 text-ink-400";
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/70 p-4 transition-all duration-200 hover:border-white/[0.14] sm:p-5">
+    <div className="relative overflow-hidden rounded-panel border border-hairline bg-ink-900/70 p-4 transition-all duration-200 hover:border-hairline-strong sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium text-ink-400">{label}</p>
         {Icon ? (
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border ${iconBg}`}>
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-control border ${iconBg}`}>
             <Icon className="h-4 w-4" />
           </span>
         ) : null}

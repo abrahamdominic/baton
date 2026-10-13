@@ -14,7 +14,7 @@ import type { NextRequest } from "next/server";
  * the edge and overwritten (not appended) on each hop, so they are preferred
  * when present. They are still client-spoofable on a direct-to-origin
  * deployment, which is why the same helper is only ever used for rate limiting
- * and logging — never for authorization.
+ * and logging, never for authorization.
  */
 export function getClientIp(req: NextRequest): string {
   return clientIpFromHeaders(req.headers);

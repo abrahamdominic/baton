@@ -126,7 +126,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     // `state`), so it must NEVER carry an identity-bearing parameter. It used to
     // be mined for `installation_id` and handed to `finishOAuthSignIn`, which
     // reassigned `AppInstallation.userId` with no proof the caller administered
-    // that installation — a cross-tenant takeover, since installation ids are
+    // that installation, a cross-tenant takeover, since installation ids are
     // sequential and enumerable. Installation linking happens only in
     // /auth/install/callback, which verifies GitHub-side authority.
     const result = await finishOAuthSignIn({

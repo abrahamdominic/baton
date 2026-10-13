@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
  *
  * As a GET it was forgeable from anywhere: `<img src="https://baton/auth/logout">`
  * signs a visitor out. That alone is a nuisance, but the redirect target was also
- * attacker-supplied, which turned it into a phishing primitive — authenticate a
+ * attacker-supplied, which turned it into a phishing primitive, authenticate a
  * victim on github.com, bounce them through a logout into an attacker-shaped URL
  * with the session already gone. `SameSite=Lax` does not help, because a
  * top-level navigation still sends the cookie.

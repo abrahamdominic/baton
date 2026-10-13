@@ -94,8 +94,8 @@ export default async function AdminGiftsPage() {
       />
 
       {loadError ? (
-        <section className="overflow-hidden rounded-xl border border-warn-500/30 bg-ink-900/60 shadow-sm">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-warn-500/30 bg-ink-900/60 shadow-sm">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("admin:gifts_unavailable")}
             </span>
@@ -155,8 +155,8 @@ export default async function AdminGiftsPage() {
       {loadError ? null : <GiftForm users={userOptions} plans={planOptions} />}
 
       {/* Recent gifts */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("admin:gifts_recent")}
           </span>
@@ -171,7 +171,7 @@ export default async function AdminGiftsPage() {
             <p className="mt-3 text-sm text-ink-400">{t("admin:gifts_empty")}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {gifts.map((g) => {
               const end = new Date(g.access_ends_at ?? g.access_started_at);
               const stillActive = !g.access_ends_at || end.getTime() >= now;
@@ -180,7 +180,7 @@ export default async function AdminGiftsPage() {
                 <li key={g.id} className="px-5 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-xs font-bold text-ink-200">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-xs font-bold text-ink-200">
                         {(login ?? g.user_id).slice(0, 1).toUpperCase()}
                       </span>
                       <div className="min-w-0">
@@ -208,24 +208,24 @@ export default async function AdminGiftsPage() {
                               {t("admin:gift_badge_active")}
                             </span>
                           ) : (
-                            <span className="rounded bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-ink-500 ring-1 ring-white/[0.08]">
+                            <span className="rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-ink-500 ring-1 ring-hairline">
                               {t("admin:gift_badge_ended")}
                             </span>
                           )}
                         </div>
                         <p className="mt-1 font-mono text-[11px] text-ink-400">
-                          {g.plan?.name ?? g.plan_id} ·{" "}
-                          {t("admin:gifts_months", { count: g.months })} ·{" "}
+                          {g.plan?.name ?? g.plan_id}, {" "}
+                          {t("admin:gifts_months", { count: g.months })}, {" "}
                           {t("admin:gifts_by_admin", {
                             id: g.admin_user_id ? String(g.admin_user_id).slice(0, 8) : "-",
                           })}{" "}
-                          ·{" "}
+, {" "}
                           {formatDate(g.created_at, { year: "numeric", month: "short", day: "numeric" })}
                         </p>
                         {g.note ? <p className="mt-1 text-xs text-ink-400">“{g.note}”</p> : null}
                       </div>
                     </div>
-                    <span className="rounded-md border border-white/[0.08] bg-ink-950/60 px-2.5 py-1 font-mono text-[11px] text-ink-300">
+                    <span className="rounded-md border border-hairline bg-ink-950/60 px-2.5 py-1 font-mono text-[11px] text-ink-300">
                       {t("admin:gifts_until", {
                         date: formatDate(end, { year: "numeric", month: "short", day: "numeric" }),
                       })}

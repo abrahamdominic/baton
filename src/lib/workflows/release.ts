@@ -14,7 +14,7 @@ import {
  * Release preparation (§20, "release preparation").
  *
  * What this replaces
- * ------------------
+ * 
  * Before a release, someone opens the repository, reads the changelog, checks
  * which pull requests merged since the last tag, checks whether CI was green on
  * the default branch, and checks whether anything on the list was flagged
@@ -22,7 +22,7 @@ import {
  * repeated every release, and it is exactly the kind of work §8 says to automate.
  *
  * Honesty constraints
- * -------------------
+ * 
  *  - **No changelog is written for the user.** The finding says which merged pull
  *    requests would belong in the notes and what their titles were; composing the
  *    prose is the release manager's call, and auto-generated changelog entries
@@ -115,7 +115,7 @@ export function buildReleaseReadiness(input: ReleaseInput): ReleaseReadiness {
   const sections: ReleaseReadiness["sections"] = [];
   const blockers: ReleaseReadiness["blockers"] = [];
 
-  // --- What would go in the notes -----------------------------------------
+  //  What would go in the notes 
   const notes = [...merged].sort(
     (a, b) => a.githubUpdatedAt.getTime() - b.githubUpdatedAt.getTime(),
   );
@@ -132,7 +132,7 @@ export function buildReleaseReadiness(input: ReleaseInput): ReleaseReadiness {
     })),
   });
 
-  // --- Throughput, honestly -----------------------------------------------
+  //  Throughput, honestly 
   // `mergedLast30Days: null` is GitHub's answer being unavailable (private repos
   // are not indexed by the search API), not a count of zero.
   const throughput: ReleaseReadiness["sections"][number] = {
@@ -146,7 +146,7 @@ export function buildReleaseReadiness(input: ReleaseInput): ReleaseReadiness {
   };
   sections.push(throughput);
 
-  // --- Blocking problems ---------------------------------------------------
+  //  Blocking problems 
   const failing = merged.filter((pr) => pr.state === "ci_failing" || pr.state === "blocked_on_checks");
   if (failing.length > 0) {
     for (const pr of failing) {
@@ -169,11 +169,11 @@ export function buildReleaseReadiness(input: ReleaseInput): ReleaseReadiness {
     })),
   });
 
-  // --- Documentation --------------------------------------------------------
+  //  Documentation 
   const docPaths = structure.profile?.hasDocsDir ? structure.topLevel.filter((t) => /^docs?$/i.test(t)) : [];
   // Tested per entry, never against the joined string. Joining first and
   // anchoring with `$` means a repository whose root contains CHANGELOG.md *and*
-  // anything else — which is every real repository — fails the check, because the
+  // anything else, which is every real repository, fails the check, because the
   // match has to survive the entries that follow it. That produced a "no
   // changelog" blocker on the majority of repositories that have one.
   const hasChangelog = structure.topLevel.some((t) =>
@@ -194,7 +194,7 @@ export function buildReleaseReadiness(input: ReleaseInput): ReleaseReadiness {
     });
   }
 
-  // --- Security policy ------------------------------------------------------
+  //  Security policy 
   sections.push({
     key: "security",
     title: "Security policy",
@@ -204,7 +204,7 @@ export function buildReleaseReadiness(input: ReleaseInput): ReleaseReadiness {
     items: [],
   });
 
-  // --- Contributors ---------------------------------------------------------
+  //  Contributors 
   const byLogin = new Map<string, number>();
   for (const pr of merged) {
     byLogin.set(pr.authorLogin, (byLogin.get(pr.authorLogin) ?? 0) + 1);
@@ -285,7 +285,7 @@ export type { IssueLike };
 /**
  * Release readiness for a repository, from persisted state only.
  *
- * Returns `null` when there is nothing to report — a repository with no recorded
+ * Returns `null` when there is nothing to report, a repository with no recorded
  * pull requests has no release context, and rendering an empty readiness panel
  * would imply Baton had looked and found nothing wrong.
  */

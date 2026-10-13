@@ -24,7 +24,7 @@ describe("messaging crypto (E2E round-trips)", () => {
     expect(alice.publicKeyB64).not.toBe(alice.privateKeyB64);
   });
 
-  it("wrap→unwrap restores the exact thread key (Alice wraps for Bob)", async () => {
+  it("wrap to unwrap restores the exact thread key (Alice wraps for Bob)", async () => {
     const alice = await generateDeviceKeys();
     const bob = await generateDeviceKeys();
     const threadKeyB64 = await generateThreadKey();
@@ -45,14 +45,14 @@ describe("messaging crypto (E2E round-trips)", () => {
     expect(unwrapped).toBe(threadKeyB64);
   });
 
-  it("encrypt→decrypt restores the original plaintext with a fresh nonce each time", async () => {
+  it("encrypt to decrypt restores the original plaintext with a fresh nonce each time", async () => {
     const threadKeyB64 = await generateThreadKey();
     const plaintext = "double/secret/baton\nline two";
 
     const a = await encryptMessage(plaintext, threadKeyB64);
     const b = await encryptMessage(plaintext, threadKeyB64);
 
-    // Same plaintext, two ciphertexts (random IV) — never identical.
+    // Same plaintext, two ciphertexts (random IV), never identical.
     expect(a.ct).not.toBe(b.ct);
     expect(a.ct).toMatch(/^[A-Za-z0-9+/=]+$/);
 
@@ -75,7 +75,7 @@ describe("messaging crypto (E2E round-trips)", () => {
   it("uses a 96-bit nonce per GCM operation", async () => {
     const key = await generateThreadKey();
     const msg = await encryptMessage("x", key);
-    // ct = base64(iv(12) | ciphertext) — iv must be first 12 bytes.
+    // ct = base64(iv(12) | ciphertext), iv must be first 12 bytes.
     const raw = Buffer.from(msg.ct, "base64");
     expect(raw.slice(0, AES_GCM_BYTES).length).toBe(12);
   });

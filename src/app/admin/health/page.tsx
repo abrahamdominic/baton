@@ -138,7 +138,7 @@ export default async function AdminHealthPage({
           A claim whose lease has lapsed means something is being killed between
           starting and finishing a job. */}
       {expiringLeaseCount > 0 && (
-        <div role="alert" className="rounded-xl border border-warn-500/40 bg-warn-500/10 p-5">
+        <div role="alert" className="rounded-panel border border-warn-500/40 bg-warn-500/10 p-5">
           <div className="flex items-start gap-3">
             <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warn-400" />
             <div>
@@ -155,12 +155,12 @@ export default async function AdminHealthPage({
       )}
 
       {/* A queue with work and nothing in flight is the one state that means
-          "nothing is draining the queue" — the original symptom of the missing
+          "nothing is draining the queue", the original symptom of the missing
           worker. It must be impossible to miss. */}
       {queue.stalled && (
         <div
           role="alert"
-          className="rounded-xl border border-danger-500/40 bg-danger-500/10 p-5"
+          className="rounded-panel border border-danger-500/40 bg-danger-500/10 p-5"
         >
           <div className="flex items-start gap-3">
             <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger-400" />
@@ -183,8 +183,8 @@ export default async function AdminHealthPage({
       )}
 
       {/* Worker Job Queue Distribution */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("admin:health_queue_distribution")}
           </span>
@@ -198,7 +198,7 @@ export default async function AdminHealthPage({
               return (
                 <div
                   key={st}
-                  className="rounded-lg border border-white/[0.06] bg-ink-950/60 p-3.5"
+                  className="rounded-control border border-hairline bg-ink-950/60 p-3.5"
                 >
                   <span className="font-mono text-[10px] uppercase font-semibold text-ink-500">
                     {t(`admin:health_queue_${st}`)}
@@ -218,8 +218,8 @@ export default async function AdminHealthPage({
       </section>
 
       {/* Job latency (aa.md §26) */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("admin:health_latency")}
           </span>
@@ -227,8 +227,8 @@ export default async function AdminHealthPage({
             <span className="font-mono text-[10px] text-ink-500">
               {t("admin:health_latency_summary", {
                 count: latency.overall.samples,
-                p50: latency.overall.p50Ms === null ? "—" : `${latency.overall.p50Ms}ms`,
-                p95: latency.overall.p95Ms === null ? "—" : `${latency.overall.p95Ms}ms`,
+                p50: latency.overall.p50Ms === null ? ", " : `${latency.overall.p50Ms}ms`,
+                p95: latency.overall.p95Ms === null ? ", " : `${latency.overall.p95Ms}ms`,
               })}
             </span>
           ) : null}
@@ -239,7 +239,7 @@ export default async function AdminHealthPage({
           </p>
         ) : (
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-white/[0.05] text-ink-500">
+            <thead className="border-b border-hairline text-ink-500">
               <tr>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_kind")}</th>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_samples")}</th>
@@ -248,23 +248,23 @@ export default async function AdminHealthPage({
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_max")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-hairline">
               {latency.byKind.map((l) => (
                 <tr key={l.kind}>
                   <td className="px-5 py-2 font-mono text-brand-300">{l.kind}</td>
                   <td className="px-5 py-2 font-mono tabular-nums text-ink-300">{l.samples}</td>
                   <td className="px-5 py-2 font-mono tabular-nums text-ink-300">
-                    {l.p50Ms === null ? "—" : `${l.p50Ms}ms`}
+                    {l.p50Ms === null ? ", " : `${l.p50Ms}ms`}
                   </td>
                   <td
                     className={`px-5 py-2 font-mono tabular-nums ${
                       (l.p95Ms ?? 0) > 10_000 ? "text-danger-400" : "text-ink-300"
                     }`}
                   >
-                    {l.p95Ms === null ? "—" : `${l.p95Ms}ms`}
+                    {l.p95Ms === null ? ", " : `${l.p95Ms}ms`}
                   </td>
                   <td className="px-5 py-2 font-mono tabular-nums text-ink-400">
-                    {l.maxMs === null ? "—" : `${l.maxMs}ms`}
+                    {l.maxMs === null ? ", " : `${l.maxMs}ms`}
                   </td>
                 </tr>
               ))}
@@ -275,14 +275,14 @@ export default async function AdminHealthPage({
 
       {/* Why jobs failed, not just how many */}
       {failures.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-danger-500/20 bg-danger-500/[0.03]">
+        <section className="overflow-hidden rounded-panel border border-danger-500/20 bg-danger-500/[0.03]">
           <div className="flex items-center gap-2 border-b border-danger-500/20 bg-danger-500/[0.08] px-5 py-3">
             <IconAlertCircle className="h-4 w-4 text-danger-300" />
             <span className="font-mono text-[11px] uppercase tracking-wider text-danger-300">
               {t("admin:health_failures_title")}
             </span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {failures.map((f) => (
               <li key={f.id} className="px-5 py-3">
                 <div className="flex flex-wrap items-center gap-2">
@@ -298,7 +298,7 @@ export default async function AdminHealthPage({
                   </span>
                 </div>
                 {f.error ? (
-                  <pre className="mt-1.5 overflow-x-auto whitespace-pre-wrap break-words rounded border border-white/[0.06] bg-ink-950/70 px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-ink-300">
+                  <pre className="mt-1.5 overflow-x-auto whitespace-pre-wrap break-words rounded border border-hairline bg-ink-950/70 px-2.5 py-1.5 font-mono text-[10px] leading-relaxed text-ink-300">
                     {f.error}
                   </pre>
                 ) : (
@@ -311,8 +311,8 @@ export default async function AdminHealthPage({
       ) : null}
 
       {/* Slow queries */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("admin:health_slow_queries")}
           </span>
@@ -328,14 +328,14 @@ export default async function AdminHealthPage({
           </p>
         ) : (
           <table className="w-full text-left text-xs">
-            <thead className="border-b border-white/[0.05] text-ink-500">
+            <thead className="border-b border-hairline text-ink-500">
               <tr>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_model")}</th>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_operation")}</th>
                 <th className="px-5 py-2 font-mono text-[10px] uppercase font-semibold">{t("admin:health_col_duration")}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-hairline">
               {slowQueries.slice(0, 15).map((q, i) => (
                 <tr key={`${q.at}-${i}`}>
                   <td className="px-5 py-2 font-mono text-ink-300">{q.model ?? t("admin:health_raw_model")}</td>
@@ -358,8 +358,8 @@ export default async function AdminHealthPage({
           failures and authentication failures have no durable table, so they are
           read from in-process counters. The panel says so explicitly rather than
           presenting them as fleet-wide totals. */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-4">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-4">
           <h2 className="text-sm font-semibold text-white">Runtime signals</h2>
           <p className="mt-0.5 text-xs text-ink-400">
             Last {metrics.windowMinutes} minutes, this application instance only. Counters reset when the
@@ -367,7 +367,7 @@ export default async function AdminHealthPage({
           </p>
         </div>
 
-        <div className="divide-y divide-white/[0.05]">
+        <div className="divide-y divide-hairline">
           {alerts.map((a) => (
             <div key={a.check} className="flex items-start gap-3 px-5 py-3">
               <span
@@ -401,12 +401,12 @@ export default async function AdminHealthPage({
         </div>
 
         {metrics.totals.length > 0 ? (
-          <div className="border-t border-white/[0.07] px-5 py-4">
+          <div className="border-t border-hairline px-5 py-4">
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {metrics.totals.map((m) => (
                 <div
                   key={m.metric}
-                  className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.02] px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-control bg-surface-1 px-3 py-2"
                 >
                   <span className="truncate font-mono text-[11px] text-ink-300">
                     {m.metric.replace(/_/g, " ")}
@@ -420,7 +420,7 @@ export default async function AdminHealthPage({
             </div>
           </div>
         ) : (
-          <p className="border-t border-white/[0.07] px-5 py-4 text-xs text-ink-500">
+          <p className="border-t border-hairline px-5 py-4 text-xs text-ink-500">
             No runtime signal recorded on this instance yet. An empty panel is expected on a freshly deployed
             instance, since these counters are in-process rather than durable.
           </p>
@@ -428,10 +428,10 @@ export default async function AdminHealthPage({
       </section>
 
       {/* Workflow automation coverage. The suite runs on a schedule, so without
-          this panel "no findings" and "never analysed" are indistinguishable —
+          this panel "no findings" and "never analysed" are indistinguishable, 
           the failure mode is invisible rather than loud. */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-4">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-4">
           <h2 className="text-sm font-semibold text-white">Workflow automation coverage</h2>
           <p className="mt-0.5 text-xs text-ink-400">
             {coverage.analysedRepos} of {coverage.enabledRepos} enabled repositories analysed,{" "}
@@ -450,13 +450,13 @@ export default async function AdminHealthPage({
           <StatCard label="Open findings" value={coverage.totalFindings} tone="signal" />
           <StatCard
             label="Last run"
-            value={coverage.mostRecent ? formatTime(coverage.mostRecent.ranAt, locale) : "—"}
+            value={coverage.mostRecent ? formatTime(coverage.mostRecent.ranAt, locale) : ", "}
             tone="signal"
           />
         </div>
 
         {coverage.oldestUnanalysed.length > 0 && (
-          <div className="border-t border-white/[0.05] px-5 py-4">
+          <div className="border-t border-hairline px-5 py-4">
             <h3 className="text-[11px] font-semibold uppercase tracking-wide text-warn-300">
               Waiting for a first run
             </h3>
@@ -468,7 +468,7 @@ export default async function AdminHealthPage({
               {coverage.oldestUnanalysed.map((r) => (
                 <li
                   key={`${r.owner}/${r.name}`}
-                  className="rounded bg-white/[0.03] px-2 py-1 font-mono text-[10px] text-ink-400"
+                  className="rounded bg-surface-2 px-2 py-1 font-mono text-[10px] text-ink-400"
                 >
                   {r.owner}/{r.name}
                 </li>
@@ -479,13 +479,13 @@ export default async function AdminHealthPage({
       </section>
 
       {/* System Events Table */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
         {/* Severity Filter Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-ink-950/70 px-5 py-3">
           <div className="flex items-center gap-1.5">
             <Link
               href="/admin/health"
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                 severityFilter === "all"
                   ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
                   : "text-ink-400 hover:text-white"
@@ -495,7 +495,7 @@ export default async function AdminHealthPage({
             </Link>
             <Link
               href="/admin/health?severity=error"
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                 severityFilter === "error"
                   ? "bg-danger-500/15 text-danger-300 font-semibold shadow-sm"
                   : "text-ink-400 hover:text-white"
@@ -505,7 +505,7 @@ export default async function AdminHealthPage({
             </Link>
             <Link
               href="/admin/health?severity=warn"
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                 severityFilter === "warn"
                   ? "bg-warn-500/15 text-warn-300 font-semibold shadow-sm"
                   : "text-ink-400 hover:text-white"
@@ -515,7 +515,7 @@ export default async function AdminHealthPage({
             </Link>
             <Link
               href="/admin/health?severity=info"
-              className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`rounded-control px-2.5 py-1 text-xs font-medium transition-colors ${
                 severityFilter === "info"
                   ? "bg-signal-500/15 text-signal-300 font-semibold shadow-sm"
                   : "text-ink-400 hover:text-white"
@@ -535,11 +535,11 @@ export default async function AdminHealthPage({
             {t("admin:health_no_events")}
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {filteredEvents.map((e) => (
               <li
                 key={e.id}
-                className="flex items-center justify-between gap-4 p-4 text-xs transition-colors hover:bg-white/[0.015]"
+                className="flex items-center justify-between gap-4 p-4 text-xs transition-colors hover:bg-surface-1"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <span
@@ -573,7 +573,7 @@ export default async function AdminHealthPage({
                 </div>
 
                 <span className="shrink-0 font-mono text-[11px] text-ink-500">
-                  {formatTime(e.createdAt, locale)} &middot;{" "}
+                  {formatTime(e.createdAt, locale)}, {" "}
                   {new Date(e.createdAt).toISOString().slice(0, 10)}
                 </span>
               </li>

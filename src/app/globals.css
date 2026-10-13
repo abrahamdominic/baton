@@ -18,7 +18,7 @@
   --ink-200: 196 208 228;
   --ink-100: 227 235 246;
   --ink-50: 244 247 252;
-  /* brand (dark = default) */
+  /* brand (dark = default): the primary accent, "your turn" */
   --brand-50: 238 242 255;
   --brand-100: 224 231 255;
   --brand-200: 199 210 254;
@@ -29,6 +29,22 @@
   --brand-700: 67 56 202;
   --brand-800: 55 48 163;
   --brand-900: 49 46 129;
+  /* waiting: the secondary accent, "waiting on others" */
+  --waiting-50: 236 254 255;
+  --waiting-100: 207 250 254;
+  --waiting-300: 103 232 249;
+  --waiting-400: 34 211 238;
+  --waiting-500: 6 182 212;
+  --waiting-600: 8 145 178;
+  --waiting-700: 14 116 144;
+  /* structural hairlines */
+  --hairline: rgb(255 255 255 / 0.09);
+  --hairline-strong: rgb(255 255 255 / 0.16);
+  /* translucent surfaces layered over the canvas */
+  --surface-1: rgb(255 255 255 / 0.02);
+  --surface-2: rgb(255 255 255 / 0.04);
+  --surface-3: rgb(255 255 255 / 0.06);
+  --canvas: #08090c;
 }
 
 :root[data-theme="light"] {
@@ -40,22 +56,35 @@
   --ink-750: 226 232 240; /* active surface */
   --ink-700: 203 213 225; /* embossed */
   --ink-600: 148 163 184; /* glyphs / chevrons */
-  --ink-500: 148 163 184; /* placeholder / faint */
-  --ink-400: 100 116 139; /* muted secondary */
-  --ink-300: 71 85 105;   /* body secondary */
-  --ink-200: 51 65 85;    /* body text */
-  --ink-100: 30 41 59;    /* primary text */
-  --ink-50: 15 23 42;     /* headings */
+  --ink-500: 100 116 139; /* placeholder / faint */
+  --ink-400: 71 85 105;   /* muted secondary */
+  --ink-300: 51 65 85;    /* body secondary */
+  --ink-200: 30 41 59;    /* body text */
+  --ink-100: 15 23 42;    /* primary text */
+  --ink-50: 2 6 23;       /* headings */
   --brand-50: 238 242 255;
   --brand-100: 224 231 255;
-  --brand-200: 99 102 241;
-  --brand-300: 99 102 241;
+  --brand-200: 67 56 202;
+  --brand-300: 67 56 202;
   --brand-400: 79 70 229;
-  --brand-500: 79 70 229;
-  --brand-600: 67 56 202;
-  --brand-700: 55 48 163;
-  --brand-800: 49 46 129;
-  --brand-900: 30 27 75;
+  --brand-500: 67 56 202;
+  --brand-600: 55 48 163;
+  --brand-700: 49 46 129;
+  --brand-800: 30 27 75;
+  --brand-900: 23 20 56;
+  --waiting-50: 236 254 255;
+  --waiting-100: 207 250 254;
+  --waiting-300: 21 94 117;
+  --waiting-400: 8 145 178;
+  --waiting-500: 14 116 144;
+  --waiting-600: 21 94 117;
+  --waiting-700: 22 78 99;
+  --hairline: rgb(15 23 42 / 0.12);
+  --hairline-strong: rgb(15 23 42 / 0.22);
+  --surface-1: rgb(15 23 42 / 0.02);
+  --surface-2: rgb(15 23 42 / 0.04);
+  --surface-3: rgb(15 23 42 / 0.06);
+  --canvas: #f4f6fa;
 }
 
 html {
@@ -68,18 +97,68 @@ html {
 
 body {
   @apply bg-ink-950 text-ink-100 antialiased selection:bg-brand-500/30 selection:text-white;
+  font-family: var(--font-sans);
+  line-height: 1.6;
   text-rendering: optimizeLegibility;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-wrap: balance;
+}
+
+/* Any metric, duration or numeric readout uses tabular figures so columns line
+   up and a changing value does not reflow its neighbours. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The baton motif: one accent moves between the author side and the reviewer
+   side. These markers are the only decorative element, and they always sit
+   beside a text label so color is never the only signal. */
+.baton-marker {
+  @apply inline-flex h-2 w-2 shrink-0 rounded-full;
+}
+.baton-marker-turn {
+  @apply bg-brand-400;
+}
+.baton-marker-wait {
+  @apply bg-waiting-400;
+}
+
+/* An 8px baseline rhythm helper for the marketing surface. */
+.rhythm > * + * {
+  @apply mt-4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Engineering dot-grid background */
 @layer components {
   .card {
-    @apply rounded-xl border border-white/[0.08] bg-ink-900/80 transition-all duration-200;
+    @apply rounded-panel border border-hairline bg-ink-900/80 transition-all duration-200;
   }
 
   .btn {
-    @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-semibold tracking-wide transition-all duration-150 outline-none select-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:scale-[0.98];
+    @apply inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-control px-3.5 text-xs font-semibold tracking-wide transition-all duration-150 outline-none select-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ink-950 active:scale-[0.98];
   }
   
   .btn-primary {
@@ -87,11 +166,11 @@ body {
   }
   
   .btn-ghost {
-    @apply btn border border-white/[0.1] bg-ink-900/70 text-ink-200 shadow-sm hover:border-white/[0.18] hover:bg-ink-800 hover:text-white;
+    @apply btn border border-hairline bg-ink-900/70 text-ink-200 shadow-sm hover:border-hairline-strong hover:bg-ink-800 hover:text-white;
   }
 
   .btn-secondary {
-    @apply btn border border-white/[0.12] bg-white/[0.05] text-ink-100 hover:bg-white/[0.1] hover:border-white/[0.2] hover:text-white;
+    @apply btn border border-hairline-strong bg-surface-3 text-ink-100 hover:bg-surface-3 hover:border-hairline-strong hover:text-white;
   }
 
   .btn-sm {
@@ -103,7 +182,7 @@ body {
   }
 
   .input {
-    @apply h-9 rounded-lg border border-white/[0.1] bg-ink-900/80 px-3 text-sm text-ink-50 outline-none transition-colors placeholder:text-ink-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25;
+    @apply h-9 rounded-control border border-hairline bg-ink-900/80 px-3 text-sm text-ink-50 outline-none transition-colors placeholder:text-ink-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/25;
   }
 
   .chip {
@@ -122,7 +201,7 @@ body {
     @apply chip border-signal-400/30 bg-signal-500/10 text-signal-400;
   }
   .chip-neutral {
-    @apply chip border-white/[0.08] bg-ink-850/80 text-ink-300;
+    @apply chip border-hairline bg-ink-850/80 text-ink-300;
   }
 
   .eyebrow {
@@ -130,7 +209,7 @@ body {
   }
 
   .badge-status {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-ink-900/90 px-3 py-1 font-mono text-xs text-ink-300;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-hairline bg-ink-900/90 px-3 py-1 font-mono text-xs text-ink-300;
   }
 }
 
@@ -172,10 +251,10 @@ body {
   border-color: rgb(15 23 42 / 0.12);
 }
 
-/* White-alpha utilities become structural light tokens so real contrast,
-   surfaces, dividers, and rings survive in light mode. Everything in the app
-   derives from the --ink-* tokens, so dark text over white cards is correct
-   here. */
+/* Structural light mode is carried by the --hairline and --surface-* tokens, so
+   there are no raw white-alpha utilities left to patch. The literal
+   `text-white` utility is still used across the app, though, and it has to
+   invert to near-black on light surfaces (dark text over white cards). */
 :root[data-theme="light"] .text-white {
   color: rgb(15 23 42 / 1) !important;
 }
@@ -184,18 +263,6 @@ body {
    label pure white on an already near-white surface and the text disappears. */
 :root[data-theme="light"] .hover\:text-white:hover {
   color: rgb(15 23 42 / 1) !important;
-}
-:root[data-theme="light"] [class*="border-white"] {
-  border-color: rgb(15 23 42 / 0.14) !important;
-}
-:root[data-theme="light"] [class*="bg-white/"] {
-  background-color: rgb(15 23 42 / 0.04) !important;
-}
-:root[data-theme="light"] [class*="divide-white"] > * + * {
-  border-color: rgb(15 23 42 / 0.08) !important;
-}
-:root[data-theme="light"] [class*="ring-white"] {
-  --tw-ring-color: rgb(15 23 42 / 0.14) !important;
 }
 :root[data-theme="light"] ::selection {
   background-color: var(--brand-500);
@@ -242,6 +309,10 @@ body {
 
 .container-text {
   @apply mx-auto w-full max-w-2xl px-4 sm:px-6;
+}
+
+.container-content {
+  @apply mx-auto w-full max-w-content px-4 sm:px-6 lg:px-8;
 }
 
 .link {

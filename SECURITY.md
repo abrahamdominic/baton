@@ -7,7 +7,7 @@ before deploying.
 ## GitHub App permissions
 
 | Permission | Access | Why |
-| --- | --- | --- |
+|  |  |  |
 | Pull requests | Read & write | Read state; write status comments and nudges. |
 | Issues | Read & write | Write state labels and comments in the PR thread. |
 | Checks | Read only | Detect failing/pending CI. |
@@ -75,7 +75,7 @@ days for debugging.
 ## Threat model (selected)
 
 | Threat | Mitigation |
-| --- | --- |
+|  |  |
 | Forged webhook | Constant-time HMAC verification; unsigned requests rejected. |
 | Webhook replay | Unique `(deliveryId, eventType)`; processing is idempotent. |
 | CSRF on OAuth | Single-use hashed `state` cookie, verified on callback. |

@@ -3,8 +3,8 @@
  *
  * `JSON.stringify` does not escape `<`, `>`, or `&`. A JSON-LD block is parsed
  * as raw text by the HTML tokenizer before the JSON parser ever sees it, so a
- * string containing `</script>` — or the equivalent `<!--` sequence, which still
- * ends the script element in some parsers — terminates the block early and turns
+ * string containing `</script>`, or the equivalent `<!--` sequence, which still
+ * ends the script element in some parsers, terminates the block early and turns
  * the remainder into live markup. Any value that reaches JSON-LD from a database
  * row, a repo name, or a translation string is therefore a potential injection
  * point into the marketing pages.

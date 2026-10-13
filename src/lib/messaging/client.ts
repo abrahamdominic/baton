@@ -1,7 +1,7 @@
 // Client-only E2E messaging helpers.
 //
 // Device keypairs are generated here and the PRIVATE halve is persisted in
-// localStorage — it never touches the network or the database. Thread keys are
+// localStorage, it never touches the network or the database. Thread keys are
 // unwrapped in memory from the server's wraps (ECDH(our private, issuer public))
 // and are never persisted at all.
 

@@ -80,7 +80,7 @@ export default async function CheckoutPage({
       </div>
 
       {blocksPlanChange && pendingCheckout ? (
-        <div className="flex items-start gap-2.5 rounded-xl border border-warn-500/25 bg-warn-500/[0.06] px-4 py-3 text-xs text-warn-200">
+        <div className="flex items-start gap-2.5 rounded-panel border border-warn-500/25 bg-warn-500/[0.06] px-4 py-3 text-xs text-warn-200">
           <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-300" />
           <span>
             {t("billing:pending_checkout_prefix", {
@@ -94,10 +94,10 @@ export default async function CheckoutPage({
         </div>
       ) : null}
 
-      {/* Monthly / Annual switch — both links re-render the server page with a
+      {/* Monthly / Annual switch, both links re-render the server page with a
           recomputed server-authoritative amount (the UI can never drift from it). */}
       {!plan.price_custom ? (
-        <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-1.5">
+        <div className="rounded-panel border border-hairline bg-ink-900/60 p-1.5">
           <div className="grid grid-cols-2 gap-1.5">
             {(["monthly", "annual"] as const).map((opt) => {
               const active = interval === opt;
@@ -105,10 +105,10 @@ export default async function CheckoutPage({
                 <Link
                   key={opt}
                   href={`/dashboard/billing/checkout?plan=${plan.id}&billing=${opt}`}
-                  className={`flex flex-col items-center rounded-lg px-3 py-2 text-center transition-colors ${
+                  className={`flex flex-col items-center rounded-control px-3 py-2 text-center transition-colors ${
                     active
                       ? "bg-brand-500/15 text-on-brand ring-1 ring-brand-500/30"
-                      : "text-ink-400 hover:bg-white/[0.04] hover:text-ink-200"
+                      : "text-ink-400 hover:bg-surface-2 hover:text-ink-200"
                   }`}
                 >
                   <span className="text-sm font-semibold">{t(`billing:interval_${opt}`)}</span>
@@ -133,14 +133,14 @@ export default async function CheckoutPage({
       <PageHeader
         title={
           <span>
-            {plan.name} &middot; <span>{t(`billing:interval_${interval}`)}</span>
+            {plan.name}, <span>{t(`billing:interval_${interval}`)}</span>
           </span>
         }
         description={t("billing:checkout_description")}
       />
 
       {requiresPortal ? (
-        <div className="space-y-5 rounded-xl border border-brand-500/25 bg-brand-500/[0.05] p-5 sm:p-6">
+        <div className="space-y-5 rounded-panel border border-brand-500/25 bg-brand-500/[0.05] p-5 sm:p-6">
           <div>
             <h2 className="text-base font-bold text-white">{t("billing:portal_required_title")}</h2>
             <p className="mt-2 max-w-xl text-xs leading-relaxed text-ink-300">

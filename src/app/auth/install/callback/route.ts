@@ -156,8 +156,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   // Authoritative ownership proof when the App granted a user token: GitHub
   // itself reports which installations this user administers. `installation_id`
-  // is a sequential integer, so this membership check — not the query
-  // parameter — is what makes attribution legitimate.
+  // is a sequential integer, so this membership check, not the query
+  // parameter, is what makes attribution legitimate.
   let administeredInstallations: number[] = [];
   if (appUserToken) {
     administeredInstallations = await fetchUserInstallations(appUserToken).catch(() => []);

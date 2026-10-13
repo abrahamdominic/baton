@@ -5,7 +5,7 @@
  * surfaces it as `code`. The code is the only thing that distinguishes "this row
  * already exists, which for an insert-once table means a concurrent writer won
  * the race and its row is the one we want" from "this insert was rejected", so
- * it is the thing to branch on — not the message text, which names whichever
+ * it is the thing to branch on, not the message text, which names whichever
  * constraint happened to trip and is not a stable contract.
  *
  * `23505` is `unique_violation`; `P2002` is Prisma's rendering of the same

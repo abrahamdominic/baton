@@ -3,7 +3,7 @@ import { minorToUsdcOnchain, usdcOnchainToMinor, formatMoney } from "./amounts";
 
 describe("amount conversions", () => {
   it("converts cents to 6-decimal on-chain units (factor 10^4)", () => {
-    expect(minorToUsdcOnchain(1000)).toBe(10_000_000); // $10.00 → 10 USDC with 6 decimals
+    expect(minorToUsdcOnchain(1000)).toBe(10_000_000); // $10.00 to 10 USDC with 6 decimals
     expect(minorToUsdcOnchain(150)).toBe(1_500_000);
     expect(minorToUsdcOnchain(0)).toBe(0);
   });

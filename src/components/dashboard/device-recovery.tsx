@@ -148,7 +148,7 @@ export function DeviceRecovery({
   const deviceCount = missing.reduce((n, m) => n + m.devices.length, 0);
 
   return (
-    <div className="border-b border-white/[0.07] px-5 py-2">
+    <div className="border-b border-hairline px-5 py-2">
       {!open ? (
         <button
           type="button"
@@ -184,7 +184,7 @@ export function DeviceRecovery({
                   key={m.userId}
                   className="font-mono text-[10px] text-ink-500"
                 >
-                  @{m.login} · {m.devices.length} device
+                  @{m.login}, {m.devices.length} device
                   {m.devices.length === 1 ? "" : "s"}
                 </li>
               ))}

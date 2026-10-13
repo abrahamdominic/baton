@@ -2,7 +2,8 @@ import { jsonLdScriptContent } from "@/lib/json-ld";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingHeader, MarketingFooter } from "@/components/marketing";
-import { IconGitHub, IconArrowRight } from "@/components/icons";
+import { IconGitHub } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import { GITHUB_ISSUES_URL } from "@/lib/site";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 
@@ -65,7 +66,7 @@ export default async function FaqPage() {
       />
       <MarketingHeader />
 
-      <main className="container-page py-16 md:py-24">
+      <main id="main" className="container-page py-16 md:py-24">
         <div className="max-w-2xl">
           <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
             {t("faq:h1")}
@@ -86,7 +87,7 @@ export default async function FaqPage() {
                   {group.items.map((id) => (
                     <details
                       key={id}
-                      className="group rounded-xl border border-white/[0.08] bg-ink-900/60 transition-all hover:border-white/[0.14] open:border-brand-500/40 open:bg-ink-850"
+                      className="group rounded-panel border border-hairline bg-ink-900/60 transition-all hover:border-hairline-strong open:border-brand-500/40 open:bg-ink-850"
                     >
                       <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-semibold text-white transition-colors group-hover:text-brand-200 [&::-webkit-details-marker]:hidden">
                         <span>{t(`faq:${group.ns}_${id}_q`)}</span>
@@ -97,7 +98,7 @@ export default async function FaqPage() {
                           +
                         </span>
                       </summary>
-                      <div className="border-t border-white/[0.06] px-6 pb-5 pt-3.5 text-xs leading-relaxed text-ink-300 sm:text-sm">
+                      <div className="border-t border-hairline px-6 pb-5 pt-3.5 text-xs leading-relaxed text-ink-300 sm:text-sm">
                         {t(`faq:${group.ns}_${id}_a`)}
                       </div>
                     </details>
@@ -108,7 +109,7 @@ export default async function FaqPage() {
           })}
         </div>
 
-        <div className="mt-16 flex flex-wrap items-center justify-between gap-6 rounded-2xl border border-white/[0.08] bg-ink-900/40 p-8 text-center sm:text-left">
+        <div className="mt-16 flex flex-wrap items-center justify-between gap-6 rounded-feature border border-hairline bg-ink-900/40 p-8 text-center sm:text-left">
           <div>
             <h2 className="text-base font-bold text-white">
               {t("faq:help_title")}
@@ -127,7 +128,7 @@ export default async function FaqPage() {
             </a>
             <Link href="/docs" className="btn btn-primary btn-sm">
               {t("faq:help_docs")}
-              <IconArrowRight className="h-3.5 w-3.5" />
+              <LinkArrow className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>

@@ -27,7 +27,7 @@ function statusTone(status: string): string {
     case "rejected":
       return "border-danger-500/30 bg-danger-500/10 text-danger-300";
     default:
-      return "border-white/[0.08] bg-white/[0.04] text-ink-400";
+      return "border-hairline bg-surface-2 text-ink-400";
   }
 }
 
@@ -65,14 +65,14 @@ export default async function AdminPaymentsPage({
       />
 
       {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <Link
             href="/admin/payments"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+            className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
               !status
                 ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                : "text-ink-400 hover:bg-surface-2 hover:text-white"
             }`}
           >
             {t("admin:payments_filter_all")}
@@ -81,10 +81,10 @@ export default async function AdminPaymentsPage({
             <Link
               key={s}
               href={`/admin/payments?status=${s}`}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
                 status === s
                   ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                  : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                  : "text-ink-400 hover:bg-surface-2 hover:text-white"
               }`}
             >
               {paymentStatusLabel(s, t)}
@@ -98,8 +98,8 @@ export default async function AdminPaymentsPage({
       </div>
 
       {/* Payments List */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("admin:payments_recorded", { count: payments.length })}
           </span>
@@ -121,13 +121,13 @@ export default async function AdminPaymentsPage({
             />
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {payments.map((p) => {
               const payer = identities.get(p.user_id) ?? null;
               return (
                 <li
                   key={p.id}
-                  className="p-5 sm:p-6 transition-colors hover:bg-white/[0.015]"
+                  className="p-5 sm:p-6 transition-colors hover:bg-surface-1"
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0 flex-1">
@@ -139,7 +139,7 @@ export default async function AdminPaymentsPage({
                         >
                           {paymentStatusLabel(p.status, t)}
                         </span>
-                        <span className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
+                        <span className="rounded bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase text-ink-400">
                           {p.payment_provider}
                         </span>
                         <span className="font-mono text-sm font-bold tabular-nums text-white">
@@ -152,7 +152,7 @@ export default async function AdminPaymentsPage({
                             href={`https://github.com/${payer.login}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded bg-white/[0.04] px-2 py-0.5 text-[11px] text-ink-200 transition-colors hover:bg-white/[0.08] hover:text-white"
+                            className="inline-flex items-center gap-1 rounded bg-surface-2 px-2 py-0.5 text-[11px] text-ink-200 transition-colors hover:bg-surface-3 hover:text-white"
                           >
                             {describeActor(payer)}
                           </a>
@@ -161,15 +161,15 @@ export default async function AdminPaymentsPage({
 
                       <p className="mt-1 font-mono text-[11px] text-ink-400">
                         {t("admin:payments_payment_id")}{" "}
-                        <span className="text-ink-200">{p.id}</span> &middot;{" "}
+                        <span className="text-ink-200">{p.id}</span>, {" "}
                         {payer?.email ? (
                           <>
                             {t("admin:payments_email")}{" "}
-                            <span className="text-ink-200">{payer.email}</span> &middot;{" "}
+                            <span className="text-ink-200">{payer.email}</span>, {" "}
                           </>
                         ) : null}
                         {t("admin:payments_user_id")}{" "}
-                        <span className="text-ink-200">{p.user_id}</span> &middot;{" "}
+                        <span className="text-ink-200">{p.user_id}</span>, {" "}
                         {new Date(p.created_at).toISOString()}
                       </p>
 
@@ -204,7 +204,7 @@ export default async function AdminPaymentsPage({
                       <div className="flex shrink-0 flex-col items-start lg:items-end gap-2 pt-1">
                         <form action={runVerificationAction}>
                           <input type="hidden" name="paymentId" value={p.id} />
-                          <label className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                          <label className="flex flex-wrap items-center gap-1.5 rounded-control border border-hairline bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
                             <input
                               type="checkbox"
                               name="confirm"
@@ -223,7 +223,7 @@ export default async function AdminPaymentsPage({
                           <form action={manualDecisionAction}>
                             <input type="hidden" name="paymentId" value={p.id} />
                             <input type="hidden" name="decision" value="confirmed" />
-                            <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                            <label className="flex items-center gap-1.5 rounded-control border border-hairline bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
                               <input
                                 type="checkbox"
                                 name="confirm"
@@ -244,7 +244,7 @@ export default async function AdminPaymentsPage({
                           <form action={manualDecisionAction}>
                             <input type="hidden" name="paymentId" value={p.id} />
                             <input type="hidden" name="decision" value="rejected" />
-                            <label className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+                            <label className="flex items-center gap-1.5 rounded-control border border-hairline bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
                               <input
                                 type="checkbox"
                                 name="confirm"

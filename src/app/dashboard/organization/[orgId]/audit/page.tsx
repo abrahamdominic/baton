@@ -78,16 +78,16 @@ export default async function OrganizationAuditPage({
           hint={t("workspace:audit_empty_hint")}
         />
       ) : (
-        <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
+        <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("workspace:event_count", { count: rows.length })}
             </span>
             <span className="font-mono text-[11px] text-ink-500">
-              org-scoped trail &middot; immutable
+              org-scoped trail, immutable
             </span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {rows.map((r) => (
               <li key={r.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
                 <div className="min-w-0 flex-1">
@@ -111,8 +111,8 @@ export default async function OrganizationAuditPage({
                     ) : (
                       <span className="text-ink-300">actor @{r.actor}</span>
                     )}
-                    <span className="text-ink-600">· recorded actor {r.actor}</span>
-                    {r.ip ? <span className="text-ink-600">· {r.ip}</span> : null}
+                    <span className="text-ink-600">, recorded actor {r.actor}</span>
+                    {r.ip ? <span className="text-ink-600">, {r.ip}</span> : null}
                   </p>
                 </div>
                 <NiceDate date={r.createdAt} format={formatDateTime} />

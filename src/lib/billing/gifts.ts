@@ -18,7 +18,7 @@ import type { GiftRecord, SubscriptionRecord } from "./types";
  * plainly distinguish it from paid access), an immutable `subscription_events`
  * entry with source `admin`, and a `gift_grants` ledger row. Housekeeping
  * expires the grant automatically at `access_ends_at` and entitlement reverts
- * on schedule — the gift can never quietly renew or overstay.
+ * on schedule, the gift can never quietly renew or overstay.
  */
 
 export const GIFT_MIN_MONTHS = 1;

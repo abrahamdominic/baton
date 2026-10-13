@@ -115,9 +115,9 @@ export async function processStripeEvent(event: Stripe.Event): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Handlers
-// ---------------------------------------------------------------------------
+// 
 
 function epochSecondsToIso(seconds: number | null | undefined): string | null {
   if (!seconds) return null;
@@ -368,7 +368,7 @@ async function onInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
  *
  * Unlike `invoice.payment_failed`, this will never resolve on its own: the saved
  * card is unusable (expired, or a 3DS challenge was not completed). Marking it
- * past_due would be wrong twice over — housekeeping would expire a subscription
+ * past_due would be wrong twice over, housekeeping would expire a subscription
  * Stripe is still willing to collect once the card is fixed, and the dashboard
  * would tell the user to wait. The row gets a durable flag instead, which the
  * billing page renders as "update your card".
@@ -773,9 +773,9 @@ async function onSubscriptionDeleted(subscription: Stripe.Subscription): Promise
   }
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Small helpers
-// ---------------------------------------------------------------------------
+// 
 
 function patchSubscriptionFields(id: string, patch: Record<string, unknown>) {
   const sb = getAdminClient();

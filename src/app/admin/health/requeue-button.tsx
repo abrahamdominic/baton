@@ -82,7 +82,7 @@ export function RequeueButton({ jobId }: { jobId: string }) {
           {state.error ? (
             <p
               role="alert"
-              className="rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300"
+              className="rounded-control border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300"
             >
               {state.error}
             </p>

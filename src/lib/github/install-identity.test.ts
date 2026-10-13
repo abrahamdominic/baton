@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * `registerInstallation` used to accept `{ accountLogin }` from its caller, and
  * the install callback passed the signed-in user's own login. That mattered
  * because `myInstallations` authorizes repository visibility on
- * `OR: [{ userId }, { accountLogin: user.login }]` — so overwriting
+ * `OR: [{ userId }, { accountLogin: user.login }]`, so overwriting
  * `accountLogin` granted the caller read AND write access to the victim
  * installation's repositories while locking the real owner out.
  *

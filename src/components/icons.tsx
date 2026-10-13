@@ -24,15 +24,6 @@ export function IconActivity(props: P) {
   );
 }
 
-export function IconArrowRight(props: P) {
-  return (
-    <svg {...base(props)}>
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  );
-}
-
 export function IconBell(props: P) {
   return (
     <svg {...base(props)}>

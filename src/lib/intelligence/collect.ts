@@ -557,7 +557,7 @@ export async function collectRepositoryIntelligence(
   const openPullRequests = readTotal(openPrs.headers as Record<string, unknown>);
   const openIssueRows = readTotal(openIssues.headers as Record<string, unknown>);
 
-  // --- Repository profile (aa.md §6) ---------------------------------------
+  //  Repository profile (aa.md §6) 
   // Derived from the tree already fetched, plus one bounded commit walk. Both
   // are best-effort: a repository we cannot read is reported as unknown rather
   // than as "this project has no dependencies / no tests".
@@ -903,7 +903,7 @@ export async function saveRepositoryIntelligence(
  * The same fingerprint, computed from the stored columns rather than from a
  * fresh collection. `topics`/`languages`/`structure` are JSON strings in the
  * database, so they are normalised back to the shape `fingerprint` expects
- * before comparing — otherwise every run would look like a change.
+ * before comparing, otherwise every run would look like a change.
  */
 function storedFingerprint(row: {
   description: string | null;

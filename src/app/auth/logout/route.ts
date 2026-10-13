@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * POST only. This was a state-changing GET, which is forgeable: any page on
  * the internet could sign a visitor out with an `<img src="https://…/auth/logout">`,
  * and because the redirect target is also attacker-supplied this made for a
- * cheap phishing primitive — authenticate a victim on github.com, bounce them
+ * cheap phishing primitive, authenticate a victim on github.com, bounce them
  * through a logout into an attacker-shaped URL. `SameSite=Lax` on the session
  * cookie does not help: a top-level navigation still sends it.
  *

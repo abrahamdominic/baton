@@ -372,7 +372,7 @@ export function deriveRepositoryProfile(
     ["rush.json", "Rush"],
   ]);
 
-  // --- Commit-derived facts -------------------------------------------------
+  //  Commit-derived facts 
 
   const areaCommits = new Map<string, number>();
   const fileCommits = new Map<string, { commits: number; last: string }>();

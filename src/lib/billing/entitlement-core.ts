@@ -65,7 +65,7 @@ function isFeatureKey(value: unknown): value is FeatureKey {
  * Read one numeric cap out of a free-form `limits` blob.
  *
  * `null` means "no cap" and is only honoured when the stored value is
- * genuinely `null`/`undefined` — i.e. when an administrator deliberately wrote
+ * genuinely `null`/`undefined`, i.e. when an administrator deliberately wrote
  * "unlimited". A malformed, negative, zero, or fractional value falls back to
  * `0` instead of `null`: failing open would hand a corrupted row an unlimited
  * allowance, and failing closed costs a customer nothing they could prove they

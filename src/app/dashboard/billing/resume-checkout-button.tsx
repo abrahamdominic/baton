@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { resumeCheckoutAction, type ResumeCheckoutResult } from "./actions";
-import { IconArrowRight, IconRefresh } from "@/components/icons";
+import { IconRefresh } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 
 /**
  * Primary action for continuing a pending checkout. Calls a server action that
@@ -59,7 +60,7 @@ export function ResumeCheckoutButton({
           <IconRefresh className="h-3 w-3 animate-spin" aria-hidden />
         ) : null}
         <span>{resolving ? "Preparing…" : isPaymentFailed ? "Retry payment" : "Continue payment"}</span>
-        {!resolving ? <IconArrowRight className="h-3 w-3" aria-hidden /> : null}
+        {!resolving ? <LinkArrow className="h-3 w-3" aria-hidden /> : null}
       </button>
       {error ? (
         <p role="alert" className="text-[11px] leading-snug text-danger-300">

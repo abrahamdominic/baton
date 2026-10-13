@@ -352,7 +352,7 @@ export async function saveDigest(
     // The check above is not a lock: a second generator for the same briefing can
     // pass it and reach the insert first. The unique index is what actually makes
     // "one digest per slot" true, so treat the collision as a win rather than an
-    // error — the row the other writer inserted is the digest we wanted.
+    // error, the row the other writer inserted is the digest we wanted.
     if (!isUniqueViolation(e)) {
       logger.warn("insight-digest-save-failed", {
         repoRowId,

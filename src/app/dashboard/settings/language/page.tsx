@@ -7,7 +7,7 @@ import { resolveRequestLocale } from "@/lib/i18n/resolve";
 export const dynamic = "force-dynamic";
 
 /**
- * Settings → Language (lan.md §4).
+ * Settings to Language (lan.md §4).
  *
  * The page itself renders in the user's language on the server, and the picker
  * switches the rest of the app client-side without a navigation. Nothing here

@@ -95,7 +95,7 @@ export default async function RepoPage({
 
       {/* State distribution summary tags */}
       {board.prs.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.08] bg-ink-900/40 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-2 rounded-panel border border-hairline bg-ink-900/40 p-3 sm:p-4">
           <span className="font-mono text-[10px] uppercase font-semibold text-ink-500 mr-1">
             {t("repos:board_distribution")}
           </span>
@@ -104,7 +104,7 @@ export default async function RepoPage({
             return (
               <span
                 key={st}
-                className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/80 px-2.5 py-1 text-xs font-medium text-ink-300"
+                className="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-ink-900/80 px-2.5 py-1 text-xs font-medium text-ink-300"
               >
                 <span className="text-white font-bold font-mono">{count}</span>
                 <span>{stateLabel(st, t)}</span>
@@ -121,8 +121,7 @@ export default async function RepoPage({
           title={t("repos:board_empty_title")}
           hint={t("repos:board_empty_hint")}
           action={
-            <Link href="/dashboard/repos" className="btn btn-ghost btn-sm">
-              &larr; {t("repos:board_empty_back")}
+            <Link href="/dashboard/repos" className="btn btn-ghost btn-sm"> from {t("repos:board_empty_back")}
             </Link>
           }
         />
@@ -135,23 +134,23 @@ export default async function RepoPage({
             return (
               <section
                 key={state}
-                className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm"
+                className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm"
               >
                 {/* State Section Header */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-ink-950/70 px-5 py-3">
                   <div className="flex items-center gap-2.5">
                     <Badge tone={meta.tone}>{stateLabel(state, t)}</Badge>
                     <span className="font-mono text-xs font-bold text-ink-300">
                       ({prs.length})
                     </span>
                   </div>
-                  <code className="rounded bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-ink-500">
+                  <code className="rounded bg-surface-2 px-2 py-0.5 font-mono text-[10px] text-ink-500">
                     baton:{state.toLowerCase().replace(/_/g, "-")}
                   </code>
                 </div>
 
                 {/* PR Cards */}
-                <ul className="divide-y divide-white/[0.05]">
+                <ul className="divide-y divide-hairline">
                   {prs.map((pr) => {
                     const hours = (Date.now() - pr.stateEnteredAt.getTime()) / 3_600_000;
                     const isStalled = hours >= 24;
@@ -159,11 +158,11 @@ export default async function RepoPage({
                     return (
                       <li
                         key={pr.id}
-                        className="transition-colors hover:bg-white/[0.02]"
+                        className="transition-colors hover:bg-surface-1"
                       >
                         <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                           <div className="flex min-w-0 flex-1 items-start gap-3.5">
-                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-ink-850 text-brand-300">
+                            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control border border-hairline bg-ink-850 text-brand-300">
                               <IconGitPullRequest className="h-4 w-4" />
                             </span>
 
@@ -191,7 +190,7 @@ export default async function RepoPage({
 
                               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-ink-400">
                                 <span>{t("repos:board_by_author", { login: pr.authorLogin })}</span>
-                                <span className="text-ink-600">&middot;</span>
+                                <span className="text-ink-600">, </span>
                                 <span className="flex items-center gap-1 text-[11px]">
                                   <IconClock className="h-3 w-3 text-ink-500" />
                                   <span>{t("repos:board_waiting")}</span>
@@ -206,7 +205,7 @@ export default async function RepoPage({
                                 </span>
                                 {pr.reviewDecision?.startsWith("APPROVED") ? (
                                   <>
-                                    <span className="text-ink-600">&middot;</span>
+                                    <span className="text-ink-600">, </span>
                                     <span className="font-sans font-semibold text-signal-400">
                                       {t("repos:board_approved")}
                                     </span>

@@ -134,7 +134,7 @@ interface ParsedTransfer {
  *
  * `expectedOnchain` is the order's *unique* on-chain amount (plan price plus a
  * per-order sub-cent nonce, see `newUsdcOrderNonce` in payments.ts). Matching on the exact
- * amount — not just "at least the price" — is what binds a transfer to one
+ * amount, not just "at least the price", is what binds a transfer to one
  * order: a transaction can only ever satisfy the single order that was issued
  * that precise figure, so a public transfer cannot be re-pointed at somebody
  * else's pending order.

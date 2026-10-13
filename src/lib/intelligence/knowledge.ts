@@ -139,7 +139,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     entries.push({ ...rest, stableKey: stableKeyFor(e.kind, subject ?? e.title) });
   };
 
-  // --- Architecture -------------------------------------------------------
+  //  Architecture 
   if (profile.hasTypeScript) {
     push({
       kind: "architecture",
@@ -200,7 +200,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Workflows ----------------------------------------------------------
+  //  Workflows 
   if (profile.testFramework) {
     push({
       kind: "workflow",
@@ -256,7 +256,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Deployment ---------------------------------------------------------
+  //  Deployment 
   if (profile.deploymentTargets.length > 0) {
     push({
       kind: "deployment",
@@ -292,7 +292,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Documentation ------------------------------------------------------
+  //  Documentation 
   if (profile.hasDocsDir) {
     push({
       kind: "documentation",
@@ -328,7 +328,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Ownership ----------------------------------------------------------
+  //  Ownership 
   if (input.codeowners) {
     push({
       kind: "ownership",
@@ -342,7 +342,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Hot areas (highest change frequency) --------------------------------
+  //  Hot areas (highest change frequency) 
   // Scaled by sample size: "hot" in a 200-commit sample is a different claim
   // from "hot" in 3 commits, and reporting them the same would be dishonest.
   // Share alone cannot carry that weight, because share is *highest* in a tiny
@@ -396,7 +396,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Recurring failure patterns -----------------------------------------
+  //  Recurring failure patterns 
   if (input.ciFailureCount >= 3) {
     const rate =
       input.ciFailureRate === null
@@ -435,7 +435,7 @@ export function deriveKnowledge(input: KnowledgeInput): KnowledgeEntry[] {
     });
   }
 
-  // --- Release cadence ----------------------------------------------------
+  //  Release cadence 
   if (input.lastReleaseTag && input.lastReleaseAt) {
     push({
       kind: "workflow",

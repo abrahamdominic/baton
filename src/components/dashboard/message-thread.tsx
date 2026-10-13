@@ -100,7 +100,7 @@ export function MessageThread({
       const out: DecryptedMessage[] = [];
       for (const m of rows) {
         if (m.protocolVersion !== "v1" && m.protocolVersion !== "v2") {
-          out.push({ ...m, plaintext: "⚠ unsupported message scheme" });
+          out.push({ ...m, plaintext: " unsupported message scheme" });
           continue;
         }
         try {
@@ -117,7 +117,7 @@ export function MessageThread({
             }),
           });
         } catch {
-          out.push({ ...m, plaintext: "⚠ undecryptable message" });
+          out.push({ ...m, plaintext: " undecryptable message" });
         }
       }
       return out;
@@ -237,7 +237,7 @@ export function MessageThread({
         }
         await markRead();
       } catch {
-        // transient polling failure — retry next tick
+        // transient polling failure, retry next tick
       }
     }, 5000);
     return () => clearInterval(timer);
@@ -365,13 +365,13 @@ export function MessageThread({
   );
 
   return (
-    <div className="flex h-[calc(100vh-16rem)] min-h-[420px] flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
+    <div className="flex h-[calc(100vh-16rem)] min-h-[420px] flex-col overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] px-5 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-5 py-3.5">
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-white">{others}</p>
           <p className="mt-0.5 font-mono text-[10px] text-ink-500">
-            {total} message{total === 1 ? "" : "s"} · encrypted
+            {total} message{total === 1 ? "" : "s"}, encrypted
           </p>
         </div>
         {canDecrypt ? (
@@ -394,7 +394,7 @@ export function MessageThread({
             {unlocking ? "Unlocking your thread key…" : "Setting up…"}
           </p>
         ) : unlockError ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-warn-500/20 bg-warn-500/[0.05] px-4 py-6 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-control border border-warn-500/20 bg-warn-500/[0.05] px-4 py-6 text-center">
             <IconAlertCircle className="h-5 w-5 text-warn-400" />
             <p className="text-xs font-medium text-ink-200">{unlockError}</p>
           </div>
@@ -430,10 +430,10 @@ export function MessageThread({
                     className={`flex ${mine ? "justify-end" : "justify-start"}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 ${
+                      className={`max-w-[85%] rounded-feature px-3.5 py-2.5 ${
                         mine
                           ? "rounded-br-md bg-brand-500/90 text-on-brand"
-                          : "rounded-bl-md border border-white/[0.06] bg-ink-950/70 text-ink-100"
+                          : "rounded-bl-md border border-hairline bg-ink-950/70 text-ink-100"
                       }`}
                     >
                       {!mine ? (
@@ -462,7 +462,7 @@ export function MessageThread({
       </div>
 
       {/* Composer */}
-      <div className="border-t border-white/[0.07] p-3">
+      <div className="border-t border-hairline p-3">
         {sendError ? (
           <p
             role="alert"
@@ -535,7 +535,7 @@ function LinkBack({
       onClick={() => router.push(dest)}
       className="mt-2 text-[10px] font-medium text-ink-500 transition-colors hover:text-brand-300"
     >
-      ← Back to conversations
+ from Back to conversations
     </button>
   );
 }

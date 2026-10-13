@@ -24,8 +24,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   // Rate limit per client IP. This endpoint mints fresh PKCE verifiers and state
   // values and hands them to GitHub, so an unauthenticated caller can drive an
   // unbounded number of authorize round trips for free. Twenty per minute is far
-  // above what a person clicking "Sign in with GitHub" needs — including after a
-  // failed attempt — while still bounding the cost of an automated one.
+  // above what a person clicking "Sign in with GitHub" needs, including after a
+  // failed attempt, while still bounding the cost of an automated one.
   if (!rateLimiter.check(`auth:login:${getClientIp(req)}`, 20, 60_000)) {
     metrics.authFailure("oauth login rate limited");
     return NextResponse.redirect(new URL("/?oauth_error=1&reason=rate_limited", baseUrl));

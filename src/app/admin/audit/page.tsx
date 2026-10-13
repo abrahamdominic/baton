@@ -33,8 +33,8 @@ export default async function AdminAuditPage() {
       />
 
       {/* Audit Log Table */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {audit.length} Audit Entries Recorded
           </span>
@@ -52,11 +52,11 @@ export default async function AdminAuditPage() {
             />
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {audit.map((a) => (
               <li
                 key={a.id}
-                className="p-5 sm:p-6 transition-colors hover:bg-white/[0.015]"
+                className="p-5 sm:p-6 transition-colors hover:bg-surface-1"
               >
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
@@ -69,7 +69,7 @@ export default async function AdminAuditPage() {
                       </span>
                       {a.resourceId ? (
                         <span className="font-mono text-xs text-ink-400">
-                          ID: <code className="rounded bg-white/[0.04] px-1.5 py-0.5 text-ink-200">{a.resourceId}</code>
+                          ID: <code className="rounded bg-surface-2 px-1.5 py-0.5 text-ink-200">{a.resourceId}</code>
                         </span>
                       ) : null}
                       <span
@@ -97,16 +97,15 @@ export default async function AdminAuditPage() {
                       )}
                       {a.adminUserId ? (
                         <span className="text-ink-500">
-                          {" "}
-                          &middot; user <code className="text-ink-400">{a.adminUserId}</code>
+                          {" "}, user <code className="text-ink-400">{a.adminUserId}</code>
                         </span>
                       ) : null}
-                      {" · Entry "}
+                      {", Entry "}
                       {a.id.slice(0, 16)}&hellip;
                     </p>
 
                     {a.detail && Object.keys(a.detail).length > 0 ? (
-                      <div className="mt-3 rounded-lg border border-white/[0.04] bg-ink-950/70 p-3">
+                      <div className="mt-3 rounded-control border border-hairline bg-ink-950/70 p-3">
                         <pre className="max-h-36 overflow-x-auto font-mono text-[11px] text-ink-300">
                           {JSON.stringify(a.detail, null, 2)}
                         </pre>

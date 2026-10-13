@@ -82,7 +82,7 @@ export default async function AdminSettingsPage() {
           label: "Stripe Payment Gateway",
           ok: stripe.configured,
           note: stripe.configured
-            ? `Mode: ${stripe.mode} — API key and webhook signing secret accepted`
+            ? `Mode: ${stripe.mode}, API key and webhook signing secret accepted`
             : `Blocked: ${stripe.issues.map((i) => i.split(".")[0]).join("; ")}`,
           detail: stripe.configured ? null : stripe.issues,
           fixes: stripe.configured ? null : stripe.fixes,
@@ -138,20 +138,20 @@ export default async function AdminSettingsPage() {
         {checks.map((section) => (
           <section
             key={section.category}
-            className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm"
+            className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm"
           >
-            <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+            <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
               <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
                 {t(`admin:settings_category_${section.categoryId}`)}
               </span>
             </div>
 
-            <ul className="divide-y divide-white/[0.05]">
+            <ul className="divide-y divide-hairline">
               {section.items.map((item) => {
                 const detail = "detail" in item ? (item.detail as string[] | null) : null;
                 const fixes = "fixes" in item ? (item.fixes as string[] | null) : null;
                 return (
-                  <li key={item.label} className="p-5 text-xs transition-colors hover:bg-white/[0.015]">
+                  <li key={item.label} className="p-5 text-xs transition-colors hover:bg-surface-1">
                     <div className="flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <span
@@ -181,7 +181,7 @@ export default async function AdminSettingsPage() {
                     ) : null}
 
                     {fixes && fixes.length > 0 ? (
-                      <div className="mt-3 rounded-lg border border-brand-500/20 bg-brand-500/[0.06] p-3">
+                      <div className="mt-3 rounded-control border border-brand-500/20 bg-brand-500/[0.06] p-3">
                         <p className="font-mono text-[10px] uppercase tracking-wider text-brand-300">
                           {t("admin:required_env_vars")}
                         </p>
@@ -205,14 +205,14 @@ export default async function AdminSettingsPage() {
         ))}
 
         {/* Runtime Parameter Table */}
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("admin:runtime_parameters")}
             </span>
           </div>
 
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             <li className="flex flex-wrap items-center justify-between gap-4 p-4 text-xs">
               <span className="font-medium text-ink-300">{t("admin:param_site_url")}</span>
               <code className="font-mono text-[11px] text-ink-200">{config.SITE_URL}</code>

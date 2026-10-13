@@ -30,7 +30,7 @@
   "board_by_author": "by @{{login}}",
   "board_waiting": "waiting",
   "board_stalled": "(stalled)",
-  "board_approved": "✓ Approved",
+  "board_approved": "yes Approved",
   "list_title": "Tracked Repositories",
   "list_free_plan_one": "Free Plan: {{active}} of {{max}} active repositories tracked",
   "list_free_plan_other": "Free Plan: {{active}} of {{max}} active repositories tracked",

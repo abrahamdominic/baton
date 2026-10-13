@@ -113,7 +113,7 @@ function ChangePlanForm({
 
   return (
     <form action={action} className="flex flex-col items-start gap-1.5">
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-control border border-hairline bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
         <input type="hidden" name="subscriptionId" value={subscriptionId} />
         <label className="flex items-center gap-1.5">
           <input
@@ -128,7 +128,7 @@ function ChangePlanForm({
         <select
           name="planId"
           defaultValue={defaultPlanId}
-          className="rounded bg-ink-900 px-2 py-0.5 text-xs text-white outline-none border border-white/[0.1]"
+          className="rounded bg-ink-900 px-2 py-0.5 text-xs text-white outline-none border border-hairline"
         >
           {plans.map((p) => (
             <option key={p.id} value={p.id}>
@@ -167,7 +167,7 @@ function SelectActionForm({
 
   return (
     <form action={submit} className="flex flex-col items-start gap-1.5">
-      <div className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
+      <div className="flex items-center gap-1.5 rounded-control border border-hairline bg-ink-950/70 px-2.5 py-1 text-xs text-ink-300">
         {Object.entries(hiddenFields).map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />
         ))}

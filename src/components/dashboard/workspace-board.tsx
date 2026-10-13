@@ -44,7 +44,7 @@ export async function WorkspaceBoard({
         {installAccounts.map((account) => (
           <span
             key={account}
-            className="inline-flex items-center gap-1 rounded-md border border-white/[0.08] bg-ink-900/70 px-2 py-0.5 font-mono text-[11px] text-ink-300"
+            className="inline-flex items-center gap-1 rounded-md border border-hairline bg-ink-900/70 px-2 py-0.5 font-mono text-[11px] text-ink-300"
           >
             <IconBranch className="h-3 w-3 text-brand-400" />
             @{account}
@@ -55,24 +55,24 @@ export async function WorkspaceBoard({
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
+      <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {items.length} Pull Request{items.length === 1 ? "" : "s"} Requiring Action
           </span>
           <span className="font-mono text-[11px] text-ink-500">
-            Team-wide queue &middot; shared by members
+            Team-wide queue, shared by members
           </span>
         </div>
-        <ul className="divide-y divide-white/[0.05]">
+        <ul className="divide-y divide-hairline">
           {items.map((p) => {
             const isStalled = p.hoursInState >= 24;
             return (
-              <li key={p.prId} className="transition-colors hover:bg-white/[0.02]">
+              <li key={p.prId} className="transition-colors hover:bg-surface-1">
                 <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                   <div className="flex min-w-0 flex-1 items-start gap-3.5">
                     <span
-                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs ${
+                      className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control border text-xs ${
                         isStalled
                           ? "border-warn-400/30 bg-warn-500/10 text-warn-300"
                           : "border-brand-500/30 bg-brand-500/10 text-brand-300"
@@ -98,9 +98,9 @@ export async function WorkspaceBoard({
                         <span className="font-mono font-medium text-brand-300">
                           {p.owner}/{p.repo}
                         </span>
-                        <span className="text-ink-600">&middot;</span>
+                        <span className="text-ink-600">, </span>
                         <span>by @{p.authorLogin}</span>
-                        <span className="text-ink-600">&middot;</span>
+                        <span className="text-ink-600">, </span>
                         <span className="flex items-center gap-1 font-mono text-[11px]">
                           <IconClock className="h-3 w-3 text-ink-500" />
                           <span className={isStalled ? "font-bold text-warn-300" : "text-ink-300"}>

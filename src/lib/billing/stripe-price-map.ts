@@ -107,7 +107,7 @@ export function subscriptionPriceIds(subscription: Stripe.Subscription): string[
  * Annual prices are billed up front, so comparing their raw cents against a
  * monthly price makes every annual price look "bigger". Ranking or classifying on
  * raw figures therefore puts `pro annual` ($200/yr) above `team monthly` ($60/mo)
- * and reads a monthly→annual switch as a downgrade. Both are wrong, so every
+ * and reads a monthly to annual switch as a downgrade. Both are wrong, so every
  * money comparison in this module goes through this one function.
  */
 function monthlyEquivalent(binding: PriceBinding): number {
@@ -140,7 +140,7 @@ export function resolveSubscriptionPlan(
 /**
  * Recover the billing interval from a stored paid window.
  *
- * Used where the interval is needed but no payment is at hand — a plan change
+ * Used where the interval is needed but no payment is at hand, a plan change
  * webhook, for instance. Stripe itself uses the same 330-day threshold when
  * deciding whether an invoice is annual, so a window of that length is treated
  * as annual here too rather than by an exact 365.
@@ -175,7 +175,7 @@ export function classifyPlanChange(
   // upgrade even though it lowers the per-month figure, because the customer is
   // committing to a longer term at a discount; switching back to monthly gives
   // that up. Comparing the per-month figures here instead would report a
-  // monthly→annual switch as a downgrade, which is both wrong and the sort of
+  // monthly to annual switch as a downgrade, which is both wrong and the sort of
   // thing that ends up rendered as "downgraded" on an invoice email.
   if (currentInterval !== nextInterval) {
     const samePrice =

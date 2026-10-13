@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
  * In-process counters for the operational signals that have no durable home.
  *
  * Why this exists
- * ---------------
+ * 
  * §26 of the product brief asks for visibility into GitHub API failures, rate
  * limits, Stripe webhook failures, auth failures and application errors. The
  * queue already had `Job` rows to count against, but none of those signals have
@@ -13,7 +13,7 @@ import { logger } from "@/lib/logger";
  * without grepping logs.
  *
  * Design constraints
- * ------------------
+ * 
  *  1. **Never throw into a caller.** Instrumentation must not be able to break
  *     the request it is measuring, so every operation here is best-effort and
  *     swallows its own errors.
@@ -77,7 +77,7 @@ export interface MetricEvent {
  * here: an earlier version kept any label that merely *contained* an allowlisted
  * word, which let `https://github.com/acme/private/pull/1` through untouched and
  * published a private repository name to a page a lower-privileged admin can
- * read. Nothing is lost by requiring callers to use one of these constants — the
+ * read. Nothing is lost by requiring callers to use one of these constants, the
  * wrappers below all do.
  */
 const KNOWN_LABELS = new Set([
@@ -124,7 +124,7 @@ interface Series {
    *
    * The window count is read from these, never from `events`: `events` is capped
    * at `MAX_EVENTS_PER_LABEL`, so counting it would silently cap a busy series at
-   * ten and make every alert threshold above ten unreachable — a metric that
+   * ten and make every alert threshold above ten unreachable, a metric that
    * reports "0 failures" while 300 calls failed is worse than no metric. Sixty
    * fixed buckets cost 60 numbers per series and never need evicting.
    */
@@ -134,7 +134,7 @@ interface Series {
    * Which minute each slot holds.
    *
    * A bare ring of 60 counters cannot tell "this slot is empty" from "this slot
-   * holds the same minute-of-hour as now, but three hours ago" — the two collide
+   * holds the same minute-of-hour as now, but three hours ago", the two collide
    * exactly when the elapsed time is a multiple of the ring length, which is the
    * case for any event an hour, two hours or three hours old. Storing the minute
    * index alongside each slot makes the wrap unambiguous: a slot counts only when
@@ -291,7 +291,7 @@ export interface MetricSummary {
  * A snapshot for the admin health page.
  *
  * Values are grouped by metric *name* rather than returned as raw series, so the
- * UI shows "GitHub API failures: 12" instead of one row per label — which is
+ * UI shows "GitHub API failures: 12" instead of one row per label, which is
  * both more readable and a smaller leak surface.
  */
 export function metricSnapshot(now: number = Date.now()): {
@@ -305,7 +305,7 @@ export function metricSnapshot(now: number = Date.now()): {
   const windowStartedAt = now - WINDOW_MINUTES * 60_000;
 
   // Series hold cumulative counters for the life of the process, which cannot be
-  // partially subtracted — reporting "3 GitHub failures" when all three happened
+  // partially subtracted, reporting "3 GitHub failures" when all three happened
   // last Tuesday would be worse than reporting nothing. The window is therefore
   // counted from the per-minute buckets, which is exact under any volume, and
   // `lifetimeCount` is exposed separately rather than passed off as current.

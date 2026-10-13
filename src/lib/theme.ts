@@ -6,9 +6,10 @@
  * owns the storage key, the legal values, the default, and the
  * `system -> concrete` resolution rule.
  *
- * Dark is the default for a new visitor: the stored value is absent on a first
- * visit, and an OS that prefers light must NOT override Baton's default. A user
- * who explicitly picks "System" still gets live OS following.
+ * Dark is Baton's designed first impression, but a new visitor follows their
+ * system preference: the stored value is absent on a first visit, so the
+ * default is `system` and the OS decides until the visitor chooses explicitly.
+ * A user who picks "Dark" or "Light" gets exactly that, regardless of the OS.
  */
 
 export const THEME_KEY = "baton-theme";
@@ -19,7 +20,7 @@ export type ThemePref = "light" | "dark" | "system";
 export type ResolvedTheme = Exclude<ThemePref, "system">;
 
 /** Baton's default experience for someone who has never chosen a theme. */
-export const DEFAULT_THEME_PREF: ThemePref = "dark";
+export const DEFAULT_THEME_PREF: ThemePref = "system";
 
 export function isThemePref(value: unknown): value is ThemePref {
   return value === "light" || value === "dark" || value === "system";
@@ -27,8 +28,8 @@ export function isThemePref(value: unknown): value is ThemePref {
 
 /**
  * Normalize a stored value. Anything missing, corrupt, or from an older build
- * falls back to Baton's dark default rather than to `system`, so a stale
- * `localStorage` entry can never hand a new user a light first paint.
+ * falls back to Baton's `system` default, so an unset or stale
+ * `localStorage` entry follows the OS until the visitor chooses a concrete theme.
  */
 export function normalizeStoredTheme(value: unknown): ThemePref {
   return isThemePref(value) ? value : DEFAULT_THEME_PREF;

@@ -35,7 +35,7 @@ function DialogShell({
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-md rounded-xl border border-white/[0.1] bg-ink-900 p-5 shadow-2xl"
+        className="relative w-full max-w-md rounded-panel border border-hairline bg-ink-900 p-5 shadow-2xl"
       >
         {children}
       </div>
@@ -66,7 +66,7 @@ function DialogFooter({
         disabled={submitting}
         className={
           confirmTone === "danger"
-            ? "inline-flex items-center justify-center gap-1.5 rounded-lg border border-danger-500/40 bg-danger-500/15 px-3 py-1.5 text-xs font-semibold text-danger-200 transition-colors hover:bg-danger-500/25 focus-visible:ring-2 focus-visible:ring-danger-400 disabled:opacity-60"
+            ? "inline-flex items-center justify-center gap-1.5 rounded-control border border-danger-500/40 bg-danger-500/15 px-3 py-1.5 text-xs font-semibold text-danger-200 transition-colors hover:bg-danger-500/25 focus-visible:ring-2 focus-visible:ring-danger-400 disabled:opacity-60"
             : "btn btn-primary btn-sm"
         }
       >
@@ -141,7 +141,7 @@ export function AdminUserActions({
         <DialogShell onClose={closeDialog}>
           <form action={roleAction}>
             <div className="flex items-start gap-2.5">
-              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-brand-500/25 bg-brand-500/10 text-brand-300">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-control border border-brand-500/25 bg-brand-500/10 text-brand-300">
                 <IconShield className="h-4 w-4" />
               </span>
               <div className="min-w-0">
@@ -161,7 +161,7 @@ export function AdminUserActions({
             <input type="hidden" name="confirm" value="on" />
 
             {roleState.error ? (
-              <p className="mt-4 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
+              <p className="mt-4 rounded-control border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
                 {roleState.error}
               </p>
             ) : null}
@@ -183,7 +183,7 @@ export function AdminUserActions({
           <form action={suspendAction}>
             <div className="flex items-start gap-2.5">
               <span
-                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border bg-danger-500/10 ${
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-control border bg-danger-500/10 ${
                   isSuspended ? "border-signal-500/25 text-signal-300" : "border-danger-500/25 text-danger-300"
                 }`}
               >
@@ -213,7 +213,7 @@ export function AdminUserActions({
             <input type="hidden" name="confirm" value="on" />
 
             {suspendState.error ? (
-              <p className="mt-4 rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
+              <p className="mt-4 rounded-control border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-xs text-danger-300">
                 {suspendState.error}
               </p>
             ) : null}

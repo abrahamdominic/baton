@@ -3,7 +3,7 @@
  *
  * aa.md §8 asks Baton to "identify CODEOWNERS affected by changes" and §11
  * asks for "likely owners" in a pull request. Baton can answer this exactly,
- * because the repository states the rule in a file it has already read — so
+ * because the repository states the rule in a file it has already read, so
  * this is derivation, not inference, and the result is presented as a fact.
  *
  * The matching rules implemented here are GitHub's documented CODEOWNERS
@@ -13,7 +13,7 @@
  *  - a pattern *with* a slash is anchored to the repository root
  *  - `#` starts a comment
  *  - `!` negates a rule, and a negated rule only removes a *previously matched*
- *    owner — it can never introduce one
+ *    owner, it can never introduce one
  *  - later rules win, so the file is read top to bottom
  *  - `@org/team` is a valid owner
  *
@@ -110,7 +110,7 @@ function globToRegExp(glob: string): RegExp {
  * Every path a rule could be talking about: the file itself, plus each of its
  * ancestor directories.
  *
- * This is what makes `docs/` match `docs/readme.md` — the pattern names a
+ * This is what makes `docs/` match `docs/readme.md`, the pattern names a
  * directory, and the directory is a prefix of the file. Without this a
  * trailing-slash rule silently matches nothing, which is the most common way
  * hand-rolled CODEOWNERS parsers under-report.

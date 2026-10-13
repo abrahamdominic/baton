@@ -46,7 +46,7 @@ function deviceLabel(userAgent: string | null): { label: string; isMobile: boole
   else if (/firefox|fxios/i.test(userAgent)) browser = "Firefox";
   else if (/safari/i.test(userAgent)) browser = "Safari";
 
-  return { label: browser ? `${os} · ${browser}` : os, isMobile };
+  return { label: browser ? `${os}, ${browser}` : os, isMobile };
 }
 
 
@@ -97,8 +97,8 @@ export default async function SettingsPage() {
       />
 
       {/* GitHub Identity Card */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             GitHub Identity &amp; Profile
           </span>
@@ -115,7 +115,7 @@ export default async function SettingsPage() {
                 className="h-14 w-14 rounded-full ring-2 ring-white/10"
               />
             ) : (
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-lg font-bold text-ink-200">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-lg font-bold text-ink-200">
                 {(user.name ?? user.login).slice(0, 1).toUpperCase()}
               </span>
             )}
@@ -149,7 +149,7 @@ export default async function SettingsPage() {
 
       {/* Service Status Row */}
       <section className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5">
+        <div className="rounded-panel border border-hairline bg-ink-900/60 p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconGitHub className="h-4 w-4 text-ink-300" />
@@ -166,7 +166,7 @@ export default async function SettingsPage() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5">
+        <div className="rounded-panel border border-hairline bg-ink-900/60 p-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <IconShield className="h-4 w-4 text-ink-300" />
@@ -185,10 +185,10 @@ export default async function SettingsPage() {
       </section>
 
       {/* Connected GitHub App Installations */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
-            Connected GitHub App Installations ({installations.length}) &middot; {totalRepos} repos
+            Connected GitHub App Installations ({installations.length}), {totalRepos} repos
           </span>
           <a
             href={installUrl}
@@ -202,7 +202,7 @@ export default async function SettingsPage() {
 
         {installations.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-white/[0.08] bg-ink-900 text-brand-300">
+            <div className="flex h-12 w-12 items-center justify-center rounded-panel border border-hairline bg-ink-900 text-brand-300">
               <IconBranch className="h-6 w-6" />
             </div>
             <p className="text-sm font-bold text-white">{t("settings:no_installations")}</p>
@@ -220,7 +220,7 @@ export default async function SettingsPage() {
             </a>
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {installations.map((inst) => (
               <li key={inst.id} className="p-5 sm:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -239,7 +239,7 @@ export default async function SettingsPage() {
                       </Badge>
                     </div>
                     <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                      Installation #{inst.installationId} &middot; {inst.repos.length} repositor
+                      Installation #{inst.installationId}, {inst.repos.length} repositor
                       {inst.repos.length === 1 ? "y" : "ies"} selected
                     </p>
                   </div>
@@ -261,7 +261,7 @@ export default async function SettingsPage() {
                       <li key={r.id}>
                         <Link
                           href={`/dashboard/repos/${r.owner}/${r.name}`}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-white/[0.06] bg-ink-950/50 px-3 py-2 font-mono text-xs text-ink-300 transition-colors hover:border-white/[0.14] hover:text-white"
+                          className="flex items-center justify-between gap-2 rounded-control border border-hairline bg-ink-950/50 px-3 py-2 font-mono text-xs text-ink-300 transition-colors hover:border-hairline-strong hover:text-white"
                         >
                           <span className="truncate">
                             {r.owner}/{r.name}
@@ -283,8 +283,8 @@ export default async function SettingsPage() {
       </section>
 
       {/* Active Sessions */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             Active Sessions ({sessions.length})
           </span>
@@ -305,16 +305,16 @@ export default async function SettingsPage() {
         {sessions.length === 0 ? (
           <p className="px-5 py-8 text-center text-xs text-ink-500">{t("settings:no_active_sessions")}</p>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {sessions.map((s) => {
               const dev = deviceLabel(s.userAgent);
               return (
                 <li
                   key={s.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-white/[0.015]"
+                  className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-1"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-ink-850 text-ink-300">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control border border-hairline bg-ink-850 text-ink-300">
                       {dev.isMobile ? (
                         <IconSmartphone className="h-4 w-4" />
                       ) : (
@@ -336,10 +336,10 @@ export default async function SettingsPage() {
                         {t("settings:started_on", {
                           date: formatDate(s.createdAt, { month: "short", day: "numeric", year: "numeric" }),
                         })}
-                        {s.ip && s.ip !== "unknown" ? ` · ${s.ip}` : ""}
+                        {s.ip && s.ip !== "unknown" ? `, ${s.ip}` : ""}
                         {s.isCurrent
                           ? ""
-                          : ` · ${t("settings:last_seen", {
+                          : `, ${t("settings:last_seen", {
                               date: formatDate(s.lastSeenAt, { month: "short", day: "numeric" }),
                             })}`}
                       </p>

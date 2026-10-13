@@ -22,11 +22,11 @@ import {
   IconClock,
   IconAlertCircle,
   IconShield,
-  IconArrowRight,
   IconExternalLink,
   IconCreditCard,
   IconGift,
 } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import { PendingCheckoutControls } from "./pending-checkout-controls";
 import { ManageBillingButton } from "./manage-billing-button";
 import { billingPortalAvailability } from "@/lib/billing/billing-portal";
@@ -64,9 +64,9 @@ function statusTone(status: string): string {
     case "canceled":
     case "refunded":
     case "cancelled":
-      return "border-white/[0.08] bg-white/[0.04] text-ink-400";
+      return "border-hairline bg-surface-2 text-ink-400";
     default:
-      return "border-white/[0.08] bg-white/[0.04] text-ink-300";
+      return "border-hairline bg-surface-2 text-ink-300";
   }
 }
 
@@ -151,14 +151,14 @@ export default async function BillingPage() {
                   : "billing:view_plans",
               )}
             </span>
-            <IconArrowRight className="h-3 w-3" />
+            <LinkArrow className="h-3 w-3" />
           </Link>
         }
       />
 
       {/* Active Plan Card */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("billing:active_plan_status")}
           </span>
@@ -242,7 +242,7 @@ export default async function BillingPage() {
               ) : null}
 
               {actionRequired ? (
-                <div className="flex flex-col gap-3 rounded-lg border border-warn-500/30 bg-warn-500/10 p-3 text-xs font-medium text-warn-200 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 rounded-control border border-warn-500/30 bg-warn-500/10 p-3 text-xs font-medium text-warn-200 sm:flex-row sm:items-center sm:justify-between">
                   <span className="flex items-start gap-2.5">
                     <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                     <span>
@@ -261,7 +261,7 @@ export default async function BillingPage() {
               ) : null}
 
               {!actionRequired && (status === "payment_failed" || status === "past_due") ? (
-                <div className="flex items-start gap-2.5 rounded-lg border border-danger-500/30 bg-danger-500/10 p-3 text-xs font-medium text-danger-300">
+                <div className="flex items-start gap-2.5 rounded-control border border-danger-500/30 bg-danger-500/10 p-3 text-xs font-medium text-danger-300">
                   <IconAlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <span>{t("billing:payment_not_cleared")}</span>
                 </div>
@@ -318,7 +318,7 @@ export default async function BillingPage() {
                         : "billing:change_plan",
                     )}
                   </span>
-                  <IconArrowRight className="h-3 w-3" />
+                  <LinkArrow className="h-3 w-3" />
                 </Link>
               )}
 
@@ -331,7 +331,7 @@ export default async function BillingPage() {
                   className="btn btn-ghost btn-sm"
                 >
                   <span>{t("billing:renew_usdc")}</span>
-                  <IconArrowRight className="h-3 w-3" />
+                  <LinkArrow className="h-3 w-3" />
                 </Link>
               ) : null}
 
@@ -349,8 +349,8 @@ export default async function BillingPage() {
 
       {/* Pending Checkout Card */}
       {pendingCheckout ? (
-        <section className="rounded-xl border border-warn-500/25 bg-ink-900/60 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="rounded-panel border border-warn-500/25 bg-ink-900/60 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-warn-300">
               <IconAlertCircle className="h-3.5 w-3.5" />
               {pendingStatusLabel}
@@ -422,12 +422,11 @@ export default async function BillingPage() {
                         <>
                           {t("billing:via_usdc", {
                             network: pendingPayment.crypto_network ?? "Base",
-                          })}{" "}
-                          &middot; {t(`billing:interval_${pendingInterval}`)}
+                          })}{" "}, {t(`billing:interval_${pendingInterval}`)}
                         </>
                       ) : (
                         <>
-                          {t("billing:via_card")} &middot;{" "}
+                          {t("billing:via_card")}, {" "}
                           {t(`billing:interval_${pendingInterval}`)}
                         </>
                       )}
@@ -462,14 +461,14 @@ export default async function BillingPage() {
                   )}
                   paymentSummary={
                     pendingPayment
-                      ? `${formatMoney(pendingPayment.amount, pendingPayment.currency)} · ${
+                      ? `${formatMoney(pendingPayment.amount, pendingPayment.currency)}, ${
                           pendingPayment.payment_provider === "usdc"
                             ? t("billing:via_usdc_short", {
                                 network:
                                   pendingPayment.crypto_network ?? "Base",
                               })
                             : t("billing:stripe")
-                        } · ${t(`billing:interval_${pendingInterval}`)}`
+                        }, ${t(`billing:interval_${pendingInterval}`)}`
                       : null
                   }
                 />
@@ -488,10 +487,10 @@ export default async function BillingPage() {
           return (
             <div
               key={p.id}
-              className={`flex flex-col rounded-xl border p-5 ${
+              className={`flex flex-col rounded-panel border p-5 ${
                 isCurrent
                   ? "border-brand-500/30 bg-brand-500/[0.04]"
-                  : "border-white/[0.08] bg-ink-900/60"
+                  : "border-hairline bg-ink-900/60"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -528,7 +527,7 @@ export default async function BillingPage() {
                         : "billing:choose_this_plan",
                     )}
                   </span>
-                  <IconArrowRight className="h-3 w-3" />
+                  <LinkArrow className="h-3 w-3" />
                 </Link>
               </div>
             </div>
@@ -538,8 +537,8 @@ export default async function BillingPage() {
 
       {/* Assurance and Support Cards */}
       <section className="grid gap-4 sm:grid-cols-2">
-        <div className="flex items-start gap-3.5 rounded-xl border border-white/[0.08] bg-ink-900/60 p-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-ink-850 text-signal-400">
+        <div className="flex items-start gap-3.5 rounded-panel border border-hairline bg-ink-900/60 p-5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control border border-hairline bg-ink-850 text-signal-400">
             <IconShield className="h-4 w-4" />
           </span>
           <div>
@@ -552,8 +551,8 @@ export default async function BillingPage() {
           </div>
         </div>
 
-        <div className="flex items-start gap-3.5 rounded-xl border border-white/[0.08] bg-ink-900/60 p-5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-ink-850 text-brand-300">
+        <div className="flex items-start gap-3.5 rounded-panel border border-hairline bg-ink-900/60 p-5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control border border-hairline bg-ink-850 text-brand-300">
             <IconCreditCard className="h-4 w-4" />
           </span>
           <div>
@@ -575,8 +574,8 @@ export default async function BillingPage() {
       </section>
 
       {/* Payment & Invoice History Table */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
             {t("billing:history_title")}
           </span>
@@ -590,21 +589,21 @@ export default async function BillingPage() {
             <p className="text-xs text-ink-500">{t("billing:history_empty")}</p>
           </div>
         ) : (
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {payments.map((p) => (
               <li
                 key={p.id}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-white/[0.02]"
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-surface-1"
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-xs font-semibold text-white">
-                      {p.plan?.name ?? t("billing:team_plan")} &middot;{" "}
+                      {p.plan?.name ?? t("billing:team_plan")}, {" "}
                       {t(`billing:payment_type_${p.payment_type}`)}
                     </p>
                   </div>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-400">
-                    {formatDate(p.created_at)} &middot;{" "}
+                    {formatDate(p.created_at)}, {" "}
                     {t(
                       p.payment_provider === "usdc"
                         ? "billing:usdc_network"
@@ -614,8 +613,7 @@ export default async function BillingPage() {
                         : undefined,
                     )}
                     {p.crypto_transaction_hash ? (
-                      <span className="ml-1 inline-flex items-center gap-1">
-                        &middot;{" "}
+                      <span className="ml-1 inline-flex items-center gap-1">, {" "}
                         <a
                           href={`https://basescan.org/tx/${p.crypto_transaction_hash}`}
                           target="_blank"
@@ -650,13 +648,13 @@ export default async function BillingPage() {
 
       {/* Subscription Lifecycle History */}
       {events.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               {t("billing:lifecycle_log")}
             </span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {events.slice(0, 8).map((e) => (
               <li
                 key={e.id}

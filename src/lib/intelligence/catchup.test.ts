@@ -52,7 +52,7 @@ function pr(over: Partial<CatchUpInput["pullRequests"][number]> = {}) {
 const section = (b: ReturnType<typeof buildCatchUpBriefing>, key: CatchUpSectionKey) =>
   b.sections.find((s) => s.key === key)?.items ?? [];
 
-describe("buildCatchUpBriefing — quiet is the default", () => {
+describe("buildCatchUpBriefing, quiet is the default", () => {
   it("is quiet when literally nothing happened", () => {
     const b = buildCatchUpBriefing(input());
     expect(b.quiet).toBe(true);
@@ -87,7 +87,7 @@ describe("buildCatchUpBriefing — quiet is the default", () => {
   });
 });
 
-describe("buildCatchUpBriefing — waiting on you", () => {
+describe("buildCatchUpBriefing, waiting on you", () => {
   it("surfaces a review requested from this person", () => {
     const b = buildCatchUpBriefing(input({ pullRequests: [pr()] }));
     const items = section(b, "waiting_on_you");
@@ -157,7 +157,7 @@ describe("buildCatchUpBriefing — waiting on you", () => {
   });
 });
 
-describe("buildCatchUpBriefing — your own work", () => {
+describe("buildCatchUpBriefing, your own work", () => {
   it("flags unaddressed review feedback on the viewer's pull request", () => {
     const b = buildCatchUpBriefing(
       input({ pullRequests: [pr({ authorLogin: "ada", requestedReviewers: [], state: "changes_required" })] }),
@@ -180,7 +180,7 @@ describe("buildCatchUpBriefing — your own work", () => {
   });
 });
 
-describe("buildCatchUpBriefing — failures and blockers", () => {
+describe("buildCatchUpBriefing, failures and blockers", () => {
   it("attributes a CI failure to its author", () => {
     const b = buildCatchUpBriefing(
       input({ pullRequests: [pr({ state: "ci_failing", requestedReviewers: [] })] }),
@@ -221,7 +221,7 @@ describe("buildCatchUpBriefing — failures and blockers", () => {
   });
 });
 
-describe("buildCatchUpBriefing — repository memory", () => {
+describe("buildCatchUpBriefing, repository memory", () => {
   const fact = (over: Partial<CatchUpInput["knowledge"][number]> = {}) => ({
     repoId: "r1",
     id: "k1",
@@ -249,7 +249,7 @@ describe("buildCatchUpBriefing — repository memory", () => {
   });
 });
 
-describe("buildCatchUpBriefing — collection revisions", () => {
+describe("buildCatchUpBriefing, collection revisions", () => {
   const rev = (revision: number, collectedAt = ago(HOUR)) => ({
     repoId: "r1",
     revision,
@@ -279,7 +279,7 @@ describe("buildCatchUpBriefing — collection revisions", () => {
   });
 });
 
-describe("buildCatchUpBriefing — unread conversations", () => {
+describe("buildCatchUpBriefing, unread conversations", () => {
   it("summarises unread notifications as one line", () => {
     const b = buildCatchUpBriefing(
       input({
@@ -307,7 +307,7 @@ describe("buildCatchUpBriefing — unread conversations", () => {
   });
 });
 
-describe("buildCatchUpBriefing — section order", () => {
+describe("buildCatchUpBriefing, section order", () => {
   it("puts what is mine before what the system learned", () => {
     const b = buildCatchUpBriefing(
       input({

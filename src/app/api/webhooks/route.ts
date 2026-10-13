@@ -161,7 +161,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Execute a small batch of the work this delivery just queued, in the same
   // invocation. The enqueue-then-wait-for-scheduler design meant a PR could sit
-  // unclassified until the next cron tick — up to hours on a plan whose cron
+  // unclassified until the next cron tick, up to hours on a plan whose cron
   // cadence is coarse. GitHub expects a fast response, so the batch is small
   // and the drain is handed off with `after()`: the response is written
   // immediately and the work continues within the same function's budget.

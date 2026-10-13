@@ -18,7 +18,7 @@ import type { PaymentRecord, SubscriptionStatus } from "./types";
  *
  * The payment side is mechanical (sum the refunds). The access side is a policy
  * decision, so it is a pure function with its reasoning attached rather than
- * something buried in a handler — it is the kind of rule that gets edited by
+ * something buried in a handler, it is the kind of rule that gets edited by
  * someone who has not thought about the $1 goodwill refund.
  */
 
@@ -150,9 +150,9 @@ export function derivePaymentStatus(
   return currentStatus === "refunded" ? "confirmed" : currentStatus;
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Access policy
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Statuses that already grant no access.
@@ -180,7 +180,7 @@ export type RefundAccessAction =
  *
  *  - A refund that is not `succeeded` revokes nothing. A pending refund may
  *    still fail or be cancelled, and a failed dispute is the *customer's* money
- *    being clawed back — revoking on that would be wrong.
+ *    being clawed back, revoking on that would be wrong.
  *  - A partial refund never revokes on its own. Most partial refunds are
  *    overcharge corrections and goodwill on a $0.00 overage; cutting a paying
  *    customer's access over a small adjustment is a support incident, not a
@@ -233,7 +233,7 @@ export function refundAccessDecision(input: {
   ];
   for (const candidate of candidates) {
     // `validateTransition` treats from === to as legal so callers can express a
-    // no-op, and it happily allows `payment_failed → canceled`. Neither is a
+    // no-op, and it happily allows `payment_failed to canceled`. Neither is a
     // revocation: both write a lifecycle event claiming access was taken away
     // when it already had been, and the second would label a refund as a
     // user cancellation in the audit trail.
@@ -406,7 +406,7 @@ async function revokeForRefund(
       eventType: "stripe_refund_revoke_failed",
       severity: "error",
       status: "failed",
-      message: `Could not revoke access for subscription ${subscriptionId} after refund ${refund.stripeRefundId}: ${from} → ${to} is not a legal transition.`,
+      message: `Could not revoke access for subscription ${subscriptionId} after refund ${refund.stripeRefundId}: ${from} to ${to} is not a legal transition.`,
       metadata: { subscriptionId, from, to, refundId: refund.stripeRefundId },
     });
     return false;

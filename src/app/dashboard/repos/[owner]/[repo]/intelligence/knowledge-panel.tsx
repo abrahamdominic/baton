@@ -106,8 +106,8 @@ export function KnowledgePanel({
   };
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-      <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+    <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+      <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
         <div className="flex items-center gap-2">
           <IconBrain className="h-4 w-4 text-brand-300" />
           <h2 className="text-sm font-semibold text-white">{t("intelligence:knowledge_title")}</h2>
@@ -117,7 +117,7 @@ export function KnowledgePanel({
 
       {error ? (
         <p
-          className="flex items-start gap-2 border-b border-white/[0.05] px-5 py-3 text-xs text-danger-300"
+          className="flex items-start gap-2 border-b border-hairline px-5 py-3 text-xs text-danger-300"
           role="alert"
         >
           <IconAlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -125,7 +125,7 @@ export function KnowledgePanel({
         </p>
       ) : null}
       {notice ? (
-        <p className="flex items-center gap-2 border-b border-white/[0.05] px-5 py-3 text-xs text-signal-400">
+        <p className="flex items-center gap-2 border-b border-hairline px-5 py-3 text-xs text-signal-400">
           <IconCheck className="h-3.5 w-3.5 shrink-0" />
           {notice}
         </p>
@@ -136,7 +136,7 @@ export function KnowledgePanel({
           {t("intelligence:knowledge_empty")}
         </p>
       ) : (
-        <div className="divide-y divide-white/[0.05]">
+        <div className="divide-y divide-hairline">
           {grouped.map((group) => (
             <div key={group.kind} className="px-5 py-4">
               <div className="mb-2 flex items-center gap-2">
@@ -155,7 +155,7 @@ export function KnowledgePanel({
                   return (
                     <li
                       key={f.id}
-                      className="rounded-lg border border-white/[0.06] bg-ink-950/40 p-3.5"
+                      className="rounded-control border border-hairline bg-ink-950/40 p-3.5"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-xs font-semibold text-white">{f.title}</p>
@@ -173,8 +173,7 @@ export function KnowledgePanel({
                             <span
                               className="font-mono text-[10px] text-signal-400"
                               title={t("intelligence:knowledge_observations_hint")}
-                            >
-                              &times;{f.observations}
+                            > x {f.observations}
                             </span>
                           ) : null}
                         </div>
@@ -186,13 +185,13 @@ export function KnowledgePanel({
                             href={pathUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-brand-300"
+                            className="inline-flex items-center gap-1 rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-brand-300"
                           >
                             {f.path}
                             <IconExternalLink className="h-2.5 w-2.5" />
                           </a>
                         ) : f.path ? (
-                          <span className="rounded border border-white/[0.06] bg-white/[0.03] px-1.5 py-0.5 font-mono text-[10px] text-ink-500">
+                          <span className="rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-500">
                             {f.path}
                           </span>
                         ) : null}
@@ -203,7 +202,7 @@ export function KnowledgePanel({
                               href={c.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex max-w-[14rem] items-center gap-1 truncate rounded border border-white/[0.08] bg-white/[0.03] px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-brand-300"
+                              className="inline-flex max-w-[14rem] items-center gap-1 truncate rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-brand-300"
                             >
                               <span className="truncate">{c.label}</span>
                               <IconExternalLink className="h-2.5 w-2.5 shrink-0" />
@@ -211,7 +210,7 @@ export function KnowledgePanel({
                           ) : (
                             <span
                               key={`${f.id}-c${i}`}
-                              className="inline-flex max-w-[14rem] items-center rounded border border-white/[0.06] bg-white/[0.03] px-1.5 py-0.5 font-mono text-[10px] text-ink-500"
+                              className="inline-flex max-w-[14rem] items-center rounded border border-hairline bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-500"
                             >
                               <span className="truncate">{c.label}</span>
                             </span>
@@ -222,7 +221,7 @@ export function KnowledgePanel({
                             type="button"
                             onClick={() => forget(f.id)}
                             disabled={pendingId === f.id}
-                            className="ml-auto inline-flex items-center gap-1 rounded border border-white/[0.08] px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-danger-300 disabled:opacity-60"
+                            className="ml-auto inline-flex items-center gap-1 rounded border border-hairline px-1.5 py-0.5 font-mono text-[10px] text-ink-400 transition-colors hover:text-danger-300 disabled:opacity-60"
                           >
                             <IconTrash className="h-2.5 w-2.5" />
                             {t("intelligence:knowledge_remove")}
@@ -240,7 +239,7 @@ export function KnowledgePanel({
 
       {/* Recording a decision. Present only here, because a decision without the
           repository it belongs to is trivia. */}
-      <div className="border-t border-white/[0.07] bg-ink-950/50 px-5 py-4">
+      <div className="border-t border-hairline bg-ink-950/50 px-5 py-4">
         <p className="text-xs font-semibold text-white">{t("intelligence:knowledge_decision_title")}</p>
         <p className="mt-0.5 text-[11px] text-ink-500">
           {t("intelligence:knowledge_decision_hint")}
@@ -252,7 +251,7 @@ export function KnowledgePanel({
             onChange={(e) => setTitle(e.target.value)}
             maxLength={160}
             placeholder={t("intelligence:knowledge_decision_title_placeholder")}
-            className="w-full rounded-lg border border-white/[0.08] bg-ink-950 px-3 py-2 text-xs text-white placeholder:text-ink-600 focus:border-brand-500/50 focus:outline-none"
+            className="w-full rounded-control border border-hairline bg-ink-950 px-3 py-2 text-xs text-white placeholder:text-ink-600 focus:border-brand-500/50 focus:outline-none"
           />
           <textarea
             value={detail}
@@ -260,7 +259,7 @@ export function KnowledgePanel({
             maxLength={2_000}
             rows={3}
             placeholder={t("intelligence:knowledge_decision_detail_placeholder")}
-            className="w-full resize-y rounded-lg border border-white/[0.08] bg-ink-950 px-3 py-2 text-xs text-white placeholder:text-ink-600 focus:border-brand-500/50 focus:outline-none"
+            className="w-full resize-y rounded-control border border-hairline bg-ink-950 px-3 py-2 text-xs text-white placeholder:text-ink-600 focus:border-brand-500/50 focus:outline-none"
           />
           <button
             type="button"

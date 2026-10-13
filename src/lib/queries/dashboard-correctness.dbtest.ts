@@ -5,8 +5,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
  * could not have caught, because both are about which rows actually reach the
  * result set.
  *
- * 1. `yourMove` returned every open, non-draft PR on the user's repositories —
- *    including other people's PRs that are not waiting on the user — while the
+ * 1. `yourMove` returned every open, non-draft PR on the user's repositories, 
+ *    including other people's PRs that are not waiting on the user, while the
  *    UI called it "Your Move". The primary queue was a mislabelled list.
  * 2. `recentActivity` applied `take: limit` to ALL action rows and then filtered
  *    to meaningful ones in JavaScript. The worker writes a `pr_snapshot` row on

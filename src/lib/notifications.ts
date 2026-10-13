@@ -2,7 +2,7 @@
 //
 // Notifications are user-scoped inbox rows (Notification model) that point at a
 // resource (message, conversation, PR, invite, billing, ...). This module owns
-// the *authoring* side — deduped creation and deep-link resolution — so callers
+// the *authoring* side, deduped creation and deep-link resolution, so callers
 // never hand-roll identity rules against the DB.
 //
 // Rules:
@@ -138,7 +138,7 @@ export function conversationNotificationHref(
       }
     }
   } catch {
-    // malformed context — fall through to the inbox
+    // malformed context, fall through to the inbox
   }
   return "/dashboard/notifications";
 }
@@ -161,7 +161,7 @@ export function prNotificationHref(
       return `/dashboard/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/pulls/${encodeURIComponent(String(number))}`;
     }
   } catch {
-    // malformed context — fall through to the inbox
+    // malformed context, fall through to the inbox
   }
   return "/dashboard/notifications";
 }

@@ -28,7 +28,7 @@ export default function DashboardError({
   }, [error]);
 
   return (
-    <div className="rounded-xl border border-white/[0.07] bg-ink-900/50 px-6 py-14 text-center">
+    <div className="rounded-panel border border-hairline bg-ink-900/50 px-6 py-14 text-center">
       <IconAlertCircle className="mx-auto h-10 w-10 text-signal-400" />
 
       <h2 className="mt-5 text-lg font-bold text-ink-50">

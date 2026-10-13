@@ -216,13 +216,13 @@ describe("digests", () => {
    *
    * `saveDigest` decided whether to insert by reading first. Firing several at
    * once for the same slot means several of them see no row, and without a
-   * unique index every one of them inserts — the dashboard then renders the same
+   * unique index every one of them inserts, the dashboard then renders the same
    * briefing repeatedly. The index makes the collision the arbiter, and the
    * losing writers resolve to the winner's row instead of failing.
    *
    * The payload is given a `userId` because these digests are normally repo-level
    * and anonymous, and NULL is distinct from itself in a unique index on both
-   * PostgreSQL and SQLite — the anonymous key is carried by a partial index that
+   * PostgreSQL and SQLite, the anonymous key is carried by a partial index that
    * the SQLite mirror cannot express, so it is created by
    * `supabase/migrations/0014_insight_digest_slot_uniqueness.sql` instead. This
    * test therefore pins the conflict-resolution path using the constraint the

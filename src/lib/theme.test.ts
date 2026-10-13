@@ -10,24 +10,23 @@ import {
 } from "./theme";
 
 /**
- * The reported bug: a visitor whose OS prefers light saw a light first paint on
- * a first visit, because the pre-paint script treated "no stored value" as
- * `system`. Baton is a dark-first product, so a missing value must resolve to
- * dark regardless of the OS.
+ * Baton defaults to the visitor's system preference. A missing stored value
+ * therefore resolves to `system`, which the pre-paint script resolves against
+ * `prefers-color-scheme`; a concrete choice always wins over the OS.
  */
 describe("normalizeStoredTheme", () => {
-  it("defaults to dark when nothing is stored (new user / first visit)", () => {
-    expect(normalizeStoredTheme(null)).toBe("dark");
-    expect(normalizeStoredTheme(undefined)).toBe("dark");
-    expect(normalizeStoredTheme("")).toBe("dark");
+  it("defaults to system when nothing is stored (new user / first visit)", () => {
+    expect(normalizeStoredTheme(null)).toBe("system");
+    expect(normalizeStoredTheme(undefined)).toBe("system");
+    expect(normalizeStoredTheme("")).toBe("system");
   });
 
-  it("defaults to dark for corrupt or legacy stored values", () => {
-    expect(normalizeStoredTheme("midnight")).toBe("dark");
-    expect(normalizeStoredTheme("system-dark")).toBe("dark");
-    expect(normalizeStoredTheme(42)).toBe("dark");
-    expect(normalizeStoredTheme({})).toBe("dark");
-    expect(normalizeStoredTheme(true)).toBe("dark");
+  it("defaults to system for corrupt or legacy stored values", () => {
+    expect(normalizeStoredTheme("midnight")).toBe("system");
+    expect(normalizeStoredTheme("system-dark")).toBe("system");
+    expect(normalizeStoredTheme(42)).toBe("system");
+    expect(normalizeStoredTheme({})).toBe("system");
+    expect(normalizeStoredTheme(true)).toBe("system");
   });
 
   it("preserves every legal stored preference, including system", () => {
@@ -36,8 +35,8 @@ describe("normalizeStoredTheme", () => {
     expect(normalizeStoredTheme("system")).toBe("system");
   });
 
-  it("defaults to dark, not system", () => {
-    expect(DEFAULT_THEME_PREF).toBe("dark");
+  it("defaults to system, not a fixed theme", () => {
+    expect(DEFAULT_THEME_PREF).toBe("system");
   });
 });
 
@@ -80,15 +79,15 @@ describe("THEME_COLORS", () => {
 describe("buildPrepaintScript", () => {
   const script = buildPrepaintScript();
 
-  it("inlines the shared storage key and dark default", () => {
+  it("inlines the shared storage key and system default", () => {
     expect(script).toContain(JSON.stringify(THEME_KEY));
     expect(script).toContain(JSON.stringify(DEFAULT_THEME_PREF));
   });
 
-  it("does not fall back to system when storage is empty", () => {
-    // `var t=d` with d="dark" is what makes a first visit dark.
+  it("falls back to the system preference when storage is empty", () => {
+    // `var t=d` with d="system" is what makes a first visit follow the OS.
     expect(script).toContain("var t=d");
-    expect(script).not.toContain('||"system"');
+    expect(script).toContain('==="system"');
   });
 
   it("applies the resolved theme to the document before paint", () => {

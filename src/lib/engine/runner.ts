@@ -194,9 +194,9 @@ export async function processPrRefresh(payload: {
   const knownCommentId = pr.statusCommentId ? Number(pr.statusCommentId) : null;
   let statusCommentId = knownCommentId;
 
-  // ------------------------------------------------------------------
+  // 
   // GitHub-native surfacing (only when the repo opts in).
-  // ------------------------------------------------------------------
+  // 
   if (setting.statusCommentEnabled) {
     const actorLabels = actorList(classification, input, owner);
     const body = statusCommentBody({
@@ -233,9 +233,9 @@ export async function processPrRefresh(payload: {
     }
   }
 
-  // ------------------------------------------------------------------
+  // 
   // Targeted nudges (once per threshold, max N per state).
-  // ------------------------------------------------------------------
+  // 
   const buckets = parseNudgeBuckets(pr.nudgeBucketsJson);
   const nudge = decideNudge({
     setting,
@@ -479,7 +479,7 @@ export async function processRepoIntel(input: {
  * This is the background half of §8: the page renders from the stored findings,
  * so no user request ever pays for the analysis. Findings are recomputed and
  * replaced on every run rather than accumulated, because a workflow's output is a
- * function of current state — a stale finding that says "waiting on @bob" after
+ * function of current state, a stale finding that says "waiting on @bob" after
  * bob has reviewed is worse than no finding.
  *
  * Automation never acts: nothing here comments, labels, assigns, or closes.

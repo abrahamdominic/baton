@@ -8,7 +8,7 @@ vi.mock("server-only", () => ({}));
  * Confirming a payment and extending the subscription it paid for are two
  * writes, so a crash or a concurrent request between them used to be ambiguous:
  * re-running the verification could extend the subscription a second time,
- * granting a paid period for one transfer. (And the mirror failure is worse — a
+ * granting a paid period for one transfer. (And the mirror failure is worse, a
  * confirm that committed while the process died left a paying customer on the
  * free plan with no path back, because every later run saw `status = confirmed`
  * and did nothing.)
@@ -124,7 +124,7 @@ vi.mock("@/lib/supabase/client", () => ({
                   ? value.includes(stored[column])
                   : stored[column] === value,
               );
-              // A conditional update that matched nothing returns no row — the
+              // A conditional update that matched nothing returns no row, the
               // caller has to treat that as "somebody else got there first".
               if (!matched) return { data: null, error: null };
               Object.assign(stored, patch);
@@ -157,8 +157,8 @@ describe("confirmPayment claims the effect", () => {
   });
 
   /**
-   * The double-credit path. Stripe's webhook handler and the USDC verifier — or
-   * two deliveries of the same webhook — can both arrive for one payment. The
+   * The double-credit path. Stripe's webhook handler and the USDC verifier, or
+   * two deliveries of the same webhook, can both arrive for one payment. The
    * second conditional update matches nothing because the row is no longer in an
    * open state, so it is told `claimed: false` and must not apply the effect.
    */
@@ -169,7 +169,7 @@ describe("confirmPayment claims the effect", () => {
     expect(first.claimed).toBe(true);
     expect(second.claimed).toBe(false);
     // Both see the confirmed row, so a caller that re-reads can still render
-    // success — but only the first may grant access.
+    // success, but only the first may grant access.
     expect(second.payment.status).toBe("confirmed");
   });
 
@@ -184,7 +184,7 @@ describe("confirmPayment claims the effect", () => {
 /**
  * Re-verifying an already-confirmed payment is the interesting path, because it
  * is the only one that can apply an effect without a fresh confirm. It has to be
- * able to repair, and it has to be unable to double-credit — the ledger is the
+ * able to repair, and it has to be unable to double-credit, the ledger is the
  * only thing telling those two apart.
  */
 describe("re-verifying a confirmed payment", () => {

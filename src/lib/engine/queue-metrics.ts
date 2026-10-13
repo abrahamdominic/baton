@@ -37,7 +37,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * stored run, how many do not, and which ones have gone longest without one.
  *
  * Reads `RepoAutomationRun` oldest-first, which is the `ranAt` index read in
- * reverse, and deliberately counts repositories with no row at all — the missing
+ * reverse, and deliberately counts repositories with no row at all, the missing
  * rows are the thing worth surfacing.
  */
 export async function automationCoverage(limit = 10): Promise<{

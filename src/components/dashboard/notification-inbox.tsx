@@ -102,7 +102,7 @@ export function NotificationInbox({
   return (
     <div className="space-y-4">
       {unread > 0 ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-ink-900/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-3 rounded-panel border border-hairline bg-ink-900/60 px-4 py-3">
           <p className="text-xs text-ink-400">
             <span className="font-semibold text-white">{unread}</span> unread notification
             {unread === 1 ? "" : "s"}
@@ -111,7 +111,7 @@ export function NotificationInbox({
             type="button"
             onClick={markAll}
             disabled={pendingAll}
-            className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.1] bg-ink-850 px-2.5 py-1.5 text-xs font-medium text-ink-200 transition-colors hover:border-white/[0.18] hover:text-white disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-hairline bg-ink-850 px-2.5 py-1.5 text-xs font-medium text-ink-200 transition-colors hover:border-hairline-strong hover:text-white disabled:opacity-50"
           >
             {pendingAll ? (
               "Working…"
@@ -136,9 +136,9 @@ export function NotificationInbox({
           {items.map((n) => (
             <li
               key={n.id}
-              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-panel border px-4 py-3 transition-colors ${
                 n.readAt
-                  ? "border-white/[0.06] bg-ink-900/40"
+                  ? "border-hairline bg-ink-900/40"
                   : "border-brand-500/20 bg-brand-500/[0.05]"
               }`}
             >
@@ -146,14 +146,14 @@ export function NotificationInbox({
                 {!n.readAt ? (
                   <span className="h-2 w-2 shrink-0 rounded-full bg-brand-400" aria-label="unread" />
                 ) : null}
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-850 text-xs font-bold text-ink-200">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-850 text-xs font-bold text-ink-200">
                   {(n.actor?.name ?? n.actor?.login ?? "B").slice(0, 1).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-xs font-semibold text-white">
                     {n.actor ? (
                       <>
-                        <span className="text-ink-400">{n.actor.name ?? n.actor.login}</span> ·{" "}
+                        <span className="text-ink-400">{n.actor.name ?? n.actor.login}</span>, {" "}
                       </>
                     ) : null}
                     <TypeLabel type={n.type} />
@@ -179,7 +179,7 @@ export function NotificationInbox({
                     onClick={() => markRead(n.id)}
                     disabled={pendingId === n.id}
                     aria-label={t("notifications:mark_as_read")}
-                    className="flex h-7 w-7 items-center justify-center rounded-md border border-white/[0.1] text-ink-400 transition-colors hover:border-brand-500/40 hover:text-brand-300 disabled:opacity-50"
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-hairline text-ink-400 transition-colors hover:border-brand-500/40 hover:text-brand-300 disabled:opacity-50"
                   >
                     <IconCheck className="h-3.5 w-3.5" />
                   </button>

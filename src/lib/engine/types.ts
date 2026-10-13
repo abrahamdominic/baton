@@ -15,7 +15,7 @@ export interface CheckRunInfo {
   /**
    * Deep link to the run's log output. GitHub supplies this for essentially
    * every check run, and "View build log" is the only actionable thing a
-   * developer can do about a red check — so it is captured and persisted
+   * developer can do about a red check, so it is captured and persisted
    * rather than left out and rendered as a dead button.
    */
   detailsUrl?: string | null;

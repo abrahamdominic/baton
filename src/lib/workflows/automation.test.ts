@@ -406,7 +406,7 @@ describe("pathsFromSnapshot", () => {
     expect(paths).toEqual(["a.ts", "b.ts"]);
   });
 
-  it("returns null — not an empty list — when nothing was collected", () => {
+  it("returns null, not an empty list, when nothing was collected", () => {
     expect(pathsFromSnapshot(null)).toBeNull();
     expect(pathsFromSnapshot("")).toBeNull();
     expect(pathsFromSnapshot(JSON.stringify({}))).toBeNull();

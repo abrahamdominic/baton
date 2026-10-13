@@ -58,8 +58,8 @@ export async function ProjectProfilePanel({ profile }: { profile: RepositoryProf
   const churnKnown = profile.commitSampleSize > 0;
 
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-      <div className="border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+    <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+      <div className="border-b border-hairline bg-ink-950/70 px-5 py-3">
         <h2 className="text-sm font-semibold text-white">{t("intelligence:profile_title")}</h2>
         <p className="mt-0.5 text-xs text-ink-500">
           {churnKnown
@@ -81,7 +81,7 @@ export async function ProjectProfilePanel({ profile }: { profile: RepositoryProf
         ))}
       </dl>
 
-      <div className="grid gap-0 border-t border-white/[0.05] sm:grid-cols-3">
+      <div className="grid gap-0 border-t border-hairline sm:grid-cols-3">
         <div className="p-4">
           <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
             {t("intelligence:profile_test_setup")}
@@ -92,8 +92,7 @@ export async function ProjectProfilePanel({ profile }: { profile: RepositoryProf
               <span className="text-brand-300">{profile.testFramework}</span>
               {profile.testFileCount > 0 ? (
                 <span className="text-ink-400">
-                  {" "}
-                  &middot;{" "}
+                  {" "}, {" "}
                   {t("intelligence:profile_test_files", { count: profile.testFileCount })}
                 </span>
               ) : null}
@@ -111,7 +110,7 @@ export async function ProjectProfilePanel({ profile }: { profile: RepositoryProf
           )}
         </div>
 
-        <div className="border-t border-white/[0.05] p-4 sm:border-l sm:border-t-0">
+        <div className="border-t border-hairline p-4 sm:border-l sm:border-t-0">
           <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
             {t("intelligence:profile_highest_churn")}
           </span>
@@ -135,7 +134,7 @@ export async function ProjectProfilePanel({ profile }: { profile: RepositoryProf
           )}
         </div>
 
-        <div className="border-t border-white/[0.05] p-4 sm:border-l sm:border-t-0">
+        <div className="border-t border-hairline p-4 sm:border-l sm:border-t-0">
           <span className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
             {t("intelligence:profile_quiet_areas")}
           </span>
@@ -161,7 +160,7 @@ export async function ProjectProfilePanel({ profile }: { profile: RepositoryProf
       </div>
 
       {profile.hasEnvExample ? null : (
-        <p className="flex items-start gap-2 border-t border-white/[0.05] px-5 py-3 text-[11px] text-ink-400">
+        <p className="flex items-start gap-2 border-t border-hairline px-5 py-3 text-[11px] text-ink-400">
           <IconBranch className="mt-0.5 h-3 w-3 shrink-0" />
           {t("intelligence:profile_no_env_example")}
         </p>

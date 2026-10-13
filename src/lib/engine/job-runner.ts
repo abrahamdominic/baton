@@ -56,7 +56,7 @@ let lastRecoverAt = 0;
  *
  * Called once per drain rather than once per claim. The original code ran this
  * `updateMany` before *every* single claim, which meant draining 50 jobs
- * issued 50 extra writes — pure write amplification on the hot path.
+ * issued 50 extra writes, pure write amplification on the hot path.
  */
 export async function recoverStaleJobs(
   maxAgeMs: number = STALE_AFTER_MS,
@@ -333,7 +333,7 @@ function startHeartbeat(job: ClaimedJob): () => void {
  * Claim and execute one job.
  *
  * `empty` means the queue had no runnable work. It does NOT mean the queue is
- * empty overall — a retry scheduled into the future is still pending.
+ * empty overall, a retry scheduled into the future is still pending.
  * `contended` means another executor took the row first and the lane should try
  * again.
  */

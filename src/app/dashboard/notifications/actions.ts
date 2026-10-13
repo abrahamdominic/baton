@@ -124,7 +124,7 @@ function safeParseContext(
       return value as Record<string, string | number | boolean | null>;
     }
   } catch {
-    // malformed context — fall through
+    // malformed context, fall through
   }
   return {};
 }

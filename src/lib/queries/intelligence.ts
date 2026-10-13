@@ -5,8 +5,8 @@ import type { SessionUser } from "../auth/session";
 /**
  * Read side for repository intelligence.
  *
- * Authorization is delegated to `myInstallations` — the single source of truth
- * for "which installations may this user see" — rather than re-implemented here.
+ * Authorization is delegated to `myInstallations`, the single source of truth
+ * for "which installations may this user see", rather than re-implemented here.
  * A second, subtly different copy of that rule is how IDOR bugs get written, so
  * this module resolves the repository through the same query the dashboard uses
  * and returns `null` when it is not visible.

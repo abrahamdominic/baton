@@ -104,7 +104,7 @@ const MIDDLE_EAST: LanguageGroup = "middle_east";
  * default-locale lookup and for tests.
  */
 export const LOCALES: readonly LocaleDefinition[] = [
-  // --- Shipped: complete resources exist under `locales/<lang>/` ---------
+  //  Shipped: complete resources exist under `locales/<lang>/` 
   // Regional variants deliberately share a translation set. `en-GB` and `es-MX`
   // cost one registry line, not a second copy of 431 keys.
   L("en", "en", "en-US", { group: AMERICAS, ...SHIPPED }),
@@ -113,7 +113,7 @@ export const LOCALES: readonly LocaleDefinition[] = [
   L("es-MX", "es", "es-MX", { group: AMERICAS, region: "MX", ...SHIPPED }),
   L("es-AR", "es", "es-AR", { group: AMERICAS, region: "AR", ...SHIPPED }),
 
-  // --- Planned: registered and formatted, but not yet offered ------------
+  //  Planned: registered and formatted, but not yet offered 
   // Kept here so the direction, grouping, tag, and variant structure are settled
   // and reviewable in one place, and so the moment `locales/<lang>/` lands the
   // entry is one word away from shipping. Do not add `...SHIPPED` to any of

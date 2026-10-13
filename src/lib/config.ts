@@ -35,7 +35,7 @@ const envSchema = z.object({
 
   GITHUB_APP_ID: z.coerce.number().optional(),
   GITHUB_APP_SLUG: trimmedString.default("abrahamdominic"),
-  // GitHub App's own OAuth credentials (App settings → "Client ID" / "Client
+  // GitHub App's own OAuth credentials (App settings to "Client ID" / "Client
   // secrets"). These are the GitHub App's, NOT the standalone OAuth App's
   // (GITHUB_OAUTH_*). Required only if the App has "Request user authorization
   // (OAuth) during installation" enabled.
@@ -57,7 +57,7 @@ const envSchema = z.object({
    */
   BATON_WORKER_BATCH_SIZE: z.coerce.number().default(50),
 
-  // ------------------------------------------------------------------
+  // 
   // Serverless queue execution.
   //
   // On Vercel a long-lived worker process cannot run (functions are
@@ -65,7 +65,7 @@ const envSchema = z.object({
   // bounded drains instead: one inline after a webhook enqueues, one on a
   // schedule for catch-up. These bound a single drain so it always finishes
   // and responds inside the function duration limit.
-  // ------------------------------------------------------------------
+  // 
   /** Jobs a single scheduled drain may execute. */
   BATON_DRAIN_MAX_JOBS: z.coerce.number().default(40),
   /** Wall-clock budget for a single scheduled drain, in milliseconds. */
@@ -100,10 +100,10 @@ const envSchema = z.object({
    */
   CRON_SECRET: trimmedString.default(""),
 
-  // ---------------------------------------------------------------
+  // 
   // Supabase backend (billing, payments, subscriptions, admin store).
   // The service-role key must ONLY ever be used server-side.
-  // ---------------------------------------------------------------
+  // 
   SUPABASE_URL: trimmedString.default(""),
   SUPABASE_PUBLISHABLE_KEY: trimmedString.default(""),
   SUPABASE_SERVICE_ROLE_KEY: trimmedString.default(""),
@@ -112,9 +112,9 @@ const envSchema = z.object({
   // (bootstrap only; real admins are managed server-side afterwards).
   BATON_ADMIN_LOGINS: trimmedString.default(""),
 
-  // ---------------------------------------------------------------
+  // 
   // USDC payments on Base.
-  // ---------------------------------------------------------------
+  // 
   USDC_NETWORK: trimmedString.default("base"),
   USDC_TOKEN: trimmedString.default("USDC"),
   USDC_PAYMENT_WALLET_ADDRESS: trimmedString.default(""),
@@ -123,9 +123,9 @@ const envSchema = z.object({
   USDC_TOKEN_ADDRESS: trimmedString.default("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"),
   USDC_MIN_CONFIRMATIONS: z.coerce.number().default(12),
 
-  // ---------------------------------------------------------------
+  // 
   // Stripe.
-  // ---------------------------------------------------------------
+  // 
   STRIPE_SECRET_KEY: trimmedString.default(""),
   STRIPE_WEBHOOK_SECRET: trimmedString.default(""),
   STRIPE_MODE: z.enum(["test", "live"]).default("test"),
@@ -260,9 +260,9 @@ export function stripeWebhookSecretFix(env: Env = getConfig()): string | null {
   if (!secret) return null;
   if (secret.startsWith("whsec_")) return null;
   if (/^https?:\/\//i.test(secret)) {
-    return "The value looks like the webhook ENDPOINT URL (the `…/webhooks` link in the Stripe dashboard), not the signing secret. Open Stripe Dashboard → Developers → Webhooks → select the endpoint → 'Signing secret' → Reveal, and set STRIPE_WEBHOOK_SECRET to the `whsec_…` string.";
+    return "The value looks like the webhook ENDPOINT URL (the `…/webhooks` link in the Stripe dashboard), not the signing secret. Open Stripe Dashboard to Developers to Webhooks to select the endpoint to 'Signing secret' to Reveal, and set STRIPE_WEBHOOK_SECRET to the `whsec_…` string.";
   }
-  return "Replace STRIPE_WEBHOOK_SECRET with the endpoint's 'Signing secret' from Stripe Dashboard → Developers → Webhooks. It must start with `whsec_`.";
+  return "Replace STRIPE_WEBHOOK_SECRET with the endpoint's 'Signing secret' from Stripe Dashboard to Developers to Webhooks. It must start with `whsec_`.";
 }
 
 /**
@@ -274,7 +274,7 @@ export function stripeSecretKeyIssue(env: Env = getConfig()): string | null {
   const key = env.STRIPE_SECRET_KEY.trim();
   if (!key) return null;
   if (/^https?:\/\//i.test(key)) {
-    return "STRIPE_SECRET_KEY is a URL, not an API key. Use the secret key from Stripe Dashboard → Developers → API keys.";
+    return "STRIPE_SECRET_KEY is a URL, not an API key. Use the secret key from Stripe Dashboard to Developers to API keys.";
   }
   if (!/^sk_(test|live)_/.test(key)) {
     return "STRIPE_SECRET_KEY does not look like a Stripe secret key (expected `sk_test_…` or `sk_live_…`). Publishable keys (`pk_…`) and restricted keys (`rk_…`) cannot create Checkout sessions.";
@@ -314,12 +314,12 @@ export function diagnoseStripe(env: Env = getConfig()): StripeDiagnosis {
   if (keyIssue) {
     issues.push(keyIssue);
     fixes.push(
-      "Stripe Dashboard → Developers → API keys → copy the Secret key and set STRIPE_SECRET_KEY.",
+      "Stripe Dashboard to Developers to API keys to copy the Secret key and set STRIPE_SECRET_KEY.",
     );
   } else if (!secretKey) {
     issues.push("STRIPE_SECRET_KEY is not set on this deployment.");
     fixes.push(
-      "Stripe Dashboard → Developers → API keys → copy the Secret key and set STRIPE_SECRET_KEY.",
+      "Stripe Dashboard to Developers to API keys to copy the Secret key and set STRIPE_SECRET_KEY.",
     );
   }
 
@@ -335,7 +335,7 @@ export function diagnoseStripe(env: Env = getConfig()): StripeDiagnosis {
   if (webhookFix) fixes.push(webhookFix);
   else if (!webhookSecret) {
     fixes.push(
-      "Stripe Dashboard → Developers → Webhooks → your endpoint → 'Signing secret' → Reveal, and set STRIPE_WEBHOOK_SECRET to the `whsec_…` value.",
+      "Stripe Dashboard to Developers to Webhooks to your endpoint to 'Signing secret' to Reveal, and set STRIPE_WEBHOOK_SECRET to the `whsec_…` value.",
     );
   }
 

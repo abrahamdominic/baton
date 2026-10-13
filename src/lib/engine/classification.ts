@@ -72,9 +72,9 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
 
   const reasons: string[] = [];
 
-  // ------------------------------------------------------------------
+  // 
   // 1. Conflicts dominate everything.
-  // ------------------------------------------------------------------
+  // 
   if (conflicting) {
     reasons.push("Branch conflicts with the base branch.");
     return {
@@ -89,9 +89,9 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
     };
   }
 
-  // ------------------------------------------------------------------
+  // 
   // 2. Failing CI blocks review and merge confidence.
-  // ------------------------------------------------------------------
+  // 
   if (failing.length > 0) {
     reasons.push(`${failing.length} check(s) failing: ${failing.map((c) => c.name).slice(0, 3).join(", ")}`);
     return {
@@ -105,9 +105,9 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
     };
   }
 
-  // ------------------------------------------------------------------
+  // 
   // 3. Pending checks only matter once a review decision exists.
-  // ------------------------------------------------------------------
+  // 
   if (approvals.length > 0 && pending.length > 0) {
     reasons.push("Approved, waiting on checks to finish.");
     return {
@@ -121,9 +121,9 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
     };
   }
 
-  // ------------------------------------------------------------------
+  // 
   // 4. Review feedback is being processed.
-  // ------------------------------------------------------------------
+  // 
   if (lastChangeRequest && input.reviewDecision !== "APPROVED") {
     if (!authorFixedAfterChanges) {
       reasons.push(
@@ -155,9 +155,9 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
     };
   }
 
-  // ------------------------------------------------------------------
+  // 
   // 5. Approved (or commented). Is it mergeable?
-  // ------------------------------------------------------------------
+  // 
   if (approvals.length > 0 || commentedReviews.length > 0) {
     const hasApproval = approvals.length > 0;
     const allChecksDone = !pending.some(() => true) && !failing.some(() => true);
@@ -199,9 +199,9 @@ export function classifyPullRequest(input: SnapshotInput, prevState = ""): Class
     }
   }
 
-  // ------------------------------------------------------------------
+  // 
   // 6. Default: waiting for review.
-  // ------------------------------------------------------------------
+  // 
   if (input.requestedReviewerLogins.length > 0) {
     reasons.push(
       `Review requested from ${input.requestedReviewerLogins

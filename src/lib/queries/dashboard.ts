@@ -13,7 +13,7 @@ import { STATE_META, ORDERED_STATES } from "../engine/types";
  *    personal account, so an install is visible even before it is claimed.
  *  - organization member (`organizationLinks`): an Organization installation is
  *    owned by the organization, never by an individual admin, so every member
- *    sees it. This branch is what replaces personal ownership of org installs —
+ *    sees it. This branch is what replaces personal ownership of org installs, 
  *    without it, stopping the ownership flip would hide an org's repositories
  *    from everyone but the last admin who signed in.
  *
@@ -93,8 +93,8 @@ const REVIEWER_ACT_STATES = new Set(["awaiting_review", "awaiting_review_after_f
  * user, most actionable first.
  *
  * This previously returned every open, non-draft PR on the user's repositories
- * — including PRs authored by other people that are not waiting on the user at
- * all — while the surrounding copy called it "Your move" and claimed it was
+ *, including PRs authored by other people that are not waiting on the user at
+ * all, while the surrounding copy called it "Your move" and claimed it was
  * "stalled". It filtered on nothing that connects a PR to the viewer, so the
  * primary dashboard queue was a mislabelled list of someone else's work.
  *
@@ -197,9 +197,9 @@ async function queryPrs(repoId: string) {
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Activity ledger (read-side)
-// ---------------------------------------------------------------------------
+// 
 
 export type ActivityType = "nudge" | "state_change";
 
@@ -309,7 +309,7 @@ export async function recentActivity(user: SessionUser, limit = 50): Promise<Act
           previousState: target.prevState,
           description: `State changed on #${row.pr.number}: ${
             ACTIVITY_STATE_META[target.prevState]?.label ?? target.prevState
-          } → ${ACTIVITY_STATE_META[target.state]?.label ?? target.state}`,
+          } to ${ACTIVITY_STATE_META[target.state]?.label ?? target.state}`,
         });
       }
     }
@@ -318,9 +318,9 @@ export async function recentActivity(user: SessionUser, limit = 50): Promise<Act
   return items;
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Sessions (account admin)
-// ---------------------------------------------------------------------------
+// 
 
 export interface SessionInfo {
   id: string;

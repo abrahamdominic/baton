@@ -90,19 +90,19 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
           aria-pressed={selected}
           aria-label={t("language:select", { name: l.nativeName })}
           className={[
-            "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-start transition-colors",
+            "flex w-full items-center gap-3 rounded-panel border px-4 py-3 text-start transition-colors",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400",
             selected
               ? "border-brand-500/40 bg-brand-500/10"
-              : "border-white/[0.07] bg-white/[0.02] hover:border-white/15 hover:bg-white/[0.04]",
+              : "border-hairline bg-surface-1 hover:border-white/15 hover:bg-surface-2",
           ].join(" ")}
         >
           <span
             className={[
-              "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border font-mono text-[10px] font-semibold",
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-control border font-mono text-[10px] font-semibold",
               selected
                 ? "border-brand-500/40 bg-brand-500/15 text-brand-200"
-                : "border-white/[0.08] bg-ink-850 text-ink-400",
+                : "border-hairline bg-ink-850 text-ink-400",
             ].join(" ")}
           >
             {l.badge}
@@ -113,10 +113,10 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
             <span className="block truncate text-sm font-medium text-white">{l.nativeName}</span>
             <span className="flex items-center gap-1.5 text-xs text-ink-500">
               <span className="truncate">{l.englishName}</span>
-              {l.id !== l.lang ? <span className="truncate">· {l.tag}</span> : null}
+              {l.id !== l.lang ? <span className="truncate">, {l.tag}</span> : null}
               {/* Direction is stated in text, not only by layout (lan.md §15). */}
               {l.direction === "rtl" ? (
-                <span className="shrink-0 rounded border border-white/[0.08] px-1 font-mono text-[9px] uppercase">
+                <span className="shrink-0 rounded border border-hairline px-1 font-mono text-[9px] uppercase">
                   {t("language:rtl_badge")}
                 </span>
               ) : null}
@@ -147,10 +147,10 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
               <>
                 <span className="font-medium">{current.nativeName}</span>
                 <span className="text-ink-500">
-                  · {current.englishName} · {current.badge}
+, {current.englishName}, {current.badge}
                 </span>
                 {current.direction === "rtl" ? (
-                  <span className="rounded border border-white/[0.08] px-1.5 py-0.5 font-mono text-[9px] uppercase text-ink-400">
+                  <span className="rounded border border-hairline px-1.5 py-0.5 font-mono text-[9px] uppercase text-ink-400">
                     {t("language:rtl_badge")}
                   </span>
                 ) : null}
@@ -208,13 +208,13 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
           after each keystroke without the list stealing focus. */}
       <p id={statusId} role="status" aria-live="polite" className="text-xs text-ink-500">
         {tc("language:results", filtered.length)}
-        {loading ? ` · ${t("common:loading")}` : ""}
+        {loading ? `, ${t("common:loading")}` : ""}
       </p>
 
       {saveError ? (
         <p
           role="alert"
-          className="rounded-lg border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-300"
+          className="rounded-control border border-warn-500/30 bg-warn-500/10 px-3 py-2 text-xs text-warn-300"
         >
           {t(saveError)}
         </p>

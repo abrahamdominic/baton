@@ -109,8 +109,8 @@ export function GiftForm({
 
   return (
     <div className="space-y-6">
-      <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center gap-2.5 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3.5">
+      <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center gap-2.5 border-b border-hairline bg-ink-950/70 px-5 py-3.5">
           <IconGift className="h-4 w-4 text-brand-300" />
           <span className="font-mono text-[11px] uppercase tracking-wider text-ink-300">
             {t("admin:gift_form_title")}
@@ -120,7 +120,7 @@ export function GiftForm({
         <div className="p-5">
           {mode === "success" ? (
             <div className="space-y-4">
-              <div className="flex items-start gap-3 rounded-lg border border-signal-500/30 bg-signal-500/10 p-4">
+              <div className="flex items-start gap-3 rounded-control border border-signal-500/30 bg-signal-500/10 p-4">
                 <IconCheck className="mt-0.5 h-5 w-5 shrink-0 text-signal-300" />
                 <div>
                   <p className="text-sm font-semibold text-white">{t("admin:gift_success_title")}</p>
@@ -146,7 +146,7 @@ export function GiftForm({
                     {t("admin:gift_recipient")}
                   </label>
                   {selectedUser ? (
-                    <div className="flex items-center justify-between rounded-lg border border-brand-500/40 bg-ink-950/60 px-3 py-2.5">
+                    <div className="flex items-center justify-between rounded-control border border-brand-500/40 bg-ink-950/60 px-3 py-2.5">
                       <div className="flex min-w-0 items-center gap-3">
                         {selectedUser.avatarUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -156,7 +156,7 @@ export function GiftForm({
                             className="h-8 w-8 shrink-0 rounded-full ring-1 ring-white/15"
                           />
                         ) : (
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-xs font-bold text-ink-200">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-xs font-bold text-ink-200">
                             {selectedUser.login.slice(0, 1).toUpperCase()}
                           </span>
                         )}
@@ -174,7 +174,7 @@ export function GiftForm({
                           setQuery("");
                         }}
                         aria-label={t("admin:gift_clear_user")}
-                        className="rounded-md p-1 text-ink-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+                        className="rounded-md p-1 text-ink-400 transition-colors hover:bg-surface-3 hover:text-white"
                       >
                         <IconX className="h-4 w-4" />
                       </button>
@@ -191,14 +191,14 @@ export function GiftForm({
                         }}
                         onFocus={() => setOpen(true)}
                         placeholder={t("admin:gift_search_placeholder")}
-                        className="w-full rounded-lg border border-white/[0.1] bg-ink-950/60 pl-9 pr-9 py-2.5 text-sm text-white placeholder:text-ink-500 outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
+                        className="w-full rounded-control border border-hairline bg-ink-950/60 pl-9 pr-9 py-2.5 text-sm text-white placeholder:text-ink-500 outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
                       />
                       <IconChevronDown className="pointer-events-none absolute right-3 top-3 h-4 w-4 text-ink-500" />
                     </div>
                   )}
 
                   {!selectedUser && open ? (
-                    <ul className="absolute z-20 mt-1.5 max-h-64 w-full overflow-y-auto rounded-lg border border-white/[0.1] bg-ink-900 shadow-2xl">
+                    <ul className="absolute z-20 mt-1.5 max-h-64 w-full overflow-y-auto rounded-control border border-hairline bg-ink-900 shadow-2xl">
                       {filtered.length === 0 ? (
                         <li className="px-3 py-3 text-sm text-ink-500">
                           {t("admin:gift_no_users_match", { query })}
@@ -213,7 +213,7 @@ export function GiftForm({
                                 setOpen(false);
                                 setQuery("");
                               }}
-                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.04]"
+                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
                             >
                               {u.avatarUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
@@ -223,13 +223,13 @@ export function GiftForm({
                                   className="h-7 w-7 shrink-0 rounded-full ring-1 ring-white/10"
                                 />
                               ) : (
-                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-[11px] font-bold text-ink-200">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-[11px] font-bold text-ink-200">
                                   {u.login.slice(0, 1).toUpperCase()}
                                 </span>
                               )}
                               <div className="min-w-0 flex-1">
                                 <span className="font-mono text-sm text-white">@{u.login}</span>
-                                {u.name ? <span className="text-xs text-ink-400"> · {u.name}</span> : null}
+                                {u.name ? <span className="text-xs text-ink-400">, {u.name}</span> : null}
                               </div>
                             </button>
                           </li>
@@ -248,11 +248,11 @@ export function GiftForm({
                     id="gift-plan"
                     value={planId}
                     onChange={(e) => setPlanId(e.target.value)}
-                    className="w-full rounded-lg border border-white/[0.1] bg-ink-950/60 px-3 py-2.5 text-sm text-white outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
+                    className="w-full rounded-control border border-hairline bg-ink-950/60 px-3 py-2.5 text-sm text-white outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
                   >
                     {plans.map((p) => (
                       <option key={p.id} value={p.id} className="bg-ink-900">
-                        {p.name} · ${(p.monthly_price_cents / 100).toFixed(2)}/mo
+                        {p.name}, ${(p.monthly_price_cents / 100).toFixed(2)}/mo
                       </option>
                     ))}
                   </select>
@@ -265,14 +265,14 @@ export function GiftForm({
                   <label className="mb-1.5 block text-xs font-medium text-ink-300">
                     {t("admin:gift_duration")}
                   </label>
-                  <div className="flex overflow-hidden rounded-lg border border-white/[0.1]">
+                  <div className="flex overflow-hidden rounded-control border border-hairline">
                     <button
                       type="button"
                       onClick={() => setDurationType("monthly")}
                       className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                         durationType === "monthly"
                           ? "bg-brand-500/15 text-brand-300 ring-1 ring-inset ring-brand-500/30"
-                          : "text-ink-400 hover:bg-white/[0.04]"
+                          : "text-ink-400 hover:bg-surface-2"
                       }`}
                     >
                       {t("admin:gift_monthly")}
@@ -283,7 +283,7 @@ export function GiftForm({
                       className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                         durationType === "annual"
                           ? "bg-brand-500/15 text-brand-300 ring-1 ring-inset ring-brand-500/30"
-                          : "text-ink-400 hover:bg-white/[0.04]"
+                          : "text-ink-400 hover:bg-surface-2"
                       }`}
                     >
                       {t("admin:gift_annual")}
@@ -317,14 +317,14 @@ export function GiftForm({
                             className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                               monthsValue === m
                                 ? "border-brand-500/50 bg-brand-500/10 text-brand-300"
-                                : "border-white/[0.08] text-ink-400 hover:border-white/[0.16]"
+                                : "border-hairline text-ink-400 hover:border-hairline-strong"
                             }`}
                           >
                             {m}mo
                           </button>
                         ))}
                       </div>
-                      <label className="flex items-center gap-2 rounded-md border border-white/[0.08] bg-ink-950/50 px-2.5 py-1">
+                      <label className="flex items-center gap-2 rounded-md border border-hairline bg-ink-950/50 px-2.5 py-1">
                         <span className="text-[11px] text-ink-500">{t("admin:gift_custom")}</span>
                         <input
                           type="number"
@@ -347,14 +347,14 @@ export function GiftForm({
                             className={`rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors ${
                               yearsValue === y
                                 ? "border-brand-500/50 bg-brand-500/10 text-brand-300"
-                                : "border-white/[0.08] text-ink-400 hover:border-white/[0.16]"
+                                : "border-hairline text-ink-400 hover:border-hairline-strong"
                             }`}
                           >
                             {y}y
                           </button>
                         ))}
                       </div>
-                      <label className="flex items-center gap-2 rounded-md border border-white/[0.08] bg-ink-950/50 px-2.5 py-1">
+                      <label className="flex items-center gap-2 rounded-md border border-hairline bg-ink-950/50 px-2.5 py-1">
                         <span className="text-[11px] text-ink-500">{t("admin:gift_custom")}</span>
                         <input
                           type="number"
@@ -382,17 +382,17 @@ export function GiftForm({
                   maxLength={500}
                   rows={2}
                   placeholder={t("admin:gift_note_placeholder")}
-                  className="w-full resize-none rounded-lg border border-white/[0.1] bg-ink-950/60 px-3 py-2.5 text-sm text-white placeholder:text-ink-500 outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
+                  className="w-full resize-none rounded-control border border-hairline bg-ink-950/60 px-3 py-2.5 text-sm text-white placeholder:text-ink-500 outline-none transition-colors focus:border-brand-500/60 focus:ring-2 focus:ring-brand-500/20"
                 />
               </div>
 
               {!state.ok && state.error ? (
-                <p className="rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-sm text-danger-300">
+                <p className="rounded-control border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-sm text-danger-300">
                   {state.error}
                 </p>
               ) : null}
 
-              <div className="flex items-center justify-between border-t border-white/[0.06] pt-4">
+              <div className="flex items-center justify-between border-t border-hairline pt-4">
                 <p className="text-[11px] text-ink-500">
                   {t("admin:gift_footer_note")}
                 </p>
@@ -412,7 +412,7 @@ export function GiftForm({
             <form action={formAction} className="space-y-5">
               {/* Summary */}
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex items-center gap-3 rounded-lg border border-white/[0.08] bg-ink-950/50 p-4">
+                <div className="flex items-center gap-3 rounded-control border border-hairline bg-ink-950/50 p-4">
                   {selectedUser?.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -421,7 +421,7 @@ export function GiftForm({
                       className="h-10 w-10 shrink-0 rounded-full ring-1 ring-white/15"
                     />
                   ) : (
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-sm font-bold text-ink-200">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-sm font-bold text-ink-200">
                       {selectedUser?.login.slice(0, 1).toUpperCase()}
                     </span>
                   )}
@@ -433,21 +433,21 @@ export function GiftForm({
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-white/[0.08] bg-ink-950/50 p-4">
+                <div className="rounded-control border border-hairline bg-ink-950/50 p-4">
                   <p className="text-xs font-medium text-ink-300">{t("admin:gift_summary")}</p>
                   <p className="mt-1.5 text-sm text-white">
-                    <span className="font-semibold text-brand-300">{selectedPlan?.name}</span> ·{" "}
+                    <span className="font-semibold text-brand-300">{selectedPlan?.name}</span>, {" "}
                     {t("admin:gifts_months", { count: months })} ({t(
                       durationType === "annual" ? "admin:gift_annual" : "admin:gift_monthly",
                     ).toLowerCase()})
                   </p>
                   <p className="mt-0.5 text-xs text-ink-400">
-                    {priceLabel} · {t("admin:gift_access_until", { date: accessEndsAt })}
+                    {priceLabel}, {t("admin:gift_access_until", { date: accessEndsAt })}
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] p-4 text-xs">
+              <div className="space-y-2 rounded-control border border-amber-500/25 bg-amber-500/[0.06] p-4 text-xs">
                 <p className="flex items-center gap-2 font-medium text-amber-300">
                   <IconShield className="h-4 w-4" />
                   {t("admin:gift_confirm_warning")}
@@ -461,7 +461,7 @@ export function GiftForm({
               </div>
 
               {note ? (
-                <p className="rounded-lg border border-white/[0.08] bg-ink-950/50 px-3 py-2 text-xs text-ink-300">
+                <p className="rounded-control border border-hairline bg-ink-950/50 px-3 py-2 text-xs text-ink-300">
                   <span className="font-medium text-ink-400">{t("admin:note_label")}</span> {note}
                 </p>
               ) : null}
@@ -472,7 +472,7 @@ export function GiftForm({
               <input type="hidden" name="months" value={String(months)} />
               <textarea name="note" value={note} readOnly className="hidden" aria-hidden="true" tabIndex={-1} />
 
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/[0.1] bg-ink-950/50 px-3 py-2.5 text-sm text-ink-200">
+              <label className="flex cursor-pointer items-center gap-2 rounded-control border border-hairline bg-ink-950/50 px-3 py-2.5 text-sm text-ink-200">
                 <input
                   type="checkbox"
                   name="confirm"
@@ -483,12 +483,12 @@ export function GiftForm({
               </label>
 
               {!state.ok && state.error ? (
-                <p className="rounded-lg border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-sm text-danger-300">
+                <p className="rounded-control border border-danger-500/30 bg-danger-500/10 px-3 py-2 text-sm text-danger-300">
                   {state.error}
                 </p>
               ) : null}
 
-              <div className="flex items-center justify-end gap-3 border-t border-white/[0.06] pt-4">
+              <div className="flex items-center justify-end gap-3 border-t border-hairline pt-4">
                 <button type="button" onClick={() => setMode("form")} className="btn btn-ghost btn-sm">
                   {t("admin:back")}
                 </button>

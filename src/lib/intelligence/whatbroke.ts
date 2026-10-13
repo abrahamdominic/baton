@@ -2,7 +2,7 @@ import { prisma } from "../db";
 import type { DigestBullet } from "./briefing";
 
 /**
- * "What Broke?" — explain a failing pull request from recorded check data.
+ * "What Broke?", explain a failing pull request from recorded check data.
  *
  * This answers *which checks failed and what GitHub says about them*, nothing
  * more. It does not speculate about the cause of a failure from a test name,
@@ -73,7 +73,7 @@ export interface WhatBrokeResult {
  *
  * This is the authorizing entry point. Callers that have already resolved and
  * authorized the repository must use `whatBrokeForRepo` instead, so the
- * visibility rule lives in exactly one place — a second, subtly different copy
+ * visibility rule lives in exactly one place, a second, subtly different copy
  * of it is how a private repository ends up readable one route and 404 on
  * another.
  */

@@ -27,7 +27,7 @@ import { fetchMessagePage } from "@/lib/messaging/thread-window";
 // Messaging is client-locked: device keypairs and thread keys are generated in
 // the browser and the private halves never leave it. The DB stores only device
 // PUBLIC keys and per-member thread-key wraps, so nothing here ever handles
-// plaintext or private key material — the server is deliberate about not being
+// plaintext or private key material, the server is deliberate about not being
 // able to read your conversations.
 //
 // Access control lives in this layer (requireActiveUser / requireTeamMember / requireOrganizationMember),
@@ -57,7 +57,7 @@ const DENIED = "You are not a member of this conversation." as const;
  * grant that is only meant to exist while the person is still on the team or
  * organization. Authorizing on it alone meant a member removed from a
  * workspace kept full read access to every message in its threads, plus the
- * ability to post into them — the HTML pages 404 them, but these actions are
+ * ability to post into them, the HTML pages 404 them, but these actions are
  * directly callable HTTP endpoints and a page guard is not an authorization
  * boundary.
  *
@@ -955,7 +955,7 @@ export type MessageSummary = {
 };
 
 /** Page backward through a conversation's messages (plaintext never leaves the
- * client — rows carry only ciphertext and metadata). */
+ * client, rows carry only ciphertext and metadata). */
 export async function listMessagesAction(
   input: z.infer<typeof listMessagesInputSchema>,
 ): Promise<

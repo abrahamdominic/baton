@@ -10,12 +10,12 @@ import {
   IconUsers,
   IconGitHub,
   IconChevronRight,
-  IconArrowRight,
   IconGitPullRequest,
   IconBranch,
   IconSettings,
   IconSend,
 } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import { updateTeam } from "../actions";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
@@ -127,7 +127,7 @@ export default async function TeamDetailPage({
       />
 
       {!paid && user.id === team.ownerId ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn-500/25 bg-warn-500/[0.06] px-4 py-3 text-xs text-ink-300">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-panel border border-warn-500/25 bg-warn-500/[0.06] px-4 py-3 text-xs text-ink-300">
           <div className="flex items-center gap-3">
             <span className="h-2 w-2 rounded-full bg-warn-400" />
             <p className="leading-relaxed">
@@ -165,8 +165,8 @@ export default async function TeamDetailPage({
       </section>
 
       {/* Member table */}
-      <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-        <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
+      <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+        <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
           <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
             {t("workspace:members")}
           </span>
@@ -179,7 +179,7 @@ export default async function TeamDetailPage({
             </span>
           ) : null}
         </div>
-        <ul className="divide-y divide-white/[0.05]">
+        <ul className="divide-y divide-hairline">
           {team.members.map((m) => {
             const isMe = m.userId === user.id;
             const isOwner = m.role === "owner";
@@ -196,7 +196,7 @@ export default async function TeamDetailPage({
                       className="h-8 w-8 shrink-0 rounded-full ring-1 ring-white/15"
                     />
                   ) : (
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.1] bg-ink-800 font-mono text-xs font-bold text-ink-200">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline bg-ink-800 font-mono text-xs font-bold text-ink-200">
                       {m.user.login.slice(0, 1).toUpperCase()}
                     </span>
                   )}
@@ -242,7 +242,7 @@ export default async function TeamDetailPage({
                       login={m.user.login}
                     />
                   ) : (
-                    <span className="rounded-full border border-white/[0.08] bg-ink-850 px-2 py-0.5 font-mono text-[10px] text-ink-300">
+                    <span className="rounded-full border border-hairline bg-ink-850 px-2 py-0.5 font-mono text-[10px] text-ink-300">
                       {m.role}
                     </span>
                   )}
@@ -272,26 +272,26 @@ export default async function TeamDetailPage({
       </section>
 
       {/* Invitations */}
-      <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
+      <section className="rounded-panel border border-hairline bg-ink-900/60 p-5 shadow-sm">
         <h2 className="text-sm font-bold text-white">{t("workspace:invitations")}</h2>
         <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
           {t("workspace:invitations_hint")}
         </p>
         {isAdmin ? (
-          <div className="mb-5 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4">
+          <div className="mb-5 rounded-control border border-hairline bg-ink-950/60 p-4">
             <InviteForm kind="team" workspaceId={team.id} />
           </div>
         ) : null}
         {team.invites.length === 0 ? (
           <p className="text-xs text-ink-500">{t("workspace:no_pending_invitations")}</p>
         ) : (
-          <ul className="divide-y divide-white/[0.05] rounded-lg border border-white/[0.06]">
+          <ul className="divide-y divide-hairline rounded-control border border-hairline">
             {team.invites.map((inv) => (
               <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
                   <p className="font-mono text-xs font-semibold text-white">@{inv.githubLogin}</p>
                   <p className="mt-0.5 font-mono text-[11px] text-ink-500">
-                    {t(`workspace:role_${inv.role}`)} &middot;{" "}
+                    {t(`workspace:role_${inv.role}`)}, {" "}
                     {t("workspace:invited_by", { login: inv.invitedBy.login })}
                   </p>
                 </div>
@@ -310,13 +310,13 @@ export default async function TeamDetailPage({
       </section>
 
       {/* Shared repositories */}
-      <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
+      <section className="rounded-panel border border-hairline bg-ink-900/60 p-5 shadow-sm">
         <h2 className="text-sm font-bold text-white">{t("workspace:shared_board_scope")}</h2>
         <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
           {t("workspace:shared_board_scope_hint")}
         </p>
         {isAdmin ? (
-          <div className="mb-5 rounded-lg border border-white/[0.06] bg-ink-950/60 p-4">
+          <div className="mb-5 rounded-control border border-hairline bg-ink-950/60 p-4">
             {myInstalls.length === 0 ? (
               <p className="text-xs text-ink-500">
                 {t("workspace:no_installations")}{" "}
@@ -355,7 +355,7 @@ export default async function TeamDetailPage({
             {team.installations.map((link) => (
               <li
                 key={link.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/[0.06] bg-ink-950/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-hairline bg-ink-950/60 px-4 py-3"
               >
                 <div className="min-w-0">
                   <p className="font-mono text-xs font-semibold text-white">
@@ -380,7 +380,7 @@ export default async function TeamDetailPage({
       </section>
 
       {isAdmin ? (
-        <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
+        <section className="rounded-panel border border-hairline bg-ink-900/60 p-5 shadow-sm">
           <h2 className="flex items-center gap-2 text-sm font-bold text-white">
             <IconSettings className="h-4 w-4 text-ink-400" />
             {t("workspace:settings_title")}
@@ -428,9 +428,9 @@ export default async function TeamDetailPage({
       ) : null}
 
       {/* Danger zone */}
-      <section className="rounded-xl border border-danger-500/20 bg-danger-500/[0.03] p-5">
+      <section className="rounded-panel border border-danger-500/20 bg-danger-500/[0.03] p-5">
         <h2 className="flex items-center gap-2 text-sm font-bold text-white">
-          <IconArrowRight className="h-4 w-4 text-ink-500" />
+          <LinkArrow className="h-4 w-4 text-ink-500" />
           {t("workspace:danger_zone")}
         </h2>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">

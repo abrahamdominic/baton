@@ -26,8 +26,8 @@ export interface ImpactArea {
   reasons: string[];
   /**
    * *Candidate* test paths inferred from naming convention. These are not
-   * verified to exist — the collector records the trunk layout, not every file
-   * in the tree — so they must be presented to a developer as "these are the
+   * verified to exist, the collector records the trunk layout, not every file
+   * in the tree, so they must be presented to a developer as "these are the
    * tests to look at", never as "these are the tests that cover this change".
    */
   affectedTests: string[];

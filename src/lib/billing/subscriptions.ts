@@ -178,7 +178,7 @@ export interface TransitionOptions {
  * The state machine is enforced twice: once here against the row we read, and
  * once in SQL by the `.eq("status", observed)` compare-and-set. Without the
  * second check, two webhooks that read the same status both validate and both
- * write — a renewal landing on a `pending` row could, for example, be written
+ * write, a renewal landing on a `pending` row could, for example, be written
  * by a cancel in the same window. When the CAS loses the race the row is
  * re-read and re-validated, so a genuinely newer state is honoured rather than
  * silently overwritten.
@@ -188,7 +188,7 @@ export async function transitionSubscription(id: string, opts: TransitionOptions
   if (!current) throw new BillingInputError("Subscription not found.");
   const error = validateTransition(current.status, opts.to);
   if (error) {
-    throw new BillingInputError(`Illegal subscription transition: ${error.from} → ${error.to}`);
+    throw new BillingInputError(`Illegal subscription transition: ${error.from} to ${error.to}`);
   }
 
   const patch: Row = { updated_at: new Date().toISOString() };
@@ -223,7 +223,7 @@ export async function transitionSubscription(id: string, opts: TransitionOptions
     if (!latest) throw new BillingInputError("Subscription not found.");
     const retryError = validateTransition(latest.status, opts.to);
     if (retryError) {
-      throw new BillingInputError(`Illegal subscription transition: ${retryError.from} → ${retryError.to}`);
+      throw new BillingInputError(`Illegal subscription transition: ${retryError.from} to ${retryError.to}`);
     }
     if (latest.status === opts.to) {
       // A concurrent identical transition already applied this target status;
@@ -252,9 +252,9 @@ export async function transitionSubscription(id: string, opts: TransitionOptions
   return sub;
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Domain operations (small, named wrappers over guarded transitions)
-// ---------------------------------------------------------------------------
+// 
 
 export async function activateSubscription(
   id: string,
@@ -364,9 +364,9 @@ export async function reactivateSubscription(id: string): Promise<SubscriptionRe
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Plan changes (upgrade / downgrade)
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Move a subscription to a different plan without touching its lifecycle status.
@@ -374,7 +374,7 @@ export async function reactivateSubscription(id: string): Promise<SubscriptionRe
  * The status transition is a no-op (from === to is always legal), so this is a
  * plan swap: the period, the renewal schedule, and the customer's payment all
  * stay exactly as Stripe has them, and only the entitlement Baton grants changes.
- * Stripe is what created the change — via the Billing Portal — so the caller
+ * Stripe is what created the change, via the Billing Portal, so the caller
  * passes the plan Stripe's price actually maps to.
  *
  * Recording the event with the before/after plan is what makes an upgrade
@@ -395,9 +395,9 @@ export async function changeSubscriptionPlan(
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Payment action required (the user must update their payment method)
-// ---------------------------------------------------------------------------
+// 
 
 /**
  * Stripe told us the saved payment method cannot be charged.
@@ -458,9 +458,9 @@ export async function completeCancellation(id: string): Promise<SubscriptionReco
   });
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Checkout preparation (plan changes reuse the row, no duplicate subscriptions)
-// ---------------------------------------------------------------------------
+// 
 
 export interface PreparedSubscription {
   subscription: SubscriptionRecord;
@@ -635,9 +635,9 @@ async function retryFailedSubscription(
   return { subscription: sub, planChanged: true, alreadyOnPlan: false, renewal: false };
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Checkout cancellation
-// ---------------------------------------------------------------------------
+// 
 
 export interface CancelCheckoutResult {
   subscription: SubscriptionRecord;
@@ -652,10 +652,10 @@ export interface CancelCheckoutResult {
  * Ordering prevents the paid-vs-cancelled race:
  * 1. Atomically cancel the OPEN payment (`cancelCheckoutPayment` only matches
  *    pending/pending_verification). If the Stripe webhook (or USDC auto-verify)
- *    already won, the payment reads back `confirmed` and cancellation ABORTS —
+ *    already won, the payment reads back `confirmed` and cancellation ABORTS, 
  *    a successful payment is never destroyed by a cancel (Case C).
  * 2. Only when the payment cancel won do we terminate the subscription row
- *    (`pending|payment_failed → canceled`). A concurrent webhook can no longer
+ *    (`pending|payment_failed to canceled`). A concurrent webhook can no longer
  *    activate it, because its `confirmPayment` now matches zero rows and the
  *    activation is skipped.
  */
@@ -679,7 +679,7 @@ export async function cancelPendingCheckout(
       try {
         await getStripe().checkout.sessions.expire(payment.stripe_checkout_session_id);
       } catch {
-        // The session may already be expired/completed — either way our local
+        // The session may already be expired/completed, either way our local
         // cancellation is what matters. Do not surface Stripe noise to the user.
       }
     }
@@ -713,9 +713,9 @@ export async function cancelPendingCheckout(
   return { subscription: cancelled, payment };
 }
 
-// ---------------------------------------------------------------------------
+// 
 // Admin / housekeeping operations
-// ---------------------------------------------------------------------------
+// 
 
 export async function listAllSubscriptions(limit = 100): Promise<SubscriptionRecord[]> {
   const sb = getAdminClient();
@@ -751,7 +751,7 @@ export async function adminOverrideSubscription(
   if (!current) throw new BillingInputError("Subscription not found.");
   const error = validateTransition(current.status, input.to);
   if (error) {
-    throw new BillingInputError(`Illegal subscription transition: ${error.from} → ${error.to}`);
+    throw new BillingInputError(`Illegal subscription transition: ${error.from} to ${error.to}`);
   }
   if (!input.reason?.trim()) throw new BillingInputError("An admin reason is required.");
 

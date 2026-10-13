@@ -7,10 +7,10 @@ import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import {
   IconBuilding,
   IconChevronRight,
-  IconArrowRight,
   IconShield,
   IconGitPullRequest,
 } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 import { createOrganization } from "./actions";
 import {
   AcceptInviteButton,
@@ -56,13 +56,13 @@ export default async function OrganizationsPage() {
       />
 
       {invites.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-brand-500/25 bg-ink-900/50 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-brand-500/25 bg-ink-900/50 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
               {t("organizations:invites_for_you")}
             </span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {invites.map((inv) => (
               <li
                 key={inv.id}
@@ -99,14 +99,14 @@ export default async function OrganizationsPage() {
           action={
             <Link href="/dashboard/billing" className="btn btn-primary btn-sm">
               <span>{t("organizations:upgrade_to_org")}</span>
-              <IconArrowRight className="h-3.5 w-3.5" />
+              <LinkArrow className="h-3.5 w-3.5" />
             </Link>
           }
         />
       ) : (
         <>
           {/* Create organization */}
-          <section className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm">
+          <section className="rounded-panel border border-hairline bg-ink-900/60 p-5 shadow-sm">
             <h2 className="text-sm font-bold text-white">{t("organizations:create_org")}</h2>
             <p className="mb-4 mt-1 text-xs leading-relaxed text-ink-400">
               {t("organizations:create_org_hint")}
@@ -166,7 +166,7 @@ export default async function OrganizationsPage() {
               {orgs.map((org) => (
                 <li
                   key={org.id}
-                  className="rounded-xl border border-white/[0.08] bg-ink-900/60 p-5 shadow-sm transition-all duration-200 hover:border-white/[0.14]"
+                  className="rounded-panel border border-hairline bg-ink-900/60 p-5 shadow-sm transition-all duration-200 hover:border-hairline-strong"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -177,7 +177,7 @@ export default async function OrganizationsPage() {
                         >
                           {org.name}
                         </Link>
-                        <span className="rounded border border-white/[0.08] bg-ink-850 px-2 py-0.5 font-mono text-[10px] text-ink-400">
+                        <span className="rounded border border-hairline bg-ink-850 px-2 py-0.5 font-mono text-[10px] text-ink-400">
                           {org.slug}
                         </span>
                         <Badge tone={org.paid ? "success" : "warn"}>
@@ -185,12 +185,12 @@ export default async function OrganizationsPage() {
                         </Badge>
                       </div>
                       <p className="mt-1 font-mono text-xs text-ink-400">
-                        @{org.ownerLogin} &middot;{" "}
+                        @{org.ownerLogin}, {" "}
                         <span className="text-ink-200">{org.memberCount}</span>{" "}
                         {t("organizations:members_count", { count: org.memberCount })}
                         {org.role !== "member" ? (
                           <>
-                            <span className="text-ink-600"> &middot; </span>
+                            <span className="text-ink-600">, </span>
                             <span className="font-semibold text-brand-300">
                               {t(`workspace:role_${org.role}`)}
                             </span>
@@ -214,7 +214,7 @@ export default async function OrganizationsPage() {
                       </Link>
                       <Link href={`/dashboard/organization/${org.id}`} className="btn btn-ghost btn-sm">
                         <span>{t("organizations:manage")}</span>
-                        <IconArrowRight className="h-3 w-3" />
+                        <LinkArrow className="h-3 w-3" />
                       </Link>
                     </div>
                   </div>

@@ -28,14 +28,14 @@ const subtle = globalThis.crypto.subtle;
 /** Length of an AES-GCM nonce (96 bits / 12 bytes). */
 export const AES_GCM_BYTES = 12;
 
-/** HKDF bindings — app-fixed salts/info, never per-message. */
+/** HKDF bindings, app-fixed salts/info, never per-message. */
 const HKDF_SALT = strBytes("baton-thread-key-v1");
 const HKDF_INFO_THREAD = strBytes("baton-thread-wrap-v1");
 
 export interface DeviceKeyPair {
-  /** SPKI base64 — safe to store server-side. */
+  /** SPKI base64, safe to store server-side. */
   publicKeyB64: string;
-  /** PKCS8 base64 — NEVER send this anywhere. */
+  /** PKCS8 base64, NEVER send this anywhere. */
   privateKeyB64: string;
 }
 
@@ -137,7 +137,7 @@ export async function wrapThreadKeyForMember(
   return { wrappedKeyB64: bufToB64(concatBytes(iv, new Uint8Array(ct))) };
 }
 
-/** Inverse of wrapThreadKeyForMember — runs entirely on the client. */
+/** Inverse of wrapThreadKeyForMember, runs entirely on the client. */
 export async function unwrapThreadKeyForMember(
   wrappedKeyB64: string,
   ourPrivateKeyB64: string,
@@ -372,7 +372,7 @@ function importThreadKey(threadKeyB64: string): Promise<CryptoKey> {
   );
 }
 
-/** Marker for messages whose epoch guard failed — never stored in plaintext. */
+/** Marker for messages whose epoch guard failed, never stored in plaintext. */
 const CORRUPT_EPOCH = -1;
 
 function subtleIv(): Uint8Array<ArrayBuffer> {

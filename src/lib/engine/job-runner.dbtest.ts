@@ -4,14 +4,14 @@ import { jobLatency, recentJobFailures } from "@/lib/engine/queue-metrics";
 vi.mock("server-only", () => ({}));
 
 /**
- * Worker queue integration test — the real thing, not a mock.
+ * Worker queue integration test, the real thing, not a mock.
  *
  * Every existing test in this repository replaces Prisma with an in-memory
  * fixture, which means the queue had never been executed against a real
  * database. That is precisely the layer that was broken: the worker was never
  * deployed, so nothing proved the queue could claim and complete a job.
  *
- * This suite runs the genuine `enqueueJob` → `claimOne` → `drainQueue` →
+ * This suite runs the genuine `enqueueJob` to `claimOne` to `drainQueue` to 
  * `queueSnapshot` path against a real database. Only the GitHub-facing
  * processors in `@/lib/engine/runner` are stubbed, because those make live API
  * calls; everything the worker owns (atomic claiming, CAS races, status
@@ -386,7 +386,7 @@ describe("worker queue (real database)", () => {
 
   it("retries a failed automation run on the same backoff path as other work", async () => {
     // The workflow suite reads only the database, so a failure here is a defect
-    // or a transient database error — not something to drop silently.
+    // or a transient database error, not something to drop silently.
     failOn.add("automations:acme/widgets");
     await enqueueJob({ kind: "repo_automations", installationId: 42, owner: "acme", repo: "widgets" });
 
@@ -671,7 +671,7 @@ describe("queue leases and fencing", () => {
 
   it("never hands the same job to two concurrent claimers", async () => {
     // Many claimers, fewer jobs than claimers, so some must lose the
-    // compare-and-swap. Whoever loses must report `contended` or `empty` —
+    // compare-and-swap. Whoever loses must report `contended` or `empty`, 
     // crucially never `claimed` for a row someone else already owns, and never
     // the same job id twice.
     for (let n = 1; n <= 3; n += 1) {
@@ -685,9 +685,9 @@ describe("queue leases and fencing", () => {
 
     // The invariant is exclusivity: no job is ever handed to two executors, and
     // no claim reports a lease token for a row it did not actually win. How many
-    // of the three are taken in a single burst is timing-dependent — a loser
+    // of the three are taken in a single burst is timing-dependent, a loser
     // that reads the same head row returns `contended` and the next round moves
-    // on — so that count is deliberately not asserted. It is bounded, and the
+    // on, so that count is deliberately not asserted. It is bounded, and the
     // drain test below is what proves the backlog actually gets worked off.
     expect(claimedIds.length).toBeGreaterThan(0);
     expect(claimedIds.length).toBeLessThanOrEqual(3);

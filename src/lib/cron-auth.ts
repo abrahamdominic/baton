@@ -10,7 +10,7 @@ import { logger } from "@/lib/logger";
  * an invention.
  *
  * Fails CLOSED: if `CRON_SECRET` is unset, the endpoint rejects every request.
- * The alternative — allowing unauthenticated drains so that "it just works" —
+ * The alternative, allowing unauthenticated drains so that "it just works", 
  * would let anyone on the internet trigger a repository sweep and a job drain,
  * which is a free amplification vector against both our database and the
  * GitHub API rate limit of every connected installation.

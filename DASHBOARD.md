@@ -6,13 +6,13 @@ all connects to GitHub.
 ## The sign-in flow
 
 ```
-Baton website  →  /auth/login  →  github.com/login/oauth/authorize
+Baton website to /auth/login to github.com/login/oauth/authorize
                                           │ user approves
                                           ▼
                   /auth/callback?code=…&state=…&iss=https://github.com/login/oauth
                                           │ validations + code exchange
                                           ▼
-                  baton_session httpOnly cookie set → redirect → /dashboard
+                  baton_session httpOnly cookie set to redirect to /dashboard
 ```
 
 1. Any **Sign in** link points at `/auth/login?next=/dashboard`.
@@ -75,12 +75,12 @@ The **GitHub App** is a separate thing. It is what provides the actual Baton
 product data flowing into the dashboard:
 
 | Capability | Needs GitHub App | Needs OAuth |
-| --- | --- | --- |
-| Sign in / session / your GitHub profile | ❌ | ✅ |
-| Setting a session cookie & route protection | ❌ | ✅ |
-| Activity Ledger (nudges, state changes) | ✅ (it performs them) | ❌ |
-| Repositories & PR queue ("Your Move") | ✅ (it reads PR state) | ❌ |
-| Nudge threshold configuration | ✅ (per repo) | ❌ |
+|  |  |  |
+| Sign in / session / your GitHub profile | No | Yes |
+| Setting a session cookie & route protection | No | Yes |
+| Activity Ledger (nudges, state changes) | Yes (it performs them) | No |
+| Repositories & PR queue ("Your Move") | Yes (it reads PR state) | No |
+| Nudge threshold configuration | Yes (per repo) | No |
 
 So: if you only want the authenticated app experience to be reachable and show
 your GitHub identity with honest empty states, OAuth is sufficient. If you want
@@ -97,11 +97,10 @@ Never swap the two, and never commit them; the repository `.env` is gitignored.
 ## The installation flow
 
 ```
-Install Baton  →  /install
-  no session        →  /auth/login?next=/install   (GitHub OAuth App sign-in)
-                          →  /auth/callback  →  baton_session set
-  session ok        →  https://github.com/apps/<slug>/installations/new
-                          │ user picks account/repos · GitHub installs
+Install Baton to /install
+  no session to /auth/login?next=/install   (GitHub OAuth App sign-in) to /auth/callback to baton_session set
+  session ok to https://github.com/apps/<slug>/installations/new
+                          │ user picks account/repos, GitHub installs
                           ▼
                   /auth/install/callback?installation_id=<id>[&code=…]
                           │ App code (if any) exchanged w/ GitHub App secret
@@ -117,7 +116,7 @@ All authenticated pages live under `/dashboard` and inherit the layout guard +
 `X-Robots-Tag: noindex, nofollow` (defense-in-depth on top of `robots.txt`).
 
 | Route | Name | What it does | Data source |
-| --- | --- | --- | --- |
+|  |  |  |  |
 | `/dashboard` | Overview | Greeting, live metric cards (repos, open PRs, stalled 24h+, waiting on reviewers), the "Your Move" queue (open PRs ordered by who must act and wait time), getting-started panel when nothing is installed, and a recent-activity preview. | `yourMove`, `myInstallations`, `recentActivity` |
 | `/dashboard/repos` | Repositories | Every tracked repo: enable/pause tracking, per-repo nudge thresholds, manual "Re-scan now". | `myInstallations`, server actions |
 | `/dashboard/repos/:owner/:repo` | Repo board | All open PRs of one repo grouped by Baton state, with stall durations. | `repoBoard` |
@@ -160,8 +159,7 @@ specific, human-readable message per reason:
 
 The same route no longer absorbs the GitHub App **installation** callback.
 Install callbacks now land on the dedicated `/auth/install/callback`
-(`?installation_id=…` → register + link to the signed-in user →
-`/dashboard?installed=1`); a legacy `installation_id` hit on `/auth/callback`
+(`?installation_id=…` to register + link to the signed-in user to `/dashboard?installed=1`); a legacy `installation_id` hit on `/auth/callback`
 is forwarded there.
 
 ### OAuth URL fixes (why production stopped breaking)
@@ -193,6 +191,6 @@ cp .env.example .env                                  # fill in OAuth + App vars
 npm run dev                                           # http://localhost:3000
 ```
 
-Sign in with GitHub → you land on `/dashboard`. Install the GitHub App on a
+Sign in with GitHub to you land on `/dashboard`. Install the GitHub App on a
 repo (`/install`) and PR data starts flowing into the queue, repos, and
 activity pages.

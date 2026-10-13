@@ -43,7 +43,7 @@ const profile = (over: Partial<RepositoryProfile> = {}): RepositoryProfile => ({
   ...over,
 });
 
-describe("deriveKnowledge — evidence discipline", () => {
+describe("deriveKnowledge, evidence discipline", () => {
   it("emits nothing when there is no evidence at all", () => {
     expect(deriveKnowledge(input({ evidenceByKind: new Map() }))).toEqual([]);
   });
@@ -92,7 +92,7 @@ describe("deriveKnowledge — evidence discipline", () => {
   });
 });
 
-describe("deriveKnowledge — architecture and workflow", () => {
+describe("deriveKnowledge, architecture and workflow", () => {
   it("records the ORM and says whether migrations exist", () => {
     const entries = deriveKnowledge(input({ profile: profile({ orm: "Prisma", hasMigrations: true }) }));
     const orm = entries.find((e) => e.title.includes("Prisma"));
@@ -131,7 +131,7 @@ describe("deriveKnowledge — architecture and workflow", () => {
   });
 });
 
-describe("deriveKnowledge — documentation and failure patterns", () => {
+describe("deriveKnowledge, documentation and failure patterns", () => {
   it("records the README as the documented entry point", () => {
     const entries = deriveKnowledge(input({ hasReadme: true }));
     expect(entries.some((e) => e.kind === "documentation" && e.title.includes("README"))).toBe(true);
@@ -184,7 +184,7 @@ describe("deriveKnowledge — documentation and failure patterns", () => {
   });
 });
 
-describe("deriveKnowledge — ownership", () => {
+describe("deriveKnowledge, ownership", () => {
   it("records CODEOWNERS as an ownership fact", () => {
     const entries = deriveKnowledge(
       input({ codeowners: "* @acme/platform\n", evidenceByKind: evidenceMap(["codeowners", "repo"]) }),
@@ -205,7 +205,7 @@ describe("deriveKnowledge — ownership", () => {
   });
 });
 
-describe("deriveKnowledge — change frequency", () => {
+describe("deriveKnowledge, change frequency", () => {
   const churnProfile = profile({
     commitSampleSize: 100,
     highChurnAreas: [

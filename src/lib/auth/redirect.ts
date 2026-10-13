@@ -26,7 +26,7 @@ export function getAppBaseUrl(req?: NextRequest): string {
   // controls a forwarding header send a victim off-site from a trusted URL, and
   // downgrade the session cookie's Secure flag on a misconfigured proxy.
   // Only the configured origins are ever used, which is also what the OAuth
-  // `redirect_uri` is pinned to (getOAuthBaseUrl) — the two must agree.
+  // `redirect_uri` is pinned to (getOAuthBaseUrl), the two must agree.
   if (config.APP_URL && !config.APP_URL.includes("localhost") && !config.APP_URL.includes("127.0.0.1")) {
     return config.APP_URL;
   }

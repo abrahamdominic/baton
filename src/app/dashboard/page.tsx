@@ -19,7 +19,6 @@ import { resumeContextAction } from "./actions";
 import { EmptyState, Badge, StatCard, PageHeader } from "@/components/ui";
 import { Duration, StateBadge } from "@/components/state-badge";
 import {
-  IconArrowRight,
   IconGitPullRequest,
   IconCheckCircle,
   IconBranch,
@@ -31,6 +30,7 @@ import {
   IconLayers,
   IconAlertCircle,
 } from "@/components/icons";
+import { LinkArrow } from "@/components/marketing/arrow";
 
 export const dynamic = "force-dynamic";
 
@@ -56,12 +56,12 @@ async function ActivityRow({ item }: { item: ActivityItem }) {
   const isNudge = item.type === "nudge";
 
   return (
-    <li className="flex items-start gap-3.5 px-5 py-3.5 transition-colors hover:bg-white/[0.02]">
+    <li className="flex items-start gap-3.5 px-5 py-3.5 transition-colors hover:bg-surface-1">
       <span
-        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border text-xs ${
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-control border text-xs ${
           isNudge
             ? "border-brand-500/30 bg-brand-500/10 text-brand-300"
-            : "border-white/[0.08] bg-ink-850 text-ink-300"
+            : "border-hairline bg-ink-850 text-ink-300"
         }`}
       >
         {isNudge ? (
@@ -79,7 +79,7 @@ async function ActivityRow({ item }: { item: ActivityItem }) {
           >
             {item.owner}/{item.repo}
           </Link>
-          <span className="text-ink-600"> &middot; </span>
+          <span className="text-ink-600">, </span>
           <span className="text-ink-400">{t("repos:pr_number", { number: item.prNumber })}</span>
         </p>
       </div>
@@ -157,7 +157,7 @@ export default async function DashboardPage({
       {/* Installation Success Notification */}
       {resolvedParams?.installed ? (
         <div
-          className="flex items-start gap-3 rounded-xl border border-signal-500/30 bg-signal-500/10 p-4 text-xs text-signal-300 shadow-sm"
+          className="flex items-start gap-3 rounded-panel border border-signal-500/30 bg-signal-500/10 p-4 text-xs text-signal-300 shadow-sm"
           role="status"
         >
           <IconCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-signal-400" />
@@ -172,7 +172,7 @@ export default async function DashboardPage({
 
       {/* Plan Status Banner */}
       {entitlement.subscription ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-ink-900/50 px-4 py-3 text-xs text-ink-200">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-panel border border-hairline bg-ink-900/50 px-4 py-3 text-xs text-ink-200">
           <div className="flex items-center gap-2.5">
             <span
               className={`h-2 w-2 rounded-full ${
@@ -180,7 +180,7 @@ export default async function DashboardPage({
               }`}
             />
             <span className="font-medium">
-              {entitlement.planName} Plan &middot; {entitlement.statusLabel}
+              {entitlement.planName} Plan, {entitlement.statusLabel}
             </span>
             {entitlement.subscription.current_period_end ? (
               <span className="font-mono text-[11px] text-ink-500">
@@ -193,7 +193,7 @@ export default async function DashboardPage({
             className="font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
           >
             <span>{t("dashboard:manage_subscription")}</span>
-            <IconArrowRight className="h-3 w-3" />
+            <LinkArrow className="h-3 w-3" />
           </Link>
         </div>
       ) : null}
@@ -273,8 +273,8 @@ export default async function DashboardPage({
           Deliberately windowed rather than a standing snapshot, so a quiet day
           renders one line instead of the same counts every morning. */}
       {installations.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-ink-950/70 px-5 py-3">
             <div className="flex items-center gap-2">
               <IconLayers className="h-4 w-4 text-brand-300" />
               <h2 className="text-sm font-semibold text-white">{t("dashboard:catchup_title")}</h2>
@@ -292,7 +292,7 @@ export default async function DashboardPage({
               {t("dashboard:catchup_quiet")}
             </p>
           ) : (
-            <div className="divide-y divide-white/[0.05]">
+            <div className="divide-y divide-hairline">
               {catchUp.briefing.sections.map((section) => {
                 const meta = CATCHUP_SECTIONS.find((c) => c.key === section.key);
                 return (
@@ -345,23 +345,23 @@ export default async function DashboardPage({
 
       {/* Portfolio bottlenecks across every repository */}
       {portfolio && portfolio.bottlenecks.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-signal-500/20 bg-signal-500/[0.03]">
+        <section className="overflow-hidden rounded-panel border border-signal-500/20 bg-signal-500/[0.03]">
           <div className="flex items-center justify-between border-b border-signal-500/20 bg-signal-500/[0.08] px-5 py-3">
             <div className="flex items-center gap-2">
               <IconAlertCircle className="h-4 w-4 text-signal-300" />
               <h2 className="text-sm font-semibold text-white">{t("dashboard:portfolio_bottlenecks")}</h2>
             </div>
             <span className="font-mono text-[10px] text-signal-300">
-              {portfolio.totalRepos} repos &middot; {portfolio.totalOpenPrs} open PRs
+              {portfolio.totalRepos} repos, {portfolio.totalOpenPrs} open PRs
             </span>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {portfolio.bottlenecks.map((b) => (
               <li key={`${b.repo}:${b.issue}`} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-white">
                     <span className="font-mono text-signal-300">{b.repo}</span>
-                    <span className="mx-1.5 text-ink-600">&middot;</span>
+                    <span className="mx-1.5 text-ink-600">, </span>
                     {b.issue}
                   </p>
                   <p className="mt-1 text-[11px] leading-relaxed text-ink-400">{b.recommendation}</p>
@@ -375,7 +375,7 @@ export default async function DashboardPage({
 
       {/* Preserved Working Contexts */}
       {savedContexts.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-brand-500/20 bg-brand-500/[0.03]">
+        <section className="overflow-hidden rounded-panel border border-brand-500/20 bg-brand-500/[0.03]">
           <div className="flex items-center justify-between border-b border-brand-500/20 bg-brand-500/10 px-5 py-3">
             <div className="flex items-center gap-2">
               <IconBookmark className="h-4 w-4 text-brand-300" />
@@ -387,7 +387,7 @@ export default async function DashboardPage({
           </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-4">
             {savedContexts.map((ctx) => (
-              <div key={ctx.id} className="flex flex-col justify-between rounded-lg border border-white/[0.06] bg-ink-950/60 p-3.5 space-y-3">
+              <div key={ctx.id} className="flex flex-col justify-between rounded-control border border-hairline bg-ink-950/60 p-3.5 space-y-3">
                 <div>
                   <div className="flex items-center justify-between">
                     <Badge tone="neutral">{ctx.kind.toUpperCase()}</Badge>
@@ -403,7 +403,7 @@ export default async function DashboardPage({
                     className="btn btn-ghost btn-sm w-full justify-center text-xs text-brand-300 hover:text-white"
                   >
                     <span>{t("dashboard:resume_working")}</span>
-                    <IconArrowRight className="h-3 w-3" />
+                    <LinkArrow className="h-3 w-3" />
                   </button>
                 </form>
               </div>
@@ -414,15 +414,15 @@ export default async function DashboardPage({
 
       {/* Onboarding State: When zero installations exist */}
       {installations.length === 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="border-b border-white/[0.08] bg-ink-950/70 px-6 py-4">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="border-b border-hairline bg-ink-950/70 px-6 py-4">
             <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-brand-300">
               Getting Started with Baton
             </span>
           </div>
           <div className="grid gap-6 p-6 sm:grid-cols-2">
             <div className="space-y-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-brand-500/30 bg-brand-500/10 text-brand-300">
+              <div className="flex h-10 w-10 items-center justify-center rounded-panel border border-brand-500/30 bg-brand-500/10 text-brand-300">
                 <IconBranch className="h-5 w-5" />
               </div>
               <h2 className="text-sm font-bold text-white">1. Install the GitHub App</h2>
@@ -440,13 +440,13 @@ export default async function DashboardPage({
                 >
                   <IconGitHub className="h-3.5 w-3.5" />
                   <span>{t("dashboard:install_on_github")}</span>
-                  <IconArrowRight className="h-3 w-3" />
+                  <LinkArrow className="h-3 w-3" />
                 </a>
               </div>
             </div>
 
-            <div className="space-y-3 border-t border-white/[0.06] pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.1] bg-ink-900 text-ink-300">
+            <div className="space-y-3 border-t border-hairline pt-4 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-panel border border-hairline bg-ink-900 text-ink-300">
                 <IconActivity className="h-5 w-5" />
               </div>
               <h2 className="text-sm font-bold text-white">2. Automatic State Classification</h2>
@@ -458,7 +458,7 @@ export default async function DashboardPage({
               <div className="pt-1">
                 <Link href="/dashboard/repos" className="btn btn-ghost btn-sm">
                   <span>{t("dashboard:view_repositories")}</span>
-                  <IconArrowRight className="h-3 w-3" />
+                  <LinkArrow className="h-3 w-3" />
                 </Link>
               </div>
             </div>
@@ -470,44 +470,44 @@ export default async function DashboardPage({
       {installations.length > 0 ? (
         <section className="space-y-4">
           {/* Segmented Filter Control */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-3">
             <div className="flex flex-wrap items-center gap-1.5">
               <Link
                 href="/dashboard?view=all"
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeView === "all"
                     ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                    : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                    : "text-ink-400 hover:bg-surface-2 hover:text-white"
                 }`}
               >
                 {t("dashboard:all_prs", { count: items.length })}
               </Link>
               <Link
                 href="/dashboard?view=stalled"
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeView === "stalled"
                     ? "bg-warn-500/15 text-warn-300 font-semibold shadow-sm"
-                    : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                    : "text-ink-400 hover:bg-surface-2 hover:text-white"
                 }`}
               >
                 {t("dashboard:stalled_24h", { count: stalled })}
               </Link>
               <Link
                 href="/dashboard?view=reviewers"
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeView === "reviewers"
                     ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                    : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                    : "text-ink-400 hover:bg-surface-2 hover:text-white"
                 }`}
               >
                 Reviewers ({waitingReviewers})
               </Link>
               <Link
                 href="/dashboard?view=author"
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-control px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeView === "author"
                     ? "bg-brand-500/15 text-brand-200 font-semibold shadow-sm"
-                    : "text-ink-400 hover:bg-white/[0.04] hover:text-white"
+                    : "text-ink-400 hover:bg-surface-2 hover:text-white"
                 }`}
               >
                 Author ({waitingAuthor})
@@ -515,7 +515,7 @@ export default async function DashboardPage({
             </div>
 
             <span className="font-mono text-[11px] text-ink-500">
-              Sorted by wait time &middot; longest first
+              Sorted by wait time, longest first
             </span>
           </div>
 
@@ -545,8 +545,8 @@ export default async function DashboardPage({
               }
             />
           ) : (
-            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-              <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
+            <div className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+              <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
                 <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
                   {filteredItems.length} Pull Request{filteredItems.length === 1 ? "" : "s"} Requiring Action
                 </span>
@@ -554,15 +554,15 @@ export default async function DashboardPage({
                   {tc("dashboard:flagged_stalled", stalled)}
                 </span>
               </div>
-              <ul className="divide-y divide-white/[0.05]">
+              <ul className="divide-y divide-hairline">
                 {filteredItems.map((p) => {
                   const isStalled = p.hoursInState >= 24;
                   return (
-                    <li key={p.prId} className="transition-colors hover:bg-white/[0.02]">
+                    <li key={p.prId} className="transition-colors hover:bg-surface-1">
                       <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
                         <div className="flex min-w-0 flex-1 items-start gap-3.5">
                           <span
-                            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-xs ${
+                            className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-control border text-xs ${
                               isStalled
                                 ? "border-warn-400/30 bg-warn-500/10 text-warn-300"
                                 : "border-brand-500/30 bg-brand-500/10 text-brand-300"
@@ -591,9 +591,9 @@ export default async function DashboardPage({
                               >
                                 {p.owner}/{p.repo}
                               </Link>
-                              <span className="text-ink-600">&middot;</span>
+                              <span className="text-ink-600">, </span>
                               <span>by @{p.authorLogin}</span>
-                              <span className="text-ink-600">&middot;</span>
+                              <span className="text-ink-600">, </span>
                               <span className="flex items-center gap-1 font-mono text-[11px]">
                                 <IconClock className="h-3 w-3 text-ink-500" />
                                 <span className={isStalled ? "font-bold text-warn-300" : "text-ink-300"}>
@@ -618,7 +618,7 @@ export default async function DashboardPage({
                             title={`View ${p.owner}/${p.repo} Board`}
                           >
                             <span>{t("dashboard:repo_board")}</span>
-                            <IconArrowRight className="h-3 w-3" />
+                            <LinkArrow className="h-3 w-3" />
                           </Link>
                           <a
                             href={p.url}
@@ -642,8 +642,8 @@ export default async function DashboardPage({
 
       {/* Recent Activity Ledger Preview */}
       {recent.length > 0 ? (
-        <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-ink-900/60 shadow-sm">
-          <div className="flex items-center justify-between border-b border-white/[0.08] bg-ink-950/70 px-5 py-3">
+        <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
+          <div className="flex items-center justify-between border-b border-hairline bg-ink-950/70 px-5 py-3">
             <span className="font-mono text-[11px] uppercase tracking-wider text-ink-400">
               Recent Baton Actions
             </span>
@@ -652,10 +652,10 @@ export default async function DashboardPage({
               className="text-[11px] font-semibold text-brand-300 transition-colors hover:text-brand-200 inline-flex items-center gap-1"
             >
               <span>{t("dashboard:view_complete_ledger")}</span>
-              <IconArrowRight className="h-3 w-3" />
+              <LinkArrow className="h-3 w-3" />
             </Link>
           </div>
-          <ul className="divide-y divide-white/[0.05]">
+          <ul className="divide-y divide-hairline">
             {recent.map((item) => (
               <ActivityRow key={item.id} item={item} />
             ))}

@@ -10,32 +10,32 @@
 export default function PricingLoading() {
   return (
     <div className="min-h-screen bg-ink-950 text-ink-100" aria-busy="true">
-      <div className="h-16 border-b border-white/[0.06]" />
+      <div className="h-16 border-b border-hairline" />
 
       <main className="container-page py-16 md:py-24">
         <div className="mx-auto max-w-2xl animate-pulse text-center">
-          <div className="mx-auto h-10 w-full max-w-md rounded-lg bg-white/[0.06]" />
-          <div className="mx-auto mt-4 h-4 w-full max-w-lg rounded bg-white/[0.04]" />
+          <div className="mx-auto h-10 w-full max-w-md rounded-control bg-surface-3" />
+          <div className="mx-auto mt-4 h-4 w-full max-w-lg rounded bg-surface-2" />
         </div>
 
         <div className="mt-14 grid gap-8 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="animate-pulse space-y-5 rounded-2xl border border-white/[0.08] bg-ink-900/70 p-8"
+              className="animate-pulse space-y-5 rounded-feature border border-hairline bg-ink-900/70 p-8"
             >
-              <div className="h-5 w-28 rounded bg-white/[0.06]" />
-              <div className="h-3 w-full rounded bg-white/[0.04]" />
-              <div className="border-b border-white/[0.08] pb-6">
-                <div className="h-10 w-24 rounded bg-white/[0.07]" />
-                <div className="mt-3 h-3 w-40 rounded bg-white/[0.04]" />
+              <div className="h-5 w-28 rounded bg-surface-3" />
+              <div className="h-3 w-full rounded bg-surface-2" />
+              <div className="border-b border-hairline pb-6">
+                <div className="h-10 w-24 rounded bg-surface-3" />
+                <div className="mt-3 h-3 w-40 rounded bg-surface-2" />
               </div>
               <div className="space-y-3">
                 {[0, 1, 2, 3, 4, 5].map((row) => (
-                  <div key={row} className="h-3 w-full rounded bg-white/[0.03]" />
+                  <div key={row} className="h-3 w-full rounded bg-surface-2" />
                 ))}
               </div>
-              <div className="h-9 w-full rounded-lg bg-white/[0.05]" />
+              <div className="h-9 w-full rounded-control bg-surface-3" />
             </div>
           ))}
         </div>
