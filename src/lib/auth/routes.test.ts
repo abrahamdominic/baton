@@ -9,6 +9,17 @@ import { rateLimiter } from "@/lib/rate-limit";
 
 import type * as SessionModule from "@/lib/auth/session";
 
+// CI checks out the repository without a local `.env` (it is gitignored), so the
+// OAuth client credentials are pinned here. `isGitHubConfigured` requires both a
+// client id and secret; when they are absent the login route redirects to
+// `/?oauth_config=1` instead of GitHub and these tests fail only in CI.
+// `vi.hoisted` runs before the route imports above are evaluated, so the config
+// module sees these values on first load.
+vi.hoisted(() => {
+  process.env.GITHUB_OAUTH_CLIENT_ID ||= "test-oauth-client-id";
+  process.env.GITHUB_OAUTH_CLIENT_SECRET ||= "test-oauth-client-secret";
+});
+
 const cookieJar = new Map<string, string>();
 vi.mock("next/headers", () => ({
   cookies: async () => ({

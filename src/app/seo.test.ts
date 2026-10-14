@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { PUBLIC_ROUTES, default as sitemap } from "./sitemap";
 import { default as robots } from "./robots";
+import { config } from "@/lib/env-boot";
 
 /**
  * Tests for the indexing surface.
@@ -35,7 +36,7 @@ describe("sitemap", () => {
 
   it("points every entry at the configured site origin", () => {
     for (const entry of sitemap()) {
-      expect(new URL(entry.url).origin).toBe(new URL(process.env.SITE_URL ?? "http://localhost:3000").origin);
+      expect(new URL(entry.url).origin).toBe(new URL(config.SITE_URL).origin);
     }
   });
 

@@ -15,6 +15,17 @@ import {
 import { hashState, verifyOauthState } from "./oauth";
 import { sanitizeNextPath } from "./redirect";
 
+// CI checks out the repository without a local `.env` (it is gitignored), so the
+// OAuth client credentials must be pinned here rather than read from a
+// developer's machine. Without a non-empty client id `oauthAuthorizeUrl` still
+// builds a URL, but its `client_id` parameter is empty and the assertion below
+// fails only in CI. `vi.hoisted` runs before the imports above are evaluated, so
+// the config module sees these values on first load.
+vi.hoisted(() => {
+  process.env.GITHUB_OAUTH_CLIENT_ID ||= "test-oauth-client-id";
+  process.env.GITHUB_OAUTH_CLIENT_SECRET ||= "test-oauth-client-secret";
+});
+
 const BASE = "https://baton-xi.vercel.app";
 const TEST_GITHUB_ID = 5550001;
 const TEST_INSTALLATION_ID = 7770001;
