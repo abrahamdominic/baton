@@ -76,7 +76,7 @@ alter table public.subscriptions
 
 do $$
 declare
-  bad record;
+  bad bigint;
 begin
   select count(*) into bad from public.subscriptions
    where provider_subscription_id is not null
