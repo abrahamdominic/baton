@@ -33,3 +33,20 @@ export function paymentStatusLabel(status: string, translate: Translator): strin
 export function subscriptionStatusLabel(status: string, translate: Translator): string {
   return labelFor(status, "subscription_status", SUBSCRIPTION_STATUSES, translate);
 }
+
+/**
+ * The chain a USDC payment was made on, for display next to the token.
+ *
+ * Payment rows can carry a blank network: a deployment that injects an empty
+ * `USDC_NETWORK` (a PaaS hazard called out in `config.ts`) baked `""` into
+ * existing rows, and migration 0008 had to trim newline-padded values. Passing
+ * that blank straight into a translated `{{network}}` placeholder throws in
+ * non-production and renders a literal `{{network}}` in production, so both are
+ * collapsed to the network this app actually settles on.
+ */
+export const DEFAULT_CRYPTO_NETWORK = "Base";
+
+export function cryptoNetworkLabel(network: string | null | undefined): string {
+  const trimmed = network?.trim();
+  return trimmed ? trimmed : DEFAULT_CRYPTO_NETWORK;
+}

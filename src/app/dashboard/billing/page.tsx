@@ -14,6 +14,7 @@ import {
 import { publicPlans } from "@/lib/billing/plans";
 import { listSubscriptionEvents } from "@/lib/billing/events";
 import {
+  cryptoNetworkLabel,
   paymentStatusLabel,
   subscriptionStatusLabel,
 } from "@/lib/i18n/billing-label";
@@ -421,7 +422,7 @@ export default async function BillingPage() {
                       {pendingPayment.payment_provider === "usdc" ? (
                         <>
                           {t("billing:via_usdc", {
-                            network: pendingPayment.crypto_network ?? "Base",
+                            network: cryptoNetworkLabel(pendingPayment.crypto_network),
                           })}{" "}, {t(`billing:interval_${pendingInterval}`)}
                         </>
                       ) : (
@@ -464,8 +465,9 @@ export default async function BillingPage() {
                       ? `${formatMoney(pendingPayment.amount, pendingPayment.currency)}, ${
                           pendingPayment.payment_provider === "usdc"
                             ? t("billing:via_usdc_short", {
-                                network:
-                                  pendingPayment.crypto_network ?? "Base",
+                                network: cryptoNetworkLabel(
+                                  pendingPayment.crypto_network,
+                                ),
                               })
                             : t("billing:stripe")
                         }, ${t(`billing:interval_${pendingInterval}`)}`
@@ -609,7 +611,7 @@ export default async function BillingPage() {
                         ? "billing:usdc_network"
                         : "billing:credit_card_stripe",
                       p.payment_provider === "usdc"
-                        ? { network: p.crypto_network ?? "Base" }
+                        ? { network: cryptoNetworkLabel(p.crypto_network) }
                         : undefined,
                     )}
                     {p.crypto_transaction_hash ? (

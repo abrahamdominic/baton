@@ -4,6 +4,7 @@ import Link from "next/link";
 import { currentUser } from "@/lib/auth/session";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { getPaymentById } from "@/lib/billing/payments";
+import { cryptoNetworkLabel } from "@/lib/i18n/billing-label";
 import { friendlyPaymentFailure } from "@/lib/billing/errors";
 import { IconCheckCircle, IconClock, IconAlertCircle, IconShield, IconExternalLink } from "@/components/icons";
 import { LinkArrow } from "@/components/marketing/arrow";
@@ -162,7 +163,7 @@ export default async function PaymentResultPage({
             </p>
             <div className="mt-4 rounded-control border border-hairline bg-ink-950 px-3.5 py-3">
               <p className="font-mono text-[11px] uppercase tracking-wider text-ink-500">
-                {t("billing:receiving_wallet", { network: payment.crypto_network ?? "" })}
+                {t("billing:receiving_wallet", { network: cryptoNetworkLabel(payment.crypto_network) })}
               </p>
               <code className="mt-1 block break-all font-mono text-xs text-white">{payment.crypto_wallet_address}</code>
             </div>

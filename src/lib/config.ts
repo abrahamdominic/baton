@@ -23,6 +23,17 @@ function urlOrDefault(fallback: string) {
  */
 const trimmedString = z.string().trim();
 
+// A non-empty env string with a fallback. Like `urlOrDefault`, but for values
+// that have no format to validate. Needed because `z.string().trim().default(x)`
+// applies the default only to `undefined`, so a var a PaaS injected as `""`
+// (never configured) would otherwise flow through as an empty string.
+function stringOrDefault(fallback: string) {
+  return z.preprocess(
+    (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
+    z.string().trim().default(fallback),
+  );
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   SITE_URL: urlOrDefault("https://baton-xi.vercel.app"),
@@ -115,8 +126,8 @@ const envSchema = z.object({
   // 
   // USDC payments on Base.
   // 
-  USDC_NETWORK: trimmedString.default("base"),
-  USDC_TOKEN: trimmedString.default("USDC"),
+  USDC_NETWORK: stringOrDefault("base"),
+  USDC_TOKEN: stringOrDefault("USDC"),
   USDC_PAYMENT_WALLET_ADDRESS: trimmedString.default(""),
   USDC_RPC_URL: urlOrDefault("https://mainnet.base.org"),
   // Native Bridged USDC (axlUSDC) contract on Base.
