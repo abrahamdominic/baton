@@ -46,6 +46,8 @@
   "back_to_admin": "Back to Admin",
   "you_are_admin": "Administrator",
   "back_to_control_panel": "Control Panel",
+  "store_unavailable_title": "Billing store unavailable",
+  "store_unavailable_body": "We could not reach the billing store, so payment, subscription, and system-event figures below may be missing or zero. This is an upstream outage, not an empty account. Please try again shortly.",
   "health_title": "System Health & Queue Status",
   "health_description": "Real-time error logs, warning telemetry, and background worker queue metrics for continuous operation.",
   "health_recent_errors": "Recent Errors (100 Evts)",

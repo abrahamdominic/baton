@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { recentSystemEvents } from "@/lib/billing/system-events";
+import { readBillingStore } from "@/lib/billing/store-read";
 import {
   queueSnapshot,
   jobLatency,
@@ -39,9 +40,13 @@ export default async function AdminHealthPage({
   const params = searchParams ? await searchParams : undefined;
   const severityFilter = params?.severity ?? "all";
 
-  const [events, queue, latency, failures, slowQueries, expiringLeaseCount, metrics, alerts, coverage] =
+  const [eventsRead, queue, latency, failures, slowQueries, expiringLeaseCount, metrics, alerts, coverage] =
     await Promise.all([
-      recentSystemEvents(100),
+      readBillingStore(
+        "admin.system-events",
+        () => recentSystemEvents(100),
+        [] as Awaited<ReturnType<typeof recentSystemEvents>>,
+      ),
       queueSnapshot(),
       jobLatency(),
       recentJobFailures(),
@@ -54,6 +59,13 @@ export default async function AdminHealthPage({
       Promise.resolve(operationalAlerts()),
       automationCoverage(),
     ]);
+
+  // System events live in the external billing store. When it is unreachable
+  // the read throws; an unhandled throw here would replace this health page
+  // (the one page that should still render during an outage) with the generic
+  // error boundary. Instead the table is empty and a notice explains why.
+  const events = eventsRead.value;
+  const billingStoreAvailable = eventsRead.ok;
 
   const errorCount = events.filter((e) => e.severity === "error").length;
   const warnCount = events.filter((e) => e.severity === "warn").length;
@@ -89,6 +101,18 @@ export default async function AdminHealthPage({
           </div>
         }
       />
+
+      {!billingStoreAvailable ? (
+        <div role="alert" className="rounded-panel border border-warn-500/40 bg-warn-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warn-400" />
+            <div>
+              <h2 className="font-semibold text-warn-300">{t("admin:store_unavailable_title")}</h2>
+              <p className="mt-1 text-sm text-warn-200/80">{t("admin:store_unavailable_body")}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">

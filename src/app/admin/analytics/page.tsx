@@ -1,14 +1,17 @@
 import Link from "next/link";
 import {
   adminDashboardMetrics,
+  emptyAdminMetrics,
   formatCurrencyTotal,
   subscriptionStatusCounts,
 } from "@/lib/billing/analytics";
 import { SUBSCRIPTION_STATUSES } from "@/lib/billing/types";
+import { readBillingStore } from "@/lib/billing/store-read";
 import { StatCard, PageHeader } from "@/components/ui";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import {
   IconActivity,
+  IconAlertCircle,
   IconShield,
   IconClock,
   IconArrowLeft,
@@ -19,10 +22,19 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminAnalyticsPage() {
   const { t } = await getTranslatorForRequest();
-  const [counts, metrics] = await Promise.all([
-    subscriptionStatusCounts(),
-    adminDashboardMetrics(),
+  const [countsRead, metricsRead] = await Promise.all([
+    readBillingStore(
+      "analytics.subscription-status",
+      () => subscriptionStatusCounts(),
+      {} as Record<string, number>,
+    ),
+    readBillingStore("admin.dashboard-metrics", () => adminDashboardMetrics(), emptyAdminMetrics()),
   ]);
+  const counts = countsRead.value;
+  const metrics = metricsRead.value;
+  // The billing store is external; its outage must not turn this page into a
+  // fatal error. Any failed read renders an explicit notice instead.
+  const billingStoreAvailable = countsRead.ok && metricsRead.ok;
 
   const totalSubscriptions = Object.values(counts).reduce((a, b) => a + b, 0);
   const totalPayments = Object.values(metrics.payments.byStatus).reduce((a, b) => a + b, 0);
@@ -51,6 +63,18 @@ export default async function AdminAnalyticsPage() {
           </div>
         }
       />
+
+      {!billingStoreAvailable ? (
+        <div role="alert" className="rounded-panel border border-warn-500/40 bg-warn-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warn-400" />
+            <div>
+              <h2 className="font-semibold text-warn-300">{t("admin:store_unavailable_title")}</h2>
+              <p className="mt-1 text-sm text-warn-200/80">{t("admin:store_unavailable_body")}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Summary KPI Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">

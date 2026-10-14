@@ -112,3 +112,26 @@ export async function adminDashboardMetrics() {
     payments,
   };
 }
+
+/** The zeroed shape a caller renders when the billing store cannot be read. */
+export type AdminDashboardMetrics = Awaited<ReturnType<typeof adminDashboardMetrics>>;
+
+/**
+ * Zeroed metrics for the billing-store outage path.
+ *
+ * Admin pages read their figures from the external billing store (Supabase).
+ * When that store is unreachable the read throws, and an unhandled throw would
+ * replace the whole control panel with the generic error boundary. The page
+ * falls back to this shape and renders an explicit "unavailable" notice, so the
+ * operator sees "cannot read the store" rather than a plausible-looking row of
+ * zeroes.
+ */
+export function emptyAdminMetrics(): AdminDashboardMetrics {
+  return {
+    activeSubscriptions: 0,
+    pendingSubscriptions: 0,
+    pastDue: 0,
+    canceledOrExpired: 0,
+    payments: { byCurrency: {}, byProvider: {}, byStatus: {}, totalRows: 0 },
+  };
+}

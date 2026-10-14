@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { adminDashboardMetrics, formatCurrencyTotal } from "@/lib/billing/analytics";
+import { adminDashboardMetrics, emptyAdminMetrics, formatCurrencyTotal } from "@/lib/billing/analytics";
 import { listPaymentsAdmin } from "@/lib/billing/payments";
 import { recentSystemEvents } from "@/lib/billing/system-events";
+import { readBillingStore } from "@/lib/billing/store-read";
+import type { PaymentRecord } from "@/lib/billing/types";
 import { StatCard, PageHeader } from "@/components/ui";
 import { getTranslatorForRequest } from "@/lib/i18n/server-t";
 import { paymentStatusLabel } from "@/lib/i18n/billing-label";
@@ -37,13 +39,24 @@ function statusTone(status: string): string {
 
 export default async function AdminOverviewPage() {
   const { t, locale, formatDateTime, formatTime } = await getTranslatorForRequest();
-  const [metrics, userCount, latestPayments, latestEvents, repoCount] = await Promise.all([
-    adminDashboardMetrics(),
+  const [metricsRead, userCount, paymentsRead, eventsRead, repoCount] = await Promise.all([
+    readBillingStore("admin.dashboard-metrics", () => adminDashboardMetrics(), emptyAdminMetrics()),
     prisma.user.count(),
-    listPaymentsAdmin({ limit: 6 }),
-    recentSystemEvents(6),
+    readBillingStore("payments.admin-list", () => listPaymentsAdmin({ limit: 6 }), [] as PaymentRecord[]),
+    readBillingStore(
+      "admin.system-events",
+      () => recentSystemEvents(6),
+      [] as Awaited<ReturnType<typeof recentSystemEvents>>,
+    ),
     prisma.repo.count().catch(() => 0),
   ]);
+  const metrics = metricsRead.value;
+  const latestPayments = paymentsRead.value;
+  const latestEvents = eventsRead.value;
+  // The billing store is an external service; its outage must not replace this
+  // control panel with the generic error boundary. When any read failed the page
+  // renders a notice instead of presenting empty tables as if they were real.
+  const billingStoreAvailable = metricsRead.ok && paymentsRead.ok && eventsRead.ok;
 
   // Never summed across currencies: each currency is reported on its own.
   const revenueByCurrency = Object.entries(metrics.payments.byCurrency);
@@ -71,6 +84,21 @@ export default async function AdminOverviewPage() {
           </div>
         }
       />
+
+      {/* A billing-store outage is an upstream fault, not an empty dashboard.
+          Say so explicitly: a silent render of zeroes would look like "nothing
+          is happening", which is the exact opposite of the truth. */}
+      {!billingStoreAvailable ? (
+        <div role="alert" className="rounded-panel border border-warn-500/40 bg-warn-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <IconAlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warn-400" />
+            <div>
+              <h2 className="font-semibold text-warn-300">{t("admin:store_unavailable_title")}</h2>
+              <p className="mt-1 text-sm text-warn-200/80">{t("admin:store_unavailable_body")}</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* 4 Executive Stat Cards */}
       <section className="grid grid-cols-2 gap-3.5 sm:gap-4 lg:grid-cols-4">

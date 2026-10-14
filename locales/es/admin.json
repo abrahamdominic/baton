@@ -46,6 +46,8 @@
   "back_to_admin": "Volver a administración",
   "you_are_admin": "Administrador",
   "back_to_control_panel": "Panel de control",
+  "store_unavailable_title": "Tienda de facturación no disponible",
+  "store_unavailable_body": "No pudimos contactar con la tienda de facturación, por lo que las cifras de pagos, suscripciones y eventos del sistema que aparecen a continuación pueden faltar o ser cero. Se trata de una interrupción del proveedor, no de una cuenta vacía. Vuelve a intentarlo en breve.",
   "health_title": "Estado del sistema y de la cola",
   "health_description": "Registros de errores en tiempo real, telemetría de avisos y métricas de la cola de workers en segundo plano para una operación continua.",
   "health_recent_errors": "Errores recientes (100 evts)",
