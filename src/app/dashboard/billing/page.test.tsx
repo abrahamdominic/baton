@@ -196,3 +196,51 @@ describe("billing page states", () => {
     expect(html).toContain("Team");
   });
 });
+
+describe("billing store outage", () => {
+  // The billing store is a separate service (Supabase). When a read to it fails
+  // (the production symptom was `payments.list failed: TypeError: fetch failed`),
+  // the page must degrade to an explicit notice instead of a fatal server error
+  // that replaces the entire dashboard with the generic error boundary.
+  it("renders a notice instead of throwing when the store is unreachable", async () => {
+    const outage = new Error("payments.list failed: TypeError: fetch failed");
+    m.getEntitlement.mockResolvedValue({ hasPaidAccess: false, subscription: null });
+    m.listPaymentsForUser.mockRejectedValue(outage);
+    m.listSubscriptionEvents.mockRejectedValue(outage);
+    m.getCurrentSubscription.mockRejectedValue(outage);
+    m.listSubscriptionsForUser.mockRejectedValue(outage);
+    m.billingPortalAvailability.mockRejectedValue(outage);
+
+    const html = await render();
+
+    expect(html).toContain("Billing details are temporarily unavailable");
+    expect(html).not.toContain("Technical details");
+  });
+
+  it("keeps an available plan visible while the store is down", async () => {
+    const outage = new Error("payments.list failed: TypeError: fetch failed");
+    const s = sub();
+    m.getEntitlement.mockResolvedValue({ hasPaidAccess: true, subscription: s });
+    m.listPaymentsForUser.mockRejectedValue(outage);
+    m.listSubscriptionEvents.mockRejectedValue(outage);
+    m.getCurrentSubscription.mockRejectedValue(outage);
+    m.listSubscriptionsForUser.mockRejectedValue(outage);
+    m.billingPortalAvailability.mockRejectedValue(outage);
+
+    const html = await render();
+
+    // The plan comes from the entitlement that was already resolved, so the
+    // customer still sees what they are on despite the history being unreadable.
+    expect(html).toContain("Team");
+    expect(html).toContain("Billing details are temporarily unavailable");
+  });
+
+  it("does not show the notice when the store reads succeed", async () => {
+    m.getEntitlement.mockResolvedValue({ hasPaidAccess: false, subscription: null });
+    m.getCurrentSubscription.mockResolvedValue(null);
+
+    const html = await render();
+
+    expect(html).not.toContain("Billing details are temporarily unavailable");
+  });
+});

@@ -194,6 +194,8 @@
   "started": "started {{date}}",
   "status_arrow": "status to ",
   "status_generic": "Status",
+  "store_unavailable_body": "We could not reach our billing provider, so your payment history and plan controls may be incomplete. Your access is unaffected. Please try again shortly.",
+  "store_unavailable_title": "Billing details are temporarily unavailable",
   "stripe": "Stripe",
   "subscription_status": "Subscription status",
   "subscription_status_active": "Active",

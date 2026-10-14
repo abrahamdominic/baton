@@ -194,6 +194,8 @@
   "started": "iniciado el {{date}}",
   "status_arrow": "estado to ",
   "status_generic": "Estado",
+  "store_unavailable_body": "No pudimos contactar a nuestro proveedor de facturación, por lo que tu historial de pagos y los controles del plan pueden estar incompletos. Tu acceso no se ve afectado. Vuelve a intentarlo en breve.",
+  "store_unavailable_title": "Los detalles de facturación no están disponibles temporalmente",
   "stripe": "Stripe",
   "subscription_status": "Estado de la suscripción",
   "subscription_status_active": "Activa",

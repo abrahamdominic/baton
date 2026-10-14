@@ -11,6 +11,7 @@ import {
   listPaymentsForUser,
   findOpenPaymentForSubscription,
 } from "@/lib/billing/payments";
+import { readBillingStore } from "@/lib/billing/store-read";
 import { publicPlans } from "@/lib/billing/plans";
 import { listSubscriptionEvents } from "@/lib/billing/events";
 import {
@@ -81,28 +82,53 @@ export default async function BillingPage() {
   const user = await currentUser();
   if (!user) redirect("/auth/login?next=/dashboard/billing");
 
-  const [entitlement, payments, events] = await Promise.all([
+  const [entitlement, paymentsRead, eventsRead] = await Promise.all([
     getEntitlement(user.id),
-    listPaymentsForUser(user.id, 20),
-    listSubscriptionEvents(user.id, 20),
+    // The payment ledger is an optional history section. Its store (Supabase) is
+    // a separate service, so a failed read is degraded to an "unavailable"
+    // notice rather than allowed to replace the whole page with a fatal error.
+    readBillingStore("payments.list", () => listPaymentsForUser(user.id, 20), []),
+    readBillingStore(
+      "subscription-events.list",
+      () => listSubscriptionEvents(user.id, 20),
+      [],
+    ),
   ]);
+  const payments = paymentsRead.value;
+  const events = eventsRead.value;
 
-  const subscription =
-    entitlement.subscription ?? (await getCurrentSubscription(user.id));
+  const subscriptionRead = entitlement.subscription
+    ? { value: entitlement.subscription, ok: true }
+    : await readBillingStore(
+        "subscription.current",
+        () => getCurrentSubscription(user.id),
+        null,
+      );
+  const subscription = subscriptionRead.value;
   const plan = subscription?.plan ?? null;
 
   // A pending checkout is any still-open pre-payment subscription: `pending`
   // (mid-checkout / orphaned-but-visible) or `payment_failed` (its payment did
   // not clear). We surface it separately so the user can continue or cancel it;
   // a cancelled checkout never permanently blocks a new purchase.
-  const allSubs = await listSubscriptionsForUser(user.id);
+  const subscriptionsRead = await readBillingStore(
+    "subscriptions.list",
+    () => listSubscriptionsForUser(user.id),
+    [],
+  );
+  const allSubs = subscriptionsRead.value;
   const pendingCheckout =
     allSubs.find(
       (s) => s.status === "pending" || s.status === "payment_failed",
     ) ?? null;
-  const pendingPayment = pendingCheckout
-    ? await findOpenPaymentForSubscription(pendingCheckout.id)
-    : null;
+  const pendingPaymentRead = pendingCheckout
+    ? await readBillingStore(
+        "payments.open-for-subscription",
+        () => findOpenPaymentForSubscription(pendingCheckout.id),
+        null,
+      )
+    : { value: null, ok: true };
+  const pendingPayment = pendingPaymentRead.value;
   const pendingInterval =
     (pendingPayment?.metadata as { interval?: string } | null)?.interval ===
     "annual"
@@ -118,7 +144,22 @@ export default async function BillingPage() {
 
   // Offered only where it can work: a Stripe-backed subscription has a customer
   // to open the portal for, a USDC or gifted one does not.
-  const portal = await billingPortalAvailability(user.id);
+  const portalRead = await readBillingStore(
+    "billing-portal.availability",
+    () => billingPortalAvailability(user.id),
+    { available: false, reason: "no_subscription" as const, subscriptionId: null },
+  );
+  const portal = portalRead.value;
+
+  // Any failed read means the billing store could not be reached. Surface it
+  // once, explicitly, instead of letting an empty history read as "no payments".
+  const billingStoreAvailable =
+    paymentsRead.ok &&
+    eventsRead.ok &&
+    subscriptionRead.ok &&
+    subscriptionsRead.ok &&
+    pendingPaymentRead.ok &&
+    portalRead.ok;
 
   // Stripe needs the customer to act on their card before the plan can renew.
   // This is shown instead of, not in addition to, the generic failure notice,
@@ -156,6 +197,26 @@ export default async function BillingPage() {
           </Link>
         }
       />
+
+      {/* Billing store outage. The plan card below still renders from the
+          entitlement we could resolve; this makes the missing history and plan
+          controls an explicit, honest state instead of a silent gap. */}
+      {!billingStoreAvailable ? (
+        <section
+          role="alert"
+          className="flex items-start gap-3 rounded-panel border border-warn-500/30 bg-warn-500/10 p-4"
+        >
+          <IconAlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warn-300" />
+          <div>
+            <h2 className="text-sm font-semibold text-warn-200">
+              {t("billing:store_unavailable_title")}
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-warn-200/80">
+              {t("billing:store_unavailable_body")}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       {/* Active Plan Card */}
       <section className="overflow-hidden rounded-panel border border-hairline bg-ink-900/60 shadow-sm">
