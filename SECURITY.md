@@ -43,6 +43,26 @@ manifest deliberately.
 - `next` redirect targets are validated to be internal paths only
   (open-redirect protection).
 
+## Response headers
+
+Set in `next.config.ts` and `src/middleware.ts`, and asserted by
+`src/security-headers.test.ts`.
+
+- Content-Security-Policy with a per-request nonce and `strict-dynamic`;
+  `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`.
+- `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+  strict-origin-when-cross-origin`, and HSTS with preload.
+- `Cross-Origin-Opener-Policy` and `Cross-Origin-Resource-Policy` both
+  `same-origin`. Baton uses redirect-based OAuth and never a popup, so this
+  breaks nothing.
+- `Permissions-Policy` denies camera, microphone, geolocation, and payment.
+- `X-Frame-Options: DENY`, kept alongside `frame-ancestors` for older clients.
+- `X-Robots-Tag: noindex, nofollow` on auth, dashboard, admin, api, and install
+  paths. Production browser source maps are disabled.
+
+The severity rated review with the current findings, including the disposition
+of every `npm audit` advisory, lives in `docs/SECURITY-REVIEW.md`.
+
 ## Tenant isolation
 
 - Dashboard reads are scoped to installations owned by, or matching the login

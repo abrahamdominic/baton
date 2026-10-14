@@ -96,12 +96,16 @@ export default async function SecurityPage() {
                   <Td className="font-mono text-xs">{t(`security:${p.key}_access`)}</Td>
                   <Td>
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
-                        p.denied
-                          ? "border-signal-500/30 bg-signal-500/10 text-signal-400"
-                          : "border-brand-400/30 bg-brand-500/10 text-brand-300"
+                      className={`inline-flex items-center gap-1.5 text-[11px] font-medium ${
+                        p.denied ? "text-signal-400" : "text-brand-300"
                       }`}
                     >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          p.denied ? "bg-signal-400" : "bg-brand-400"
+                        }`}
+                        aria-hidden="true"
+                      />
                       {t(`security:${p.key}_status`)}
                     </span>
                   </Td>

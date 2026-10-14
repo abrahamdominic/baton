@@ -455,7 +455,7 @@ export function PricingView({
               }`}
             >
               {t.highlightBadge ? (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-brand-400/50 bg-brand-500 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-white shadow-sm">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-brand-400/50 bg-brand-500 px-3 py-0.5 text-[11px] font-semibold text-white shadow-sm">
                   {t.highlightBadge}
                 </div>
               ) : null}
@@ -468,13 +468,13 @@ export function PricingView({
 
                 <div className="mt-6 border-b border-hairline pb-6">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-extrabold tracking-tight text-white font-mono">
+                    <span className="tabular text-4xl font-extrabold tracking-tight text-white">
                       {price}
                     </span>
                     <span className="text-xs text-ink-400">{period}</span>
                   </div>
                   {note ? (
-                    <p className="mt-2 text-[11px] font-mono text-brand-300">
+                    <p className="mt-2 text-[11px] text-brand-300">
                       {note}
                     </p>
                   ) : null}
@@ -482,7 +482,7 @@ export function PricingView({
               </div>
 
               <div className="mt-6 flex-1">
-                <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-ink-400">
+                <span className="text-xs font-medium text-ink-400">
                   Included features:
                 </span>
                 <ul className="mt-3.5 space-y-3">
@@ -540,7 +540,7 @@ export function PricingView({
         <div className="overflow-x-auto rounded-panel border border-hairline bg-ink-900/60">
           <table className="w-full min-w-[680px] text-left text-xs">
             <thead>
-              <tr className="border-b border-hairline bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
+              <tr className="border-b border-hairline bg-ink-950/80 text-xs font-medium text-ink-400">
                 <th scope="col" className="py-4 ps-6 pe-4 font-semibold">
                   {t("billing:th_capability")}
                 </th>
@@ -568,7 +568,7 @@ export function PricingView({
                   <tr className="bg-ink-950/90">
                     <td
                       colSpan={columns.length + 1}
-                      className="py-2.5 pl-6 font-mono text-[10px] font-bold uppercase tracking-wider text-brand-400"
+                      className="py-2.5 pl-6 text-xs font-semibold text-brand-400"
                     >
                       {sec.category}
                     </td>

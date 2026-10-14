@@ -113,6 +113,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   // The CSP nonce minted per request by the middleware. Next stamps its own
   // inline flight-data scripts automatically; these two are ours, and an inline
+  // script withoutiddleware. Next stamps its own
+  // inline flight-data scripts automatically; these two are ours, and an inline
   // script without the nonce is blocked, which would drop the theme and locale
   // prepaint and leave a flash on every page load.
   const nonce = (await headers()).get("x-nonce") ?? undefined;

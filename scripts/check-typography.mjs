@@ -170,7 +170,15 @@ function collectFiles(dir, acc) {
     return acc;
   }
   for (const entry of entries) {
-    if (entry.name.startsWith(".") && entry.name !== ".env.example") continue;
+    // Hidden files are build/config noise, except the two that ship text
+    // contracts we want checked: `.env.example` and `.well-known/security.txt`.
+    if (
+      entry.name.startsWith(".") &&
+      entry.name !== ".env.example" &&
+      entry.name !== ".well-known"
+    ) {
+      continue;
+    }
     const full = join(dir, entry.name);
     if (entry.isDirectory()) {
       if (SKIP_DIRS.has(entry.name)) continue;

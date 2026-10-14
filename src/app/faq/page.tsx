@@ -80,7 +80,7 @@ export default async function FaqPage() {
           {FAQ_GROUPS.map((group) => {
             return (
               <div key={group.categoryKey} className="space-y-4">
-                <h2 className="font-mono text-xs font-bold uppercase tracking-wider text-brand-300">
+                <h2 className="text-sm font-semibold text-brand-300">
                   {t(group.categoryKey)}
                 </h2>
                 <div className="space-y-3">

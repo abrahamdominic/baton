@@ -44,7 +44,7 @@ export function RoiCalculator() {
     <div className="rounded-panel border border-hairline-strong bg-ink-900 p-6 sm:p-8">
       <div className="grid items-start gap-8 lg:grid-cols-[1.1fr_1fr]">
         <div className="space-y-6">
-          <h3 className="font-mono text-[11px] uppercase tracking-wide text-ink-400">
+          <h3 className="text-sm font-medium text-ink-300">
             {t("marketing:roi_inputs_heading")}
           </h3>
 
@@ -53,7 +53,7 @@ export function RoiCalculator() {
               <label htmlFor="team-size" className="text-sm font-medium text-ink-50">
                 {t("marketing:roi_team_size")}
               </label>
-              <span className="tabular font-mono text-sm font-semibold text-brand-300">
+              <span className="tabular text-sm font-semibold text-brand-300">
                 {tc("marketing:roi_team_value", teamSize)}
               </span>
             </div>
@@ -71,7 +71,7 @@ export function RoiCalculator() {
               className="mt-2 w-full cursor-pointer accent-brand-500"
             />
             {/* Range endpoints are numbers, not copy, so they need no translation. */}
-            <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-500">
+            <div className="mt-1 flex justify-between tabular text-[11px] text-ink-500">
               <span>3</span>
               <span>75</span>
               <span>150+</span>
@@ -83,7 +83,7 @@ export function RoiCalculator() {
               <label htmlFor="weekly-prs" className="text-sm font-medium text-ink-50">
                 {t("marketing:roi_weekly_prs")}
               </label>
-              <span className="tabular font-mono text-sm font-semibold text-brand-300">
+              <span className="tabular text-sm font-semibold text-brand-300">
                 {tc("marketing:roi_weekly_value", prsPerWeek)}
               </span>
             </div>
@@ -96,7 +96,7 @@ export function RoiCalculator() {
               onChange={(e) => setPrsPerWeek(Number(e.target.value))}
               className="mt-2 w-full cursor-pointer accent-brand-500"
             />
-            <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-500">
+            <div className="mt-1 flex justify-between tabular text-[11px] text-ink-500">
               <span>5</span>
               <span>125</span>
               <span>250+</span>
@@ -108,7 +108,7 @@ export function RoiCalculator() {
               <label htmlFor="avg-wait" className="text-sm font-medium text-ink-50">
                 {t("marketing:roi_avg_wait")}
               </label>
-              <span className="tabular font-mono text-sm font-semibold text-warn-300">
+              <span className="tabular text-sm font-semibold text-warn-300">
                 {tc("marketing:roi_days_value", avgWaitDays, {
                   count: avgWaitDays,
                   hours: formatNumber(avgWaitDays * 24),
@@ -125,7 +125,7 @@ export function RoiCalculator() {
               onChange={(e) => setAvgWaitDays(Number(e.target.value))}
               className="mt-2 w-full cursor-pointer accent-brand-500"
             />
-            <div className="mt-1 flex justify-between font-mono text-[11px] text-ink-500">
+            <div className="mt-1 flex justify-between tabular text-[11px] text-ink-500">
               <span>1</span>
               <span>3.5</span>
               <span>7</span>
@@ -133,13 +133,13 @@ export function RoiCalculator() {
           </div>
 
           <div className="rounded-control border border-hairline bg-ink-950/60 p-4">
-            <h4 className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            <h4 className="text-xs font-medium text-ink-400">
               {t("marketing:roi_formula_heading")}
             </h4>
             <p className="mt-1.5 text-xs leading-reading text-ink-300">
               {t("marketing:roi_formula_text")}
             </p>
-            <p className="tabular mt-2 font-mono text-xs text-brand-300">
+            <p className="tabular mt-2 text-xs text-brand-300">
               {formatNumber(totalPrsMonth)} x {formatNumber(savedPerPr)} ={" "}
               {formatNumber(savedStallHours)} hours
             </p>
@@ -150,12 +150,12 @@ export function RoiCalculator() {
         </div>
 
         <div className="rounded-panel border border-brand-500/30 bg-ink-950/70 p-6 sm:p-7">
-          <h3 className="font-mono text-[11px] uppercase tracking-wide text-brand-300">
+          <h3 className="text-sm font-medium text-brand-300">
             {t("marketing:roi_impact_eyebrow")}
           </h3>
 
           <div className="mt-4 border-b border-hairline pb-5">
-            <p className="tabular font-mono text-4xl font-semibold tracking-tight text-ink-50 sm:text-5xl">
+            <p className="tabular text-4xl font-semibold tracking-tight text-ink-50 sm:text-5xl">
               {formatNumber(savedStallHours)}{" "}
               <span className="text-xl font-normal text-brand-300">
                 {tc("marketing:roi_saved_hours_unit", savedStallHours)}
@@ -166,7 +166,7 @@ export function RoiCalculator() {
                 count: formatNumber(totalPrsMonth),
               })}
             </p>
-            <p className="tabular mt-2 font-mono text-[11px] text-ink-500">
+            <p className="tabular mt-2 tabular text-[11px] text-ink-500">
               {t("marketing:roi_range_label")}: {formatNumber(rangeLow)} to{" "}
               {formatNumber(savedStallHours)} {tc("marketing:roi_saved_hours_unit", savedStallHours)}
             </p>
@@ -178,7 +178,7 @@ export function RoiCalculator() {
                 <IconZap className="h-3.5 w-3.5 text-signal-400" aria-hidden="true" />
                 <span>{t("marketing:roi_turnaround")}</span>
               </div>
-              <p className="tabular mt-1 font-mono text-lg font-semibold text-signal-400">
+              <p className="tabular mt-1 text-lg font-semibold text-signal-400">
                 {t("marketing:roi_turnaround_value", { hours: formatNumber(BATON_TARGET_WAIT_HOURS) })}
               </p>
               <p className="text-[11px] text-ink-500">
@@ -193,7 +193,7 @@ export function RoiCalculator() {
                 <IconCheckCircle className="h-3.5 w-3.5 text-brand-300" aria-hidden="true" />
                 <span>{t("marketing:roi_slack_saved")}</span>
               </div>
-              <p className="tabular mt-1 font-mono text-lg font-semibold text-ink-50">
+              <p className="tabular mt-1 text-lg font-semibold text-ink-50">
                 {formatNumber(chaseMessagesAvoided)}
               </p>
               <p className="text-[11px] text-ink-500">{t("marketing:roi_slack_quote")}</p>

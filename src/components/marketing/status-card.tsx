@@ -110,7 +110,7 @@ export function StatusCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <StateBadge tone={model.tone} label={model.stateLabel} />
-            <span className="rounded-full border border-hairline bg-ink-850 px-2.5 py-0.5 font-mono text-[11px] text-ink-300">
+            <span className="text-[11px] font-medium text-ink-300">
               {model.turnPrefix} {model.ownerLabel}
             </span>
           </div>
@@ -124,19 +124,19 @@ export function StatusCard({
 
         <dl className="mt-3.5 grid gap-3 rounded-control border border-hairline bg-ink-950/40 p-3 text-xs sm:grid-cols-3">
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            <dt className="text-xs font-medium text-ink-400">
               {model.whoseTurnHeading}
             </dt>
             <dd className="mt-0.5 font-medium text-ink-50">{model.owner}</dd>
           </div>
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            <dt className="text-xs font-medium text-ink-400">
               {model.checksHeading}
             </dt>
             <dd className="mt-0.5 font-medium text-ink-200">{model.checks}</dd>
           </div>
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            <dt className="text-xs font-medium text-ink-400">
               {model.thresholdHeading}
             </dt>
             <dd className="tabular mt-0.5 font-mono text-ink-300">{model.threshold}</dd>
@@ -164,7 +164,7 @@ export function StatusCard({
         ) : null}
       </div>
 
-      <footer className="flex items-center justify-between gap-3 border-t border-hairline bg-ink-950/30 px-4 py-2 font-mono text-[11px] text-ink-500">
+      <footer className="flex items-center justify-between gap-3 border-t border-hairline bg-ink-950/30 px-4 py-2 text-xs text-ink-500">
         <span>{model.footerLeft}</span>
         <span>{model.footerRight}</span>
       </footer>

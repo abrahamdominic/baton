@@ -163,7 +163,7 @@ export default async function DocsPage() {
         </div>
 
         <section id="installation" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-brand-300">
             <IconTerminal className="h-4 w-4" />
             <span>{t("docs:s1_eyebrow")}</span>
           </div>
@@ -199,7 +199,7 @@ export default async function DocsPage() {
         </section>
 
         <section id="states" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-brand-300">
             <IconActivity className="h-4 w-4" />
             <span>{t("docs:s2_eyebrow")}</span>
           </div>
@@ -209,7 +209,7 @@ export default async function DocsPage() {
           <div className="mt-8 overflow-x-auto rounded-panel border border-hairline bg-ink-900/60">
             <table className="w-full min-w-[640px] text-left text-xs">
               <thead>
-                <tr className="border-b border-hairline bg-ink-950/80 font-mono text-[11px] uppercase text-ink-400">
+                <tr className="border-b border-hairline bg-ink-950/80 text-xs font-medium text-ink-400">
                   <th scope="col" className="py-3.5 ps-6 pe-4 font-semibold">
                     {t("docs:s2_th_state")}
                   </th>
@@ -259,7 +259,7 @@ export default async function DocsPage() {
         </section>
 
         <section id="thresholds" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-brand-300">
             <IconBell className="h-4 w-4" />
             <span>{t("docs:s3_eyebrow")}</span>
           </div>
@@ -280,14 +280,14 @@ export default async function DocsPage() {
         </section>
 
         <section id="architecture" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-brand-300">
             <IconShield className="h-4 w-4" />
             <span>{t("docs:s4_eyebrow")}</span>
           </div>
           <h2 className="mt-2 text-2xl font-bold text-white">{t("docs:s4_h2")}</h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-300">{t("docs:s4_body")}</p>
 
-          <div className="mt-8 space-y-3 rounded-panel border border-hairline bg-ink-950 p-6 font-mono text-xs text-ink-300">
+          <div className="mt-8 space-y-3 rounded-panel border border-hairline bg-ink-950 p-6 text-sm leading-reading text-ink-300">
             <p className="font-bold text-brand-300">{t("docs:s4_order_heading")}</p>
             <ol className="list-decimal space-y-2 ps-5 text-ink-400">
               {PIPELINE_STEPS.map((key) => (
@@ -300,7 +300,7 @@ export default async function DocsPage() {
         </section>
 
         <section id="self-host" className="mt-20 scroll-mt-24 border-t border-hairline pt-16">
-          <div className="flex items-center gap-2 font-mono text-xs uppercase text-brand-300">
+          <div className="flex items-center gap-2 text-xs font-medium text-brand-300">
             <IconGitHub className="h-4 w-4" />
             <span>{t("docs:s5_eyebrow")}</span>
           </div>

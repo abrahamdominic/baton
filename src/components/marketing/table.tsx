@@ -21,7 +21,7 @@ export function Table({
     <div className={cx("overflow-x-auto rounded-panel border border-hairline", className)}>
       <table className="w-full min-w-[44rem] border-collapse text-left text-sm">
         <caption className="sr-only">{caption}</caption>
-        <thead className="bg-ink-950/60 font-mono text-[11px] uppercase tracking-wide text-ink-400">
+        <thead className="bg-ink-950/60 text-xs font-semibold text-ink-400">
           {head}
         </thead>
         <tbody className="divide-y divide-hairline">{children}</tbody>

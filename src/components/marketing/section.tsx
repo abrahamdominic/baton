@@ -47,9 +47,11 @@ export function Section({
 }
 
 /**
- * Section header: a small monospace label, a display headline and a short lede,
- * all left aligned. The label and headline are tied together with aria so a
- * screen reader announces the visual grouping.
+ * Section header: a short plain label, a display headline and a short lede,
+ * all left aligned. The label uses the text face in sentence case rather than a
+ * monospace caps eyebrow, which is a template tell and reads as decoration; the
+ * label and headline are tied together with aria so a screen reader announces
+ * the visual grouping.
  */
 export function SectionHeader({
   label,
@@ -66,9 +68,7 @@ export function SectionHeader({
 }) {
   return (
     <div className={cx("max-w-measure", className)}>
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-brand-300">
-        {label}
-      </p>
+      <p className="text-sm font-medium text-brand-300">{label}</p>
       <h2 id={id} className="mt-3 text-display-3 text-ink-50">
         {title}
       </h2>

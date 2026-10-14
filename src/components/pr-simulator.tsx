@@ -140,7 +140,7 @@ export function PrSimulator() {
         aria-label={t("marketing:sim_scenarios_label")}
         className="flex flex-wrap items-center gap-1.5 border-b border-hairline bg-ink-950/60 p-2.5"
       >
-        <span className="px-2 font-mono text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+        <span className="px-2 text-xs font-medium text-ink-400">
           {t("marketing:sim_scenarios_label")}
         </span>
         {SCENARIOS.map((s) => {
@@ -188,19 +188,22 @@ export function PrSimulator() {
         <StatusCard model={model} />
 
         <div className="mt-3 rounded-panel border border-hairline bg-ink-950/60 p-4">
-          <h3 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-ink-400">
+          <h3 className="text-sm font-semibold text-ink-200">
             {t("marketing:sim_under_hood")} {t("marketing:sim_rule_heading")}
           </h3>
           <dl className="mt-3 grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+              <dt className="text-xs font-medium text-ink-400">
                 {t("marketing:sim_rule_conditions_label")}
               </dt>
               <dd className="mt-1.5">
                 <ul className="space-y-1.5 text-xs text-ink-200">
                   {[1, 2, 3].map((c) => (
                     <li key={c} className="flex items-start gap-2">
-                      <span className="mt-0.5 font-mono text-[10px] text-brand-400">{`0${c}`}</span>
+                      <span
+                        className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink-600"
+                        aria-hidden="true"
+                      />
                       <span>{t(`marketing:sim_${n}_cond_${c}`)}</span>
                     </li>
                   ))}
@@ -209,7 +212,7 @@ export function PrSimulator() {
             </div>
             <div className="space-y-3">
               <div>
-                <dt className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+                <dt className="text-xs font-medium text-ink-400">
                   {t("marketing:sim_rule_outcome_label")}
                 </dt>
                 <dd className="mt-1 flex flex-wrap items-center gap-2">
@@ -225,7 +228,7 @@ export function PrSimulator() {
                 </dd>
               </div>
               <div>
-                <dt className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+                <dt className="text-xs font-medium text-ink-400">
                   {t("marketing:sim_rule_nudge_label")}
                 </dt>
                 <dd className="mt-1 text-xs leading-reading text-ink-300">

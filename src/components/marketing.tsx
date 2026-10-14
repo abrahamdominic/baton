@@ -161,17 +161,11 @@ export async function MarketingFooter() {
               {t("marketing:footer_blurb")}
             </p>
 
-            <div className="mt-6 flex flex-wrap items-center gap-2 text-xs text-ink-400">
-              <span className="flex items-center gap-1.5 rounded-full border border-signal-500/20 bg-signal-500/10 px-2.5 py-1 font-mono text-[11px] text-signal-400">
-                <span className="h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
-                {t("marketing:footer_evidence_badge")}
-              </span>
-              <span className="rounded-full border border-hairline bg-ink-900 px-2.5 py-1 font-mono text-[11px] text-ink-400">
-                {t("marketing:footer_license_badge")}
-              </span>
-            </div>
+            <p className="mt-6 text-xs text-ink-400">
+              {t("marketing:footer_evidence_badge")}. {t("marketing:footer_license_badge")}.
+            </p>
 
-            <p className="mt-8 font-mono text-[11px] text-ink-500">
+            <p className="mt-8 text-[11px] text-ink-500">
               {year} {SITE_NAME}
             </p>
           </div>
@@ -179,7 +173,7 @@ export async function MarketingFooter() {
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
             {FOOTER_COLS.map((col) => (
               <div key={col.titleKey}>
-                <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-ink-300">
+                <h2 className="text-sm font-semibold text-ink-100">
                   {t(col.titleKey)}
                 </h2>
                 <ul className="mt-3.5 space-y-2.5">

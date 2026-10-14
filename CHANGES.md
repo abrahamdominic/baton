@@ -4,6 +4,47 @@ This document records the redesign of the Baton marketing surface. It is written
 to the same typography contract the site now enforces, so it is checked by
 `scripts/check-typography.mjs` alongside the rest of the repository.
 
+## Diagnosis
+
+The previous marketing surface read as a generic generated template. Twelve
+specific tells gave it away. Each is listed here with the decision that removed
+it. The rest of this document records the work.
+
+1. Everything was a pill. Owner names, trust items, licenses, and section
+   counts all sat in `rounded-full` chips. Decision: a pill is reserved for a
+   real state or a real tag. Metadata is plain text with a hairline or a small
+   marker.
+2. Every section carried a monospace uppercase eyebrow label. Decision: eyebrows
+   use the text face at a small size and sentence case; monospace is reserved
+   for code, state identifiers, and identifiers.
+3. The how-it-works section was numbered `01`, `02`, `03` with a tag line above
+   each title. Decision: the steps carry the baton marker instead, an alternating
+   turn and wait mark that encodes whose move it is.
+4. The hero was a centered gradient glow behind an icon tile and a stock
+   headline. Decision: the hero leads with the product's real artifact, the
+   pinned status comment, rendered as HTML. The headline is unchanged.
+5. Copy made claims the repository could not support. Decision: every figure has
+   a source or an explicit note that it is a directional estimate, and the copy
+   was reconciled with `README.md` and `SECURITY.md`.
+6. There was an icon for everything. Decision: an icon appears only where it
+   disambiguates a control or a state; there are no decorative icon tiles.
+7. Em dashes and unicode arrows did the work of punctuation. Decision: both are
+   removed everywhere, prose is rewritten, and a single hand drawn SVG arrow is
+   the only arrow in the system.
+8. Middle dots and bullet glyphs separated metadata. Decision: separators are
+   spaces, commas, or a new line, never a glyph.
+9. The accent was a purple to blue gradient and every surface was heavily
+   rounded. Decision: one OKLCH brand accent for "your turn", a second for
+   "waiting", flat fills, and borders carry emphasis instead of glow.
+10. Radii and spacing were inconsistent. Decision: two radii, `control` for
+    inputs and small surfaces and `panel` for cards and sections.
+11. The comparison shouted, with crossed out checkmarks against ticked boxes.
+    Decision: the comparison is a plain table with a named column per approach
+    and a row about what each one stores.
+12. The page contradicted the documentation. Decision: the security section, the
+    security page, and the locale files now repeat the model in `SECURITY.md`,
+    and the calculator math was corrected. See "Copy and accuracy fixes".
+
 ## Typography contract
 
 The site, its metadata, its alt text, its aria labels, its locale files, and its
@@ -88,8 +129,38 @@ are visible, a skip link targets `#main`, reduced motion is honored, and the
 simulator is a real `tablist` and `tabpanel` with `aria-live`. The mobile menu is
 a dialog that traps focus, closes on Escape, and restores focus to its trigger.
 
+## Security hardening
+
+The visual pass also closed a set of header and supply chain gaps.
+
+- `next.config.ts` now sets `Cross-Origin-Opener-Policy: same-origin` and
+  `Cross-Origin-Resource-Policy: same-origin`, extends `Permissions-Policy` with
+  `payment=()`, and turns production browser source maps off. `X-Frame-Options`
+  stays as a belt for clients that predate `frame-ancestors`, which the CSP
+  already sets.
+- `public/.well-known/security.txt` publishes the disclosure contact, a policy
+  URL, an expiry, and the canonical URL. The typography scanner now reaches the
+  `.well-known` directory, so the file is checked like the rest of the site.
+- `src/security-headers.test.ts` imports `next.config.ts` and asserts every
+  header, `poweredByHeader: false`, the source map flag, `payment=()`, and that
+  private routes carry `X-Robots-Tag: noindex, nofollow`.
+- `docs/SECURITY-REVIEW.md` is a severity rated review with a status and owner
+  per finding, including the disposition of the `npm audit` results.
+
+## Tooling and CI
+
+- `.github/workflows/ci.yml` runs install, typecheck, lint, unit tests, and the
+  build on every push and pull request.
+- `.github/workflows/codeql.yml` runs CodeQL analysis for JavaScript and
+  TypeScript on a schedule and on pull requests.
+- `.github/workflows/secret-scan.yml` runs a secret scan on every push.
+- `.github/dependabot.yml` keeps npm dependencies and the workflow actions
+  current on a weekly cadence.
+
 ## Out of scope
 
 Webhook handling, the classifier in `src/lib/engine`, the Prisma schema, the
 Supabase configuration, and the API routes were not changed. Dashboard behavior
-and data logic are unchanged.
+and data logic are unchanged. The visual system was extended to the dashboard
+shell and the shared dashboard surfaces as styling only; no query, mutation, or
+route was touched.

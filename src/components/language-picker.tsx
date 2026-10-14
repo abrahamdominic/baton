@@ -116,7 +116,7 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
               {l.id !== l.lang ? <span className="truncate">, {l.tag}</span> : null}
               {/* Direction is stated in text, not only by layout (lan.md §15). */}
               {l.direction === "rtl" ? (
-                <span className="shrink-0 rounded border border-hairline px-1 font-mono text-[9px] uppercase">
+                <span className="shrink-0 rounded border border-hairline px-1 text-[10px] font-medium">
                   {t("language:rtl_badge")}
                 </span>
               ) : null}
@@ -138,7 +138,7 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wider text-ink-500">
+          <p className="text-xs font-medium text-ink-400">
             {t("language:current")}
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-white">
@@ -150,7 +150,7 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
 , {current.englishName}, {current.badge}
                 </span>
                 {current.direction === "rtl" ? (
-                  <span className="rounded border border-hairline px-1.5 py-0.5 font-mono text-[9px] uppercase text-ink-400">
+                  <span className="rounded border border-hairline px-1.5 py-0.5 text-[10px] font-medium text-ink-400">
                     {t("language:rtl_badge")}
                   </span>
                 ) : null}
@@ -231,7 +231,7 @@ export function LanguagePicker({ languages }: { languages: LanguageEntry[] }) {
             <section key={group} aria-labelledby={`${listId}-${group}`}>
               <h3
                 id={`${listId}-${group}`}
-                className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-500"
+                className="mb-2 text-xs font-medium text-ink-400"
               >
                 {t(`language:group_${group}`)}
               </h3>

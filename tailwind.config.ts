@@ -105,8 +105,11 @@ const config: Config = {
         content: "72rem",
       },
       borderRadius: {
+        // Two radii for the whole system: a small control radius and one for
+        // large surfaces. `feature` is an alias so older call sites keep working
+        // without introducing a third value.
         control: "0.5rem",
-        panel: "0.75rem",
+        panel: "1rem",
         feature: "1rem",
       },
       spacing: {

@@ -106,7 +106,7 @@ export function StateMatrix() {
       <div className="rounded-panel border border-hairline-strong bg-ink-900 p-6">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-wide text-brand-300">
+            <p className="text-xs font-medium text-brand-300">
               {t("marketing:spec_eyebrow")}
             </p>
             <h3 className="mt-1 text-xl text-ink-50">{t(`marketing:matrix_${selected.key}_label`)}</h3>
@@ -118,7 +118,7 @@ export function StateMatrix() {
 
         <div className="mt-5 space-y-4 text-xs">
           <div>
-            <h4 className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+            <h4 className="text-xs font-medium text-ink-400">
               {t("marketing:trigger_heading")}
             </h4>
             <p className="mt-1 max-w-measure text-sm leading-reading text-ink-200">
@@ -128,16 +128,16 @@ export function StateMatrix() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-control border border-hairline bg-ink-950/60 p-3">
-              <h4 className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+              <h4 className="text-xs font-medium text-ink-400">
                 {t("marketing:whose_turn_heading")}
               </h4>
               <p className="mt-1 text-sm font-semibold text-ink-50">{t(selected.turnKey)}</p>
             </div>
             <div className="rounded-control border border-hairline bg-ink-950/60 p-3">
-              <h4 className="font-mono text-[10px] uppercase tracking-wide text-ink-500">
+              <h4 className="text-xs font-medium text-ink-400">
                 {t("marketing:threshold_heading")}
               </h4>
-              <p className="tabular mt-1 font-mono text-sm font-semibold text-brand-300">
+              <p className="tabular mt-1 text-sm font-semibold text-brand-300">
                 {defaultThreshold(selected.key)}
               </p>
             </div>

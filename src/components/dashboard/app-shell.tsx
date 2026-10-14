@@ -162,7 +162,7 @@ function SidebarNav({
     <nav className="flex-1 space-y-6 overflow-y-auto px-3.5 py-4" aria-label={t("navigation:dashboard_navigation")}>
       <div>
         <div className="flex items-center justify-between px-3 pb-2">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-500">
+          <p className="text-[11px] font-semibold tracking-wide text-ink-500">
             Workspace
           </p>
         </div>
@@ -175,7 +175,7 @@ function SidebarNav({
 
       <div>
         <div className="flex items-center justify-between px-3 pb-2">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-500">
+          <p className="text-[11px] font-semibold tracking-wide text-ink-500">
             Account &amp; Billing
           </p>
         </div>
@@ -189,7 +189,7 @@ function SidebarNav({
       {user.role === "admin" ? (
         <div className="pt-2">
           <div className="flex items-center justify-between px-3 pb-2">
-            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-500">
+            <p className="text-[11px] font-semibold tracking-wide text-ink-500">
               Administration
             </p>
           </div>

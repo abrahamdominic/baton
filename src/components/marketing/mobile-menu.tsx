@@ -118,7 +118,7 @@ export function MobileMenu({
             className="absolute inset-x-3 top-3 rounded-panel border border-hairline-strong bg-ink-900 p-4 shadow-lift"
           >
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-semibold uppercase tracking-wide text-ink-400">
+              <span className="text-xs font-medium text-ink-400">
                 {navLabel}
               </span>
               <ThemeToggle className="h-8" />

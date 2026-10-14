@@ -7,16 +7,23 @@ import type { NextConfig } from "next";
  */
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
+  // `frame-ancestors 'none'` in the CSP is the modern control; X-Frame-Options
+  // is kept for clients that predate it. The two must agree.
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()",
   },
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
   },
+  // Isolate this browsing context from windows opened by other origins, and
+  // stop other origins from reading our responses as a subresource. Baton uses
+  // redirect-based OAuth, never a popup, so `same-origin` breaks nothing.
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
 ];
 
 const noIndexTag = { key: "X-Robots-Tag", value: "noindex, nofollow" };
@@ -36,6 +43,9 @@ const privateRoutes: { source: string }[] = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Never ship browser source maps to production: they hand an attacker the
+  // original TypeScript, comments and file layout for zero runtime benefit.
+  productionBrowserSourceMaps: false,
   serverExternalPackages: [
     "@prisma/client",
     "@octokit/rest",

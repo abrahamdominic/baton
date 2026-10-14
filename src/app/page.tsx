@@ -123,10 +123,15 @@ const COMPARISONS = [1, 2, 3, 4, 5].map((n) => ({
   slackKey: `marketing:compare_row_${n}_slack`,
 }));
 
-const STEPS = [
-  { step: "01", titleKey: "marketing:how_step_1_title", descKey: "marketing:how_step_1_body", badgeKey: "marketing:how_step_1_badge" },
-  { step: "02", titleKey: "marketing:how_step_2_title", descKey: "marketing:how_step_2_body", badgeKey: "marketing:how_step_2_badge" },
-  { step: "03", titleKey: "marketing:how_step_3_title", descKey: "marketing:how_step_3_body", badgeKey: "marketing:how_step_3_badge" },
+/**
+ * The handoff sequence. Presented as three stages of one baton pass, marked
+ * with the turn and wait accents, never as numbered steps with tag labels: the
+ * accent moving along the line is the only decoration the system allows.
+ */
+const STEPS: ReadonlyArray<{ titleKey: string; descKey: string; mark: "turn" | "wait" }> = [
+  { titleKey: "marketing:how_step_1_title", descKey: "marketing:how_step_1_body", mark: "turn" },
+  { titleKey: "marketing:how_step_2_title", descKey: "marketing:how_step_2_body", mark: "wait" },
+  { titleKey: "marketing:how_step_3_title", descKey: "marketing:how_step_3_body", mark: "turn" },
 ];
 
 const PROBLEM_ROWS = [1, 2, 3, 4].map((n) => ({
@@ -247,8 +252,7 @@ export default async function LandingPage({
         <section className="container-content pt-14 pb-section-sm md:pt-20">
           <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
             <div>
-              <p className="inline-flex items-center gap-2 rounded-full border border-hairline-strong bg-ink-900/60 px-3 py-1 font-mono text-xs text-ink-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
+              <p className="text-sm font-medium text-brand-300">
                 {t("marketing:hero_badge_app")}
               </p>
               <h1 className="mt-6 text-display-1 text-ink-50">
@@ -268,20 +272,20 @@ export default async function LandingPage({
                 </Button>
               </div>
 
-              <ul className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-ink-400">
-                {["marketing:hero_trust_no_code", "marketing:hero_trust_install", "marketing:hero_trust_free"].map(
-                  (key) => (
-                    <li key={key} className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-signal-500" aria-hidden="true" />
-                      {t(key)}
-                    </li>
-                  ),
-                )}
-              </ul>
+              <p className="mt-6 text-sm text-ink-400">
+                {[
+                  "marketing:hero_trust_no_code",
+                  "marketing:hero_trust_install",
+                  "marketing:hero_trust_free",
+                ]
+                  .map((key) => t(key))
+                  .join(". ")}
+                .
+              </p>
             </div>
 
             <div>
-              <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-ink-500">
+              <p className="mb-2 text-xs font-medium text-ink-400">
                 {t("marketing:hero_proof_label")}
               </p>
               <StatusCard model={heroModel} className="animate-rise-in" />
@@ -320,10 +324,10 @@ export default async function LandingPage({
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <div className="rounded-feature border border-danger-500/20 bg-danger-500/[0.03] p-6 sm:p-7">
               <div className="flex items-center justify-between gap-3 border-b border-danger-500/20 pb-4">
-                <h3 className="font-mono text-xs font-semibold uppercase tracking-wide text-danger-400">
+                <h3 className="text-sm font-semibold text-danger-400">
                   {t("marketing:without_title")}
                 </h3>
-                <span className="rounded bg-danger-500/10 px-2 py-0.5 font-mono text-xs text-danger-300">
+                <span className="text-xs text-danger-300 tabular">
                   {t("marketing:without_cycle")}
                 </span>
               </div>
@@ -339,10 +343,10 @@ export default async function LandingPage({
 
             <div className="rounded-feature border border-signal-500/30 bg-signal-500/[0.03] p-6 sm:p-7">
               <div className="flex items-center justify-between gap-3 border-b border-signal-500/20 pb-4">
-                <h3 className="font-mono text-xs font-semibold uppercase tracking-wide text-signal-400">
+                <h3 className="text-sm font-semibold text-signal-400">
                   {t("marketing:with_title")}
                 </h3>
-                <span className="rounded bg-signal-500/15 px-2 py-0.5 font-mono text-xs text-signal-300">
+                <span className="text-xs text-signal-300 tabular">
                   {t("marketing:with_cycle")}
                 </span>
               </div>
@@ -361,21 +365,21 @@ export default async function LandingPage({
         {/* How it works */}
         <Section id="how-it-works">
           <SectionHeader label={t("marketing:nav_how_it_works")} title={t("marketing:how_title")} lede={t("marketing:how_subtitle")} />
-          <ol className="mt-10 grid gap-6 md:grid-cols-3">
+          <ol className="mt-10 grid gap-x-6 gap-y-8 md:grid-cols-3">
             {STEPS.map((item) => (
-              <li key={item.step} className="rounded-feature border border-hairline bg-ink-900/60 p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="tabular font-mono text-xs font-semibold text-brand-400">{item.step}</span>
-                  <span className="rounded border border-hairline bg-ink-950 px-2 py-0.5 font-mono text-[10px] text-ink-400">
-                    {t(item.badgeKey)}
-                  </span>
-                </div>
-                <h3 className="mt-4 text-base font-semibold text-ink-50">{t(item.titleKey)}</h3>
+              <li key={item.titleKey} className="border-t border-hairline pt-5">
+                <span
+                  className={`baton-marker ${
+                    item.mark === "turn" ? "baton-marker-turn" : "baton-marker-wait"
+                  }`}
+                  aria-hidden="true"
+                />
+                <h3 className="mt-3 text-base font-semibold text-ink-50">{t(item.titleKey)}</h3>
                 <p className="mt-2 text-sm leading-reading text-ink-300">{t(item.descKey)}</p>
               </li>
             ))}
           </ol>
-          <p className="mt-6 rounded-control border border-hairline bg-ink-900/40 p-4 font-mono text-xs leading-reading text-ink-400">
+          <p className="mt-6 max-w-measure text-sm leading-reading text-ink-400">
             {t("marketing:how_note")}
           </p>
         </Section>
@@ -458,10 +462,8 @@ export default async function LandingPage({
                   <Th scope="row">{t(`marketing:security_${row.key}_scope`)}</Th>
                   <Td>
                     <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide ${
-                        row.denied
-                          ? "border-signal-500/30 bg-signal-500/10 text-signal-400"
-                          : "border-brand-400/30 bg-brand-500/10 text-brand-300"
+                      className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                        row.denied ? "text-signal-400" : "text-brand-300"
                       }`}
                     >
                       {t(`marketing:security_${row.key}_access`)}
